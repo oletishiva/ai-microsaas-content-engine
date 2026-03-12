@@ -218,6 +218,7 @@ curl -X POST http://localhost:3000/api/generate-video \
    | `CLOUDINARY_CLOUD_NAME` | ❌ | For public video URLs (recommended on Railway) |
    | `CLOUDINARY_API_KEY` | ❌ | For Cloudinary uploads |
    | `CLOUDINARY_API_SECRET` | ❌ | For Cloudinary uploads |
+   | `RAILPACK_DEPLOY_APT_PACKAGES` | ✅ | **Required for video generation.** Set to `ffmpeg libatomic1` so FFmpeg is available at runtime. |
 
 3. **FFmpeg** is installed automatically via `nixpacks.toml`.
 
@@ -225,7 +226,13 @@ curl -X POST http://localhost:3000/api/generate-video \
 
 5. **Health check**: `GET https://your-app.railway.app/health` → `{"status":"ok"}`
 
-6. **Generate video**:
+6. **Add FFmpeg for video generation** – In Variables, add:
+   ```
+   RAILPACK_DEPLOY_APT_PACKAGES=ffmpeg libatomic1
+   ```
+   This installs FFmpeg in the runtime image. Without it, video generation fails with "FFmpeg validation failed".
+
+7. **Generate video**:
    ```bash
    curl -X POST https://your-app.railway.app/api/generate-video \
      -H "Content-Type: application/json" \
