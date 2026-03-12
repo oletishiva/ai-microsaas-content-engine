@@ -13,8 +13,8 @@ require("dotenv").config();
 
 /**
  * Validates that required API keys for the core pipeline are present.
- * Call at startup to fail fast with a clear error message.
- * @throws {Error} If any required key is missing
+ * In production (Railway), we allow startup so the domain is visible; validation happens on first API call.
+ * @throws {Error} If any required key is missing (only when not on Railway)
  */
 function validateRequiredKeys() {
     const required = [
@@ -28,12 +28,19 @@ function validateRequiredKeys() {
         { key: "YOUTUBE_REFRESH_TOKEN", name: "YouTube Refresh Token" },
     ];
     const missing = required.filter(({ key }) => !process.env[key] || String(process.env[key]).trim() === "");
+    const isRailway = !!process.env.RAILWAY_PROJECT_ID || !!process.env.RAILWAY_PUBLIC_DOMAIN;
     if (missing.length > 0) {
-        const list = missing.map((m) => `${m.name} (${m.key})`).join(", ");
-        throw new Error(
-            `Missing required API keys: ${list}. ` +
-                "Add them to Railway Variables or .env and restart."
-        );
+        if (isRailway) {
+            console.warn(
+                `[apiKeys] Missing: ${missing.map((m) => m.key).join(", ")}. ` +
+                    "Add them in Railway → web service → Variables tab. App will start but /api/generate-video will fail."
+            );
+        } else {
+            const list = missing.map((m) => `${m.name} (${m.key})`).join(", ");
+            throw new Error(
+                `Missing required API keys: ${list}. Add them to .env and restart.`
+            );
+        }
     }
     const missingOptional = optional.filter(({ key }) => !process.env[key] || String(process.env[key]).trim() === "");
     if (missingOptional.length === optional.length) {

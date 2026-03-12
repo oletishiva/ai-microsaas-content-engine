@@ -64,12 +64,18 @@ app.use((req, res, next) => {
 
 // ── 5. Mount routes ───────────────────────────────────────────────────────
 
-// Root – API info
+// Root – API info (includes Railway domain when deployed)
 app.get("/", (req, res) => {
+    const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
+    const baseUrl = domain ? `https://${domain}` : null;
     res.json({
         name: "AI Content Engine",
         version: "1.0.0",
         status: "running",
+        ...(baseUrl && {
+            url: baseUrl,
+            youtubeRedirectUri: `${baseUrl}/oauth2callback`,
+        }),
         endpoints: {
             health: "GET /health",
             generateVideo: "POST /api/generate-video",
