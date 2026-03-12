@@ -18,6 +18,22 @@ const { uploadToYouTube } = require("../services/youtubeUploader");
 const { uploadVideoToCloudinary } = require("../services/cloudinaryUploader");
 
 /**
+ * GET /api/debug-keys – verify env vars (no secrets). Remove after fixing.
+ */
+router.get("/debug-keys", (req, res) => {
+    const eleven = process.env.ELEVENLABS_API_KEY;
+    res.json({
+        ELEVENLABS_API_KEY: {
+            set: !!eleven,
+            length: eleven ? String(eleven).trim().length : 0,
+            startsWith: eleven ? String(eleven).trim().slice(0, 8) + "..." : null,
+        },
+        OPENAI_API_KEY: { set: !!process.env.OPENAI_API_KEY },
+        PEXELS_API_KEY: { set: !!process.env.PEXELS_API_KEY },
+    });
+});
+
+/**
  * POST /api/generate-video
  * Body: { "topic": "Your product or marketing angle" }
  */
