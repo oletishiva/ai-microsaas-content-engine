@@ -68,6 +68,7 @@ app.use((req, res, next) => {
 app.get("/", (req, res) => {
     const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
     const baseUrl = domain ? `https://${domain}` : null;
+    const eleven = process.env.ELEVENLABS_API_KEY;
     res.json({
         name: "AI Content Engine",
         version: "1.0.0",
@@ -79,7 +80,12 @@ app.get("/", (req, res) => {
         endpoints: {
             health: "GET /health",
             generateVideo: "POST /api/generate-video",
-            debugKeys: "GET /api/debug-keys",
+        },
+        // Debug: env vars (safe – no secrets). Remove after fixing ElevenLabs.
+        debug: {
+            ELEVENLABS_API_KEY: { set: !!eleven, length: eleven ? String(eleven).trim().length : 0 },
+            OPENAI_API_KEY: { set: !!process.env.OPENAI_API_KEY },
+            PEXELS_API_KEY: { set: !!process.env.PEXELS_API_KEY },
         },
     });
 });
