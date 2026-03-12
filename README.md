@@ -232,6 +232,14 @@ curl -X POST http://localhost:3000/api/generate-video \
      -d '{"topic": "AI productivity tips"}'
    ```
 
+### Fix: "secret App: not found" build error
+
+If builds fail with `secret App: not found`, try:
+
+1. **Add a dummy variable** in Railway → Variables: create variable `App` with value `1` (satisfies the secret lookup).
+2. **Rename the service** from "App" to "web" in Settings if your service is named "App".
+3. **Check variable references** – remove any variable using `${{App.xxx}}` if you have no service named "App".
+
 ### n8n Integration
 - **URL**: `https://your-app.railway.app/api/generate-video`
 - **Method**: POST
