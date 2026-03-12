@@ -64,12 +64,20 @@ async function generateVoice(script) {
         logger.info("VoiceGenerator", `Narration saved to: ${outputPath}`);
         return outputPath;
     } catch (err) {
-        logger.error("VoiceGenerator", "ElevenLabs TTS error", err.response?.data || err);
-        const msg =
-            err.response?.data?.detail?.message ||
-            err.response?.data?.detail ||
-            err.response?.data?.message ||
-            err.message;
+        const data = err.response?.data;
+        const status = err.response?.status;
+        let msg = err.message;
+        if (data && typeof data === "object" && !Buffer.isBuffer(data)) {
+            msg = data.detail?.message || data.detail || data.message || JSON.stringify(data);
+        } else if (data && (typeof data === "string" || Buffer.isBuffer(data))) {
+            try {
+                const parsed = JSON.parse(Buffer.isBuffer(data) ? data.toString() : data);
+                msg = parsed?.detail?.message || parsed?.detail || parsed?.message || JSON.stringify(parsed);
+            } catch (_) {
+                msg = String(data).slice(0, 200);
+            }
+        }
+        logger.error("VoiceGenerator", "ElevenLabs TTS error", { status, msg });
         throw new Error(`Voice generation failed: ${msg}`);
     }
 }

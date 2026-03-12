@@ -127,6 +127,30 @@ app.get("/test-eleven", async (req, res) => {
     }
 });
 
+// Debug: test ElevenLabs TTS endpoint (same as voiceGenerator). Remove after fixing.
+app.get("/test-eleven-tts", async (req, res) => {
+    const axios = require("axios");
+    const apiKey = (process.env.ELEVENLABS_API_KEY || "").trim();
+    const voiceId = (process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL").trim();
+    try {
+        const r = await axios.post(
+            `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+            { text: "Test.", model_id: "eleven_multilingual_v2" },
+            {
+                headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+                responseType: "arraybuffer",
+            }
+        );
+        res.json({ success: true, audioLength: r.data?.byteLength });
+    } catch (e) {
+        res.json({
+            success: false,
+            status: e.response?.status,
+            error: e.response?.data ? JSON.stringify(e.response.data) : e.message,
+        });
+    }
+});
+
 // Main pipeline route
 app.use("/api", generateVideoRouter);
 
