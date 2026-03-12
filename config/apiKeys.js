@@ -26,6 +26,9 @@ function validateRequiredKeys() {
         { key: "YOUTUBE_CLIENT_ID", name: "YouTube Client ID" },
         { key: "YOUTUBE_CLIENT_SECRET", name: "YouTube Client Secret" },
         { key: "YOUTUBE_REFRESH_TOKEN", name: "YouTube Refresh Token" },
+        { key: "CLOUDINARY_CLOUD_NAME", name: "Cloudinary Cloud Name" },
+        { key: "CLOUDINARY_API_KEY", name: "Cloudinary API Key" },
+        { key: "CLOUDINARY_API_SECRET", name: "Cloudinary API Secret" },
     ];
     const missing = required.filter(({ key }) => !process.env[key] || String(process.env[key]).trim() === "");
     const isRailway = !!process.env.RAILWAY_PROJECT_ID || !!process.env.RAILWAY_PUBLIC_DOMAIN;
@@ -42,9 +45,17 @@ function validateRequiredKeys() {
             );
         }
     }
-    const missingOptional = optional.filter(({ key }) => !process.env[key] || String(process.env[key]).trim() === "");
-    if (missingOptional.length === optional.length) {
+    const missingYouTube = optional
+        .filter((o) => o.key.startsWith("YOUTUBE_"))
+        .filter(({ key }) => !process.env[key] || String(process.env[key]).trim() === "");
+    if (missingYouTube.length === 3) {
         console.warn("[apiKeys] YouTube credentials not set – uploads will be skipped.");
+    }
+    const missingCloudinary = optional
+        .filter((o) => o.key.startsWith("CLOUDINARY_"))
+        .filter(({ key }) => !process.env[key] || String(process.env[key]).trim() === "");
+    if (missingCloudinary.length === 3) {
+        console.warn("[apiKeys] Cloudinary credentials not set – videoUrl will not be returned; videoPath will be used.");
     }
 }
 
@@ -80,4 +91,10 @@ module.exports = {
     !!process.env.YOUTUBE_REFRESH_TOKEN &&
     process.env.YOUTUBE_CLIENT_ID !== "your_google_client_id_here" &&
     process.env.YOUTUBE_REFRESH_TOKEN !== "your_youtube_refresh_token_here",
+
+  // Cloudinary upload is optional – when set, returns videoUrl and deletes local file
+  hasCloudinaryConfig:
+    !!process.env.CLOUDINARY_CLOUD_NAME &&
+    !!process.env.CLOUDINARY_API_KEY &&
+    !!process.env.CLOUDINARY_API_SECRET,
 };

@@ -9,11 +9,13 @@ const express = require("express");
 const router = express.Router();
 const logger = require("../../utils/logger");
 
+const fs = require("fs");
 const { generateScript } = require("../services/scriptGenerator");
 const { generateVoice } = require("../services/voiceGenerator");
 const { fetchImages } = require("../services/imageFetcher");
 const { generateVideo, validatePipeline } = require("../services/videoGenerator");
 const { uploadToYouTube } = require("../services/youtubeUploader");
+const { uploadVideoToCloudinary } = require("../services/cloudinaryUploader");
 
 /**
  * POST /api/generate-video
@@ -62,8 +64,9 @@ router.post("/generate-video", async (req, res) => {
         const outputFilename = `video_${timestamp}.mp4`;
         logger.info("Pipeline", "STEP 5/6 – Rendering video...");
         const videoPath = await generateVideo(imagePaths, audioPath, script, hook, outputFilename);
+        logger.info("Pipeline", "Video generated", { videoPath });
 
-        // STEP 6: Upload to YouTube (optional)
+        // STEP 6: Upload to YouTube (optional, uses local file)
         let youtubeUrl = null;
         if (apiKeys.hasYouTubeConfig) {
             logger.info("Pipeline", "STEP 6/6 – Uploading to YouTube...");
@@ -81,15 +84,38 @@ router.post("/generate-video", async (req, res) => {
             logger.info("Pipeline", "STEP 6/6 – Skipping YouTube (credentials not configured)");
         }
 
-        logger.info("Pipeline", `Complete! Video saved: ${videoPath}`);
+        // Upload to Cloudinary and return public video URL
+        let videoUrl = null;
+        if (apiKeys.hasCloudinaryConfig) {
+            logger.info("Pipeline", "Uploading to Cloudinary...");
+            try {
+                videoUrl = await uploadVideoToCloudinary(videoPath, `video_${timestamp}`);
+                logger.info("Pipeline", "Upload completed. Public video URL returned.", { videoUrl });
+                // Delete local file after successful upload to save disk space
+                if (fs.existsSync(videoPath)) {
+                    fs.unlinkSync(videoPath);
+                    logger.info("Pipeline", "Local video file cleaned up");
+                }
+            } catch (uploadErr) {
+                logger.warn("Pipeline", "Cloudinary upload failed (video still saved locally):", uploadErr.message);
+            }
+        }
 
-        return res.status(200).json({
+        logger.info("Pipeline", "Complete!");
+
+        const response = {
             success: true,
             topic,
             script,
-            videoPath,
             youtubeUrl,
-        });
+        };
+        if (videoUrl) {
+            response.videoUrl = videoUrl;
+        } else {
+            response.videoPath = videoPath;
+        }
+
+        return res.status(200).json(response);
     } catch (err) {
         logger.error("Pipeline", "Pipeline failed", err);
         return res.status(500).json({
