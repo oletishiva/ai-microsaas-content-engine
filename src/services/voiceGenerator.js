@@ -49,7 +49,7 @@ async function generateVoice(script) {
             },
             {
                 headers: {
-                    "xi-api-key": ELEVENLABS_API_KEY,
+                    "xi-api-key": String(ELEVENLABS_API_KEY || "").trim(),
                     "Content-Type": "application/json",
                 },
                 responseType: "arraybuffer",
