@@ -1,0 +1,38 @@
+{
+  "name": "ai-microsaas-content-engine",
+  "version": "1.0.0",
+  "description": "AI Micro SaaS – Auto-generates short-form vertical videos using OpenAI, ElevenLabs, Pexels, FFmpeg and uploads to YouTube.",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "youtube:auth": "node scripts/get-youtube-refresh-token.js",
+    "youtube:test": "node scripts/test-youtube-upload.js",
+    "youtube:verify": "node scripts/verify-youtube-token.js",
+    "test:ffmpeg": "node scripts/test-ffmpeg-pipeline.js"
+  },
+  "keywords": [
+    "ai",
+    "content",
+    "video",
+    "saas",
+    "openai",
+    "elevenlabs",
+    "ffmpeg"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.8",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "fluent-ffmpeg": "^2.1.2",
+    "form-data": "^4.0.0",
+    "googleapis": "^140.0.1",
+    "openai": "^4.47.1",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

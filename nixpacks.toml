@@ -1,0 +1,3 @@
+# Railway / Nixpacks – ensures FFmpeg is available for video generation
+[phases.setup]
+nixPkgs = ["ffmpeg"]
