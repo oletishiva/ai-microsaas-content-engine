@@ -1,0 +1,12 @@
+node_modules
+.env
+.env.*
+.git
+.gitignore
+output
+media
+*.mp3
+*.mp4
+.DS_Store
+README.md
+docs

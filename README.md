@@ -32,13 +32,15 @@ Topic (text input)
 ```
 ai-microsaas-content-engine/
 ├── config/
-│   └── apiKeys.js              # Central API key loader
+│   ├── apiKeys.js              # Central API key loader
+│   └── cloudinary.js            # Cloudinary config (video uploads)
 ├── src/
 │   ├── services/
 │   │   ├── scriptGenerator.js  # OpenAI script generation
 │   │   ├── voiceGenerator.js   # ElevenLabs TTS
 │   │   ├── imageFetcher.js     # Pexels image downloader
 │   │   ├── videoGenerator.js   # FFmpeg video assembler
+│   │   ├── cloudinaryUploader.js # Cloudinary video upload
 │   │   └── youtubeUploader.js  # YouTube OAuth2 uploader
 │   ├── routes/
 │   │   └── generateVideo.js    # POST /api/generate-video
@@ -92,6 +94,9 @@ cp .env .env.local  # optional – or just edit .env directly
 | `YOUTUBE_CLIENT_ID` | Google Cloud Console → Credentials |
 | `YOUTUBE_CLIENT_SECRET` | Google Cloud Console → Credentials |
 | `YOUTUBE_REFRESH_TOKEN` | See YouTube OAuth2 setup below |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary Dashboard → Settings |
+| `CLOUDINARY_API_KEY` | Cloudinary Dashboard → Settings |
+| `CLOUDINARY_API_SECRET` | Cloudinary Dashboard → Settings |
 
 ### 3. YouTube OAuth2 Setup (one-time)
 
@@ -111,6 +116,19 @@ cp .env .env.local  # optional – or just edit .env directly
    npm run youtube:test
    ```
    This creates a 2-second test video with FFmpeg and uploads it to YouTube (private). No paid APIs used.
+
+### 4. Cloudinary Setup (optional – for public video URLs)
+
+1. Create a free account at [Cloudinary](https://cloudinary.com/)
+2. Go to **Dashboard** → **Settings** (or [console](https://console.cloudinary.com/))
+3. Copy your **Cloud name**, **API Key**, and **API Secret**
+4. Add to `.env`:
+   ```
+   CLOUDINARY_CLOUD_NAME=your_cloud_name
+   CLOUDINARY_API_KEY=your_api_key
+   CLOUDINARY_API_SECRET=your_api_secret
+   ```
+5. When configured, generated videos are uploaded to Cloudinary and the API returns a public `videoUrl` instead of a local `videoPath`. The local file is deleted after upload to save disk space (important for Railway).
 
 ---
 
@@ -139,13 +157,24 @@ curl -X POST http://localhost:3000/api/generate-video \
   -d '{ "topic": "The future of artificial intelligence" }'
 ```
 
-**Response:**
+**Response (with Cloudinary configured):**
 ```json
 {
   "success": true,
   "topic": "The future of artificial intelligence",
   "script": "AI is no longer science fiction...",
-  "videoPath": "/absolute/path/to/output/finalVideo.mp4",
+  "videoUrl": "https://res.cloudinary.com/your-cloud/video/upload/ai-content-engine/video_123.mp4",
+  "youtubeUrl": "https://www.youtube.com/watch?v=abc123"
+}
+```
+
+**Response (without Cloudinary):**
+```json
+{
+  "success": true,
+  "topic": "The future of artificial intelligence",
+  "script": "AI is no longer science fiction...",
+  "videoPath": "/absolute/path/to/output/video_123.mp4",
   "youtubeUrl": "https://www.youtube.com/watch?v=abc123"
 }
 ```
@@ -186,6 +215,10 @@ curl -X POST http://localhost:3000/api/generate-video \
    | `YOUTUBE_CLIENT_SECRET` | ❌ | For YouTube uploads |
    | `YOUTUBE_REFRESH_TOKEN` | ❌ | For YouTube uploads |
    | `YOUTUBE_REDIRECT_URI` | ❌ | `https://your-app.railway.app/oauth2callback` for OAuth |
+   | `CLOUDINARY_CLOUD_NAME` | ❌ | For public video URLs (recommended on Railway) |
+   | `CLOUDINARY_API_KEY` | ❌ | For Cloudinary uploads |
+   | `CLOUDINARY_API_SECRET` | ❌ | For Cloudinary uploads |
+   | `RAILPACK_DEPLOY_APT_PACKAGES` | ✅ | **Required for video generation.** Set to `ffmpeg libatomic1` so FFmpeg is available at runtime. |
 
 3. **FFmpeg** is installed automatically via `nixpacks.toml`.
 
@@ -193,17 +226,32 @@ curl -X POST http://localhost:3000/api/generate-video \
 
 5. **Health check**: `GET https://your-app.railway.app/health` → `{"status":"ok"}`
 
-6. **Generate video**:
+6. **Add FFmpeg for video generation** – In Variables, add:
+   ```
+   RAILPACK_DEPLOY_APT_PACKAGES=ffmpeg libatomic1
+   ```
+   This installs FFmpeg in the runtime image. Without it, video generation fails with "FFmpeg validation failed".
+
+7. **Generate video**:
    ```bash
    curl -X POST https://your-app.railway.app/api/generate-video \
      -H "Content-Type: application/json" \
      -d '{"topic": "AI productivity tips"}'
    ```
 
+### Fix: "secret App: not found" build error
+
+If builds fail with `secret App: not found`, try:
+
+1. **Add a dummy variable** in Railway → Variables: create variable `App` with value `1` (satisfies the secret lookup).
+2. **Rename the service** from "App" to "web" in Settings if your service is named "App".
+3. **Check variable references** – remove any variable using `${{App.xxx}}` if you have no service named "App".
+
 ### n8n Integration
 - **URL**: `https://your-app.railway.app/api/generate-video`
 - **Method**: POST
 - **Body**: `{"topic": "{{ $json.topic }}"}`
+- **Response**: Use `{{ $json.videoUrl }}` for the public video URL (when Cloudinary is configured)
 
 ---
 

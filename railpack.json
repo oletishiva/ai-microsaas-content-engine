@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "provider": "node",
+  "buildAptPackages": ["ffmpeg", "libatomic1"],
+  "secrets": [],
+  "steps": {
+    "install": {
+      "secrets": []
+    },
+    "build": {
+      "secrets": []
+    }
+  },
+  "deploy": {
+    "startCommand": "npm start"
+  }
+}
