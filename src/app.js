@@ -79,6 +79,7 @@ app.get("/", (req, res) => {
         endpoints: {
             health: "GET /health",
             generateVideo: "POST /api/generate-video",
+            debugKeys: "GET /api/debug-keys",
         },
     });
 });
@@ -86,6 +87,20 @@ app.get("/", (req, res) => {
 // Health check – for Railway, load balancers, n8n
 app.get("/health", (req, res) => {
     res.json({ status: "ok" });
+});
+
+// Debug: verify env vars are passed (safe – no secrets exposed). Remove after fixing.
+app.get("/api/debug-keys", (req, res) => {
+    const eleven = process.env.ELEVENLABS_API_KEY;
+    res.json({
+        ELEVENLABS_API_KEY: {
+            set: !!eleven,
+            length: eleven ? String(eleven).trim().length : 0,
+            startsWith: eleven ? String(eleven).trim().slice(0, 8) + "..." : null,
+        },
+        OPENAI_API_KEY: { set: !!process.env.OPENAI_API_KEY },
+        PEXELS_API_KEY: { set: !!process.env.PEXELS_API_KEY },
+    });
 });
 
 // Main pipeline route
