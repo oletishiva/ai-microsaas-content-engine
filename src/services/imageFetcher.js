@@ -79,13 +79,10 @@ async function fetchImages(topic, count = 8) {
             return res.data.photos || [];
         };
 
-        // 1. Try portrait first (native 9:16 – Shorts-ready)
-        let portrait = await trySearch(topic, "portrait");
-        logger.info("ImageFetcher", `Portrait "${topic}" returned ${portrait.length} photos`);
-
-        // 2. Always fetch landscape too – portrait can have many items but same URL (duplicates)
+        // 1. Fetch both orientations – landscape often has more variety; portrait is native 9:16
         let landscape = await trySearch(topic, null);
-        logger.info("ImageFetcher", `Landscape returned ${landscape.length} photos (for variety)`);
+        let portrait = await trySearch(topic, "portrait");
+        logger.info("ImageFetcher", `"${topic}" returned ${landscape.length} landscape, ${portrait.length} portrait`);
 
         // 3. Short query fallback: "ocean waves" from "beautiful ocean waves sunset"
         const uniqueBeforeShort = new Set([...portrait, ...landscape].map((p) => p.id)).size;

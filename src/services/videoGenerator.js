@@ -32,50 +32,48 @@ function buildDrawTextFilter(textFilePath, fontSize, yExpr, enableExpr) {
 }
 
 /**
- * Run FFmpeg with image overlays using raw exec.
- * Uses time-based enable: hook 0-3s, quote 3s-end. No concat, no loop bugs.
+ * Run FFmpeg with image overlays.
+ * NO setpts on base – setpts breaks concat demuxer (only first image shows).
+ * Use fps=25 + n-based enable for overlay timing.
  */
-function runFfmpegWithOverlays(concatPath, audioPath, overlayPaths, baseFilters, outputPath, outputOpts, cleanup, videoDuration, W = 1080, H = 1920) {
+function runFfmpegWithOverlays(concatPath, audioPath, overlayPaths, _baseFilters, outputPath, outputOpts, cleanup, videoDuration, W = 1080, H = 1920) {
     const { spawnSync } = require("child_process");
 
     const HOOK_DURATION = 2.2;
-    const HOOK_FRAMES = Math.floor(HOOK_DURATION * 25); // 55 at 25fps – use n not t (fps filter breaks concat)
+    const HOOK_FRAMES = Math.floor(HOOK_DURATION * 25); // 55 frames at 25fps
     const hook = overlayPaths.find((o) => o.start === 0 && o.end === HOOK_DURATION);
     const quote = overlayPaths.find((o) => o.start === HOOK_DURATION);
 
-    const baseFilterStr = baseFilters.join(",");
-    const hookY = `H*0.15`;
-    const quoteY = `H*0.35`;
-    const filterParts = [`[0:v]${baseFilterStr}[main]`];
-    const loopInputs = [];
+    let filter;
+    let loopInputs = [];
+    let audioIdx;
 
-    const scaleOpt = `scale=${W}:-1`;
-    const overlayPrep = `${scaleOpt},format=rgba`;
+    // No setpts – it breaks concat multi-image. fps=25 for consistent n.
+    const baseChain = `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}:(iw-ow)/2:(ih-oh)/2,setsar=1,fps=25[base]`;
+    const overlayPrep = (idx) => `[${idx}:v]scale=${W}:-1,format=rgba`;
+
     if (hook && quote) {
-        filterParts.push(`[1:v]${overlayPrep}[hook]`);
-        filterParts.push(`[2:v]${overlayPrep}[quote]`);
-        filterParts.push(`[main][hook]overlay=x=(W-w)/2:y=${hookY}:enable='lt(n,${HOOK_FRAMES})'[tmp]`);
-        filterParts.push(`[tmp][quote]overlay=x=(W-w)/2:y=${quoteY}:enable='gte(n,${HOOK_FRAMES})'[out]`);
-        loopInputs.push("-loop", "1", "-i", hook.path, "-loop", "1", "-i", quote.path);
+        filter = `${baseChain};${overlayPrep(1)}[hook];${overlayPrep(2)}[quote];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='lt(n,${HOOK_FRAMES})'[tmp];[tmp][quote]overlay=x=(W-w)/2:y=H*0.35:enable='gte(n,${HOOK_FRAMES})'[out]`;
+        loopInputs = ["-loop", "1", "-i", hook.path, "-loop", "1", "-i", quote.path];
+        audioIdx = 3;
     } else if (hook) {
-        filterParts.push(`[1:v]${overlayPrep}[hook]`);
-        filterParts.push(`[main][hook]overlay=x=(W-w)/2:y=${hookY}:enable='lt(n,${HOOK_FRAMES})'[out]`);
-        loopInputs.push("-loop", "1", "-i", hook.path);
+        filter = `${baseChain};${overlayPrep(1)}[hook];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='lt(n,${HOOK_FRAMES})'[out]`;
+        loopInputs = ["-loop", "1", "-i", hook.path];
+        audioIdx = 2;
     } else if (quote) {
-        filterParts.push(`[1:v]${overlayPrep}[quote]`);
-        filterParts.push(`[main][quote]overlay=x=(W-w)/2:y=${quoteY}:enable='1'[out]`);
-        loopInputs.push("-loop", "1", "-i", quote.path);
+        filter = `${baseChain};${overlayPrep(1)}[quote];[base][quote]overlay=x=(W-w)/2:y=H*0.35:enable='1'[out]`;
+        loopInputs = ["-loop", "1", "-i", quote.path];
+        audioIdx = 2;
+    } else {
+        throw new Error("No overlay paths");
     }
-
-    const filterComplex = filterParts.join(";");
-    const audioIdx = 1 + loopInputs.length / 4;
 
     const args = [
         "-y",
         "-f", "concat", "-safe", "0", "-i", concatPath,
         ...loopInputs,
         "-i", audioPath,
-        "-filter_complex", filterComplex,
+        "-filter_complex", filter,
         "-map", "[out]", "-map", `${audioIdx}:a`,
         ...outputOpts,
         outputPath,
@@ -83,7 +81,7 @@ function runFfmpegWithOverlays(concatPath, audioPath, overlayPaths, baseFilters,
 
     return new Promise((resolve, reject) => {
         try {
-            logger.info("VideoGenerator", "FFmpeg encoding started (image overlays)");
+            logger.info("VideoGenerator", "FFmpeg encoding started (image overlays, alt pipeline)");
             const result = spawnSync("ffmpeg", args, {
                 stdio: "pipe",
                 maxBuffer: 50 * 1024 * 1024,

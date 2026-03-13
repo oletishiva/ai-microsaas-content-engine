@@ -109,7 +109,7 @@ router.post("/generate-video", async (req, res) => {
         // STEP 2: Fetch images (use imageQuery for Pexels, or topic/script)
         logger.info("Pipeline", "STEP 2/6 – Fetching images...");
         const isRailway = !!process.env.RAILWAY_PROJECT_ID;
-        const imageCount = Math.max(3, apiKeys.IMAGE_COUNT ?? (e2eTestMode ? 4 : isRailway ? 4 : 8));
+        const imageCount = Math.max(4, apiKeys.IMAGE_COUNT ?? (e2eTestMode ? 4 : isRailway ? 4 : 8));
         const imagePaths = await fetchImages(pexelsQuery, imageCount);
         logger.info("Pipeline", `Fetched ${imagePaths.length} images for video (target: ${imageCount})`);
 
