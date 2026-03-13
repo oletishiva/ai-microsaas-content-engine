@@ -10,10 +10,9 @@ const fs = require("fs");
 const path = require("path");
 const { OUTPUT_DIR } = require("../../config/paths");
 const { buildConcatFile, getAudioDuration } = require("../../utils/ffmpegHelper");
-const { getSubtitleSegments, VIDEO_DURATION } = require("../../utils/subtitleHelper");
+const { VIDEO_DURATION } = require("../../utils/subtitleHelper");
 const { renderTextToImage } = require("../../utils/textToImage");
 const logger = require("../../utils/logger");
-const HOOK_DURATION = 2;
 
 /**
  * Write text to file for drawtext textfile option
@@ -33,38 +32,50 @@ function buildDrawTextFilter(textFilePath, fontSize, yExpr, enableExpr) {
 }
 
 /**
- * Run FFmpeg with image overlays using raw exec (bypasses fluent-ffmpeg for reliability)
+ * Run FFmpeg with image overlays using raw exec.
+ * Uses time-based enable: hook 0-3s, quote 3s-end. No concat, no loop bugs.
  */
-function runFfmpegWithOverlays(concatPath, audioPath, overlayPaths, baseFilters, outputPath, outputOpts, cleanup) {
+function runFfmpegWithOverlays(concatPath, audioPath, overlayPaths, baseFilters, outputPath, outputOpts, cleanup, videoDuration, W = 1080, H = 1920) {
     const { spawnSync } = require("child_process");
 
-    const baseFilterStr = baseFilters.join(",");
-    let prevLabel = "main";
-    const filterParts = [`[0:v]${baseFilterStr}[main]`];
+    const HOOK_DURATION = 2.2;
+    const hook = overlayPaths.find((o) => o.start === 0 && o.end === HOOK_DURATION);
+    const quote = overlayPaths.find((o) => o.start === HOOK_DURATION);
 
-    for (let idx = 0; idx < overlayPaths.length; idx++) {
-        const o = overlayPaths[idx];
-        const inIdx = idx + 2;
-        const outLabel = idx === overlayPaths.length - 1 ? "out" : `v${idx}`;
-        // Bottom-anchor so text stays in frame: y = H - h - margin
-        const yExpr = `H-h-40`;
-        const enableExpr = `between(t\\,${o.start}\\,${o.end})`;
-        filterParts.push(
-            `[${inIdx}:v]format=rgba[ov${idx}];[${prevLabel}][ov${idx}]overlay=x=(W-w)/2:y=${yExpr}:enable='${enableExpr}'[${outLabel}]`
-        );
-        prevLabel = outLabel;
+    const baseFilterStr = baseFilters.join(",");
+    const hookY = `H*0.15`;
+    const quoteY = `H*0.35`;
+    const filterParts = [`[0:v]${baseFilterStr}[main]`];
+    const loopInputs = [];
+
+    const scaleOpt = `scale=${W}:-1`;
+    const overlayPrep = `${scaleOpt},format=rgba,setpts=PTS-STARTPTS`;
+    if (hook && quote) {
+        filterParts.push(`[1:v]${overlayPrep}[hook]`);
+        filterParts.push(`[2:v]${overlayPrep}[quote]`);
+        filterParts.push(`[main][hook]overlay=x=(W-w)/2:y=${hookY}:enable='lt(t,${HOOK_DURATION})'[tmp]`);
+        filterParts.push(`[tmp][quote]overlay=x=(W-w)/2:y=${quoteY}:enable='gte(t,${HOOK_DURATION})'[out]`);
+        loopInputs.push("-loop", "1", "-i", hook.path, "-loop", "1", "-i", quote.path);
+    } else if (hook) {
+        filterParts.push(`[1:v]${overlayPrep}[hook]`);
+        filterParts.push(`[main][hook]overlay=x=(W-w)/2:y=${hookY}:enable='lt(t,${HOOK_DURATION})'[out]`);
+        loopInputs.push("-loop", "1", "-i", hook.path);
+    } else if (quote) {
+        filterParts.push(`[1:v]${overlayPrep}[quote]`);
+        filterParts.push(`[main][quote]overlay=x=(W-w)/2:y=${quoteY}:enable='between(t,0,${videoDuration})'[out]`);
+        loopInputs.push("-loop", "1", "-i", quote.path);
     }
 
     const filterComplex = filterParts.join(";");
-    const loopInputs = overlayPaths.flatMap((o) => ["-loop", "1", "-i", o.path]);
+    const audioIdx = 1 + loopInputs.length / 4;
 
     const args = [
         "-y",
         "-f", "concat", "-safe", "0", "-i", concatPath,
-        "-i", audioPath,
         ...loopInputs,
+        "-i", audioPath,
         "-filter_complex", filterComplex,
-        "-map", "[out]", "-map", "1:a",
+        "-map", "[out]", "-map", `${audioIdx}:a`,
         ...outputOpts,
         outputPath,
     ];
@@ -132,6 +143,7 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
             } catch (_) {}
         });
     };
+    cleanup.tempFiles = tempFiles;
     const concatFilePath = buildConcatFile(imagePaths, durationPerImage, OUTPUT_DIR);
     const outputPath = path.join(OUTPUT_DIR, outputFilename);
     tempFiles.push(concatFilePath);
@@ -146,24 +158,28 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
     const isRailway = !!process.env.RAILWAY_PROJECT_ID;
     const W = isRailway ? 720 : 1080;
     const H = isRailway ? 1280 : 1920;
-    // Crop to fill. No fps in filter – it can break concat demuxer duration (only first image shows)
+    // setpts + fps=25 normalizes timeline so overlay enable=t matches real seconds (fixes hook not disappearing)
     let baseFilters = [
         `scale=${W}:${H}:force_original_aspect_ratio=increase`,
         `crop=${W}:${H}:(iw-ow)/2:(ih-oh)/2`,
         ...(isRailway ? [] : [`zoompan=z='min(zoom+0.0012,1.08)':d=1:s=${W}x${H}:fps=25`]),
         "setsar=1",
+        "setpts=PTS-STARTPTS",
+        "fps=25",
     ];
 
+    const HOOK_DURATION = 2.2;
     if (useDrawText) {
-        const hookFile = writeTextFile(OUTPUT_DIR, "hook", hookText || "STOP MAKING THIS MISTAKE");
-        tempFiles.push(hookFile);
-        baseFilters.push(buildDrawTextFilter(hookFile, 64, "h*0.75", `between(t,0,${HOOK_DURATION})`));
-        const subtitleSegments = getSubtitleSegments(script, videoDuration);
-        subtitleSegments.forEach((s, i) => {
-            const f = writeTextFile(OUTPUT_DIR, `sub${i}`, s.text);
-            tempFiles.push(f);
-            baseFilters.push(buildDrawTextFilter(f, 48, "h*0.85", `between(t,${s.start},${s.end})`));
-        });
+        if (hookText) {
+            const hookFile = writeTextFile(OUTPUT_DIR, "hook", hookText);
+            tempFiles.push(hookFile);
+            baseFilters.push(buildDrawTextFilter(hookFile, 70, "h*0.15", `lt(t,${HOOK_DURATION})`));
+        }
+        if (script) {
+            const scriptFile = writeTextFile(OUTPUT_DIR, "quote", script);
+            tempFiles.push(scriptFile);
+            baseFilters.push(buildDrawTextFilter(scriptFile, 44, "h*0.35", `gte(t,${HOOK_DURATION})`));
+        }
     }
 
     const outputOpts = [
@@ -194,21 +210,18 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
     } else if (useImageOverlay && (hookText || script)) {
         const ts = Date.now();
         const overlayPaths = [];
-        const subtitleSegments = getSubtitleSegments(script, videoDuration);
-
-        const overlayOpts = { videoWidth: W };
+        // First 3s: hook. Then: quote (script). Both in 20%-70% band.
         if (hookText) {
             const hookPath = path.join(OUTPUT_DIR, `overlay_hook_${ts}.png`);
-            await renderTextToImage(hookText, hookPath, { fontSize: 52, ...overlayOpts });
+            await renderTextToImage(hookText, hookPath, { fontSize: 70, videoWidth: W });
             overlayPaths.push({ path: hookPath, start: 0, end: HOOK_DURATION });
             tempFiles.push(hookPath);
         }
-        for (let i = 0; i < subtitleSegments.length; i++) {
-            const s = subtitleSegments[i];
-            const subPath = path.join(OUTPUT_DIR, `overlay_sub${i}_${ts}.png`);
-            await renderTextToImage(s.text, subPath, { fontSize: 48, ...overlayOpts });
-            overlayPaths.push({ path: subPath, start: s.start, end: s.end });
-            tempFiles.push(subPath);
+        if (script) {
+            const quotePath = path.join(OUTPUT_DIR, `overlay_quote_${ts}.png`);
+            await renderTextToImage(script, quotePath, { fontSize: 44, videoWidth: W });
+            overlayPaths.push({ path: quotePath, start: HOOK_DURATION, end: videoDuration });
+            tempFiles.push(quotePath);
         }
 
         if (overlayPaths.length > 0) {
@@ -220,6 +233,9 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
                 outputPath,
                 outputOpts,
                 cleanup,
+                videoDuration,
+                W,
+                H,
             );
         } else {
             cmd.videoFilters(baseFilters);
