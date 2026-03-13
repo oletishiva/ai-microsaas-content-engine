@@ -58,13 +58,13 @@ function runFfmpegWithOverlays(imagePaths, durationPerImage, audioPath, overlayP
     const overlayInputs = [];
 
     if (hook && quote) {
-        filter = `${baseChain};${overlayPrep(hookIdx)}[hook];${overlayPrep(quoteIdx)}[quote];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='between(t,0,${HOOK_DURATION})'[tmp];[tmp][quote]overlay=x=(W-w)/2:y=H*0.35:enable='gte(t,${HOOK_DURATION})'[out]`;
+        filter = `${baseChain};${overlayPrep(hookIdx)}[hook];${overlayPrep(quoteIdx)}[quote];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='between(t,0,${HOOK_DURATION})'[tmp];[tmp][quote]overlay=x=(W-w)/2:y=H*0.15:enable='gte(t,${HOOK_DURATION})'[out]`;
         overlayInputs.push("-loop", "1", "-i", hook.path, "-loop", "1", "-i", quote.path);
     } else if (hook) {
         filter = `${baseChain};${overlayPrep(hookIdx)}[hook];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='between(t,0,${HOOK_DURATION})'[out]`;
         overlayInputs.push("-loop", "1", "-i", hook.path);
     } else if (quote) {
-        filter = `${baseChain};${overlayPrep(hookIdx)}[quote];[base][quote]overlay=x=(W-w)/2:y=H*0.35:enable='1'[out]`;
+        filter = `${baseChain};${overlayPrep(hookIdx)}[quote];[base][quote]overlay=x=(W-w)/2:y=H*0.15:enable='1'[out]`;
         overlayInputs.push("-loop", "1", "-i", quote.path);
     } else {
         throw new Error("No overlay paths");
@@ -216,7 +216,7 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         // First 3s: hook. Then: quote (script). Both in 20%-70% band.
         // Larger fonts on Railway (720×1280) for visibility
         const hookFont = isRailway ? 80 : 70;
-        const quoteFont = isRailway ? 52 : 44;
+        const quoteFont = isRailway ? 46 : 38;
         if (hookText) {
             const hookPath = path.join(OUTPUT_DIR, `overlay_hook_${ts}.png`);
             await renderTextToImage(hookText, hookPath, { fontSize: hookFont, videoWidth: W, maxCharsPerLine: 14 });

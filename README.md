@@ -263,10 +263,18 @@ Use `imageQuery` for visual keywords (e.g. `tropical ocean waves sunset cinemati
 
 7. **Generate video**:
    ```bash
-   curl -X POST https://your-app.railway.app/api/generate-video \
+   curl -X POST https://ai-microsaas-content-engine-production.up.railway.app/api/generate-video \
      -H "Content-Type: application/json" \
-     -d '{"topic": "AI productivity tips"}'
+     -d '{
+       "topic": "world famous quotation",
+       "script": "The only way to do great work is to love what you do. Steve Jobs said it best. Find your passion and success will follow.",
+       "hook": "STOP SCROLLING",
+       "imageQuery": "inspiration motivation",
+       "maxWords": 35,
+       "addMusic": true
+     }'
    ```
+   Replace the Railway URL with yours from Railway → Settings → Networking if different.
 
 ### Fix: "secret App: not found" build error
 
