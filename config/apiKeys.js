@@ -81,11 +81,14 @@ module.exports = {
   YOUTUBE_REFRESH_TOKEN: process.env.YOUTUBE_REFRESH_TOKEN,
 
   // E2E test mode: limits ElevenLabs + images to save credits for 1 full pipeline test
-  // E2E_TEST_MODE=1 → 15 words max, 2 images. Full upload to YouTube.
+  // E2E_TEST_MODE=1 → 15 words max, 4 images. Full upload to YouTube.
   E2E_TEST_MODE: process.env.E2E_TEST_MODE === "1" || process.env.E2E_TEST_MODE === "true",
 
   // Skip voice: use silent audio instead of ElevenLabs (for E2E when ElevenLabs blocks cloud IPs)
   E2E_SKIP_VOICE: process.env.E2E_SKIP_VOICE === "1" || process.env.E2E_SKIP_VOICE === "true",
+
+  // Optional: override image count (default 8). Set IMAGE_COUNT=8 in Railway if needed.
+  IMAGE_COUNT: process.env.IMAGE_COUNT ? parseInt(process.env.IMAGE_COUNT, 10) : undefined,
 
   // YouTube upload is optional – skip if credentials are placeholder/missing
   hasYouTubeConfig:

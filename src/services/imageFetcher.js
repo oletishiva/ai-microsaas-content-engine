@@ -66,12 +66,13 @@ async function fetchImages(topic, count = 8) {
     logger.info("ImageFetcher", `Using media dir: ${runId}`);
 
     try {
-        const trySearch = async (query, orientation) => {
+        const trySearch = async (query, orientation, page = 1) => {
             const res = await axios.get("https://api.pexels.com/v1/search", {
                 headers: { Authorization: PEXELS_API_KEY },
                 params: {
                     query,
                     per_page: 30,
+                    page,
                     ...(orientation ? { orientation } : {}),
                 },
             });
@@ -82,14 +83,9 @@ async function fetchImages(topic, count = 8) {
         let portrait = await trySearch(topic, "portrait");
         logger.info("ImageFetcher", `Portrait "${topic}" returned ${portrait.length} photos`);
 
-        // 2. Fallback: no-orientation (landscape) – we crop to 9:16 in FFmpeg
-        let landscape = [];
-        if (portrait.length < count) {
-            landscape = await trySearch(topic, null);
-            logger.info("ImageFetcher", `Adding landscape fallback: +${landscape.length} photos (portrait had ${portrait.length}, need ${count})`);
-        } else {
-            logger.info("ImageFetcher", `Portrait sufficient (${portrait.length} >= ${count}), skipping landscape`);
-        }
+        // 2. Always fetch landscape too – portrait can have many items but same URL (duplicates)
+        let landscape = await trySearch(topic, null);
+        logger.info("ImageFetcher", `Landscape returned ${landscape.length} photos (for variety)`);
 
         // 3. Short query fallback: "ocean waves" from "beautiful ocean waves sunset"
         const uniqueBeforeShort = new Set([...portrait, ...landscape].map((p) => p.id)).size;
@@ -125,8 +121,8 @@ async function fetchImages(topic, count = 8) {
         }
 
         // Only use photos with UNIQUE URLs – Pexels can return same image multiple times
-        const urlSeen = new Set();
-        const photos = [];
+        let urlSeen = new Set();
+        let photos = [];
         for (const p of combined) {
             if (photos.length >= count) break;
             const url = p.src?.original || p.src?.large2x || p.src?.large;
@@ -135,6 +131,25 @@ async function fetchImages(topic, count = 8) {
                 photos.push(p);
             }
         }
+
+        // If still few unique URLs, try page 2 for more variety
+        if (photos.length < count) {
+            const beforePage2 = photos.length;
+            const page2Portrait = await trySearch(topic, "portrait", 2);
+            const page2Landscape = await trySearch(topic, null, 2);
+            for (const p of [...page2Portrait, ...page2Landscape]) {
+                if (photos.length >= count) break;
+                const url = p.src?.original || p.src?.large2x || p.src?.large;
+                if (url && !urlSeen.has(url)) {
+                    urlSeen.add(url);
+                    photos.push(p);
+                }
+            }
+            if (photos.length > beforePage2) {
+                logger.info("ImageFetcher", `Page 2 added +${photos.length - beforePage2} unique images`);
+            }
+        }
+
         const portraitCount = photos.filter((p) => portrait.some((x) => x.id === p.id)).length;
         const landscapeCount = photos.length - portraitCount;
         logger.info("ImageFetcher", `→ Video will use ${photos.length} images: ${portraitCount} portrait (native 9:16) + ${landscapeCount} landscape (crop to 9:16)`);

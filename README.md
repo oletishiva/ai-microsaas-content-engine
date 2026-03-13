@@ -237,6 +237,7 @@ Use `imageQuery` for visual keywords (e.g. `tropical ocean waves sunset cinemati
    | `ELEVENLABS_VOICE_ID` | ❌ | Default: Rachel |
    | `E2E_TEST_MODE` | ❌ | Set to `1` for testing (fewer credits) |
    | `E2E_SKIP_VOICE` | ❌ | Set to `1` to bypass ElevenLabs (use silent audio) when free tier blocks cloud IPs |
+   | `IMAGE_COUNT` | ❌ | Override images per video (default: 8). Use if you need more/fewer slides. |
    | `YOUTUBE_CLIENT_ID` | ❌ | For YouTube uploads |
    | `YOUTUBE_CLIENT_SECRET` | ❌ | For YouTube uploads |
    | `YOUTUBE_REFRESH_TOKEN` | ❌ | For YouTube uploads |
