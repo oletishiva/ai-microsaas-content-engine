@@ -214,13 +214,13 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         const quoteFont = isRailway ? 52 : 44;
         if (hookText) {
             const hookPath = path.join(OUTPUT_DIR, `overlay_hook_${ts}.png`);
-            await renderTextToImage(hookText, hookPath, { fontSize: hookFont, videoWidth: W });
+            await renderTextToImage(hookText, hookPath, { fontSize: hookFont, videoWidth: W, maxCharsPerLine: 14 });
             overlayPaths.push({ path: hookPath, start: 0, end: HOOK_DURATION });
             tempFiles.push(hookPath);
         }
         if (script) {
             const quotePath = path.join(OUTPUT_DIR, `overlay_quote_${ts}.png`);
-            await renderTextToImage(script, quotePath, { fontSize: quoteFont, videoWidth: W });
+            await renderTextToImage(script, quotePath, { fontSize: quoteFont, videoWidth: W, maxCharsPerLine: 18 });
             overlayPaths.push({ path: quotePath, start: HOOK_DURATION, end: videoDuration });
             tempFiles.push(quotePath);
         }

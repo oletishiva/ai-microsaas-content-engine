@@ -55,16 +55,19 @@ function wrapText(text, maxCharsPerLine) {
 /**
  * Create PNG with text (white, black outline). Returns path to saved file.
  * options.videoWidth: use 80% for text area (10% margins). Default 1080.
+ * options.maxCharsPerLine: override (hook: 14, quote: 18–22).
  */
 async function renderTextToImage(text, outputPath, options = {}) {
     const fontSize = options.fontSize || 48;
     const videoWidth = options.videoWidth || DEFAULT_WIDTH;
     const textAreaWidth = Math.floor(videoWidth * TEXT_WIDTH_RATIO);
     const width = videoWidth;
-    // With 80% width, allow more chars per line for fewer, longer lines
-    const maxCharsPerLine = Math.floor(textAreaWidth / (fontSize * CHARS_PER_EM));
-    const cap = fontSize >= 50 ? 14 : 22; // hook: 14, quote: 22 chars per line
-    const lines = wrapText(String(text).trim() || " ", Math.max(6, Math.min(maxCharsPerLine, cap)));
+    // Conservative char width (0.55) so lines never overflow clip
+    const pixelBasedMax = Math.floor(textAreaWidth / (fontSize * 0.55));
+    const maxCharsPerLine = options.maxCharsPerLine != null
+        ? Math.min(options.maxCharsPerLine, pixelBasedMax)
+        : Math.min(pixelBasedMax, fontSize >= 50 ? 14 : 18);
+    const lines = wrapText(String(text).trim() || " ", Math.max(6, maxCharsPerLine));
     const lineHeightPx = fontSize * LINE_HEIGHT;
     const totalHeight = Math.max(220, Math.ceil(lines.length * lineHeightPx) + 60);
 
