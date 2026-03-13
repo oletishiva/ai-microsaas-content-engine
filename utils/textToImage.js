@@ -11,10 +11,11 @@ const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_WIDTH = 1080;
-const TEXT_WIDTH_RATIO = 0.7; // 70% for text – ensures no horizontal cutoff
+const MARGIN_RATIO = 0.1; // 10% left and right
+const TEXT_WIDTH_RATIO = 1 - 2 * MARGIN_RATIO; // 80% for text (10% margins each side)
 const LINE_HEIGHT = 1.3;
-// Conservative for Arial – wide chars (W, M) need more space
-const CHARS_PER_EM = 0.5;
+// Very conservative – proportional fonts vary; assume wide chars
+const CHARS_PER_EM = 0.58;
 
 function escapeXml(s) {
     return String(s)
@@ -61,9 +62,9 @@ async function renderTextToImage(text, outputPath, options = {}) {
     const videoWidth = options.videoWidth || DEFAULT_WIDTH;
     const textAreaWidth = Math.floor(videoWidth * TEXT_WIDTH_RATIO);
     const width = videoWidth;
-    // Pixel-based wrap: chars that fit = width / (fontSize * avgCharWidth)
+    // Enforce 10% margins: fewer chars per line for proportional fonts (W, M wider than i)
     const maxCharsPerLine = Math.floor(textAreaWidth / (fontSize * CHARS_PER_EM));
-    const lines = wrapText(String(text).trim() || " ", Math.max(12, maxCharsPerLine));
+    const lines = wrapText(String(text).trim() || " ", Math.max(10, Math.min(maxCharsPerLine, 16)));
     const lineHeightPx = fontSize * LINE_HEIGHT;
     const totalHeight = Math.max(220, Math.ceil(lines.length * lineHeightPx) + 60);
 
