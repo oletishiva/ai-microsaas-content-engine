@@ -211,6 +211,7 @@ curl -X POST http://localhost:3000/api/generate-video \
    | `PEXELS_API_KEY` | ✅ | Pexels API key |
    | `ELEVENLABS_VOICE_ID` | ❌ | Default: Rachel |
    | `E2E_TEST_MODE` | ❌ | Set to `1` for testing (fewer credits) |
+   | `E2E_SKIP_VOICE` | ❌ | Set to `1` to bypass ElevenLabs (use silent audio) when free tier blocks cloud IPs |
    | `YOUTUBE_CLIENT_ID` | ❌ | For YouTube uploads |
    | `YOUTUBE_CLIENT_SECRET` | ❌ | For YouTube uploads |
    | `YOUTUBE_REFRESH_TOKEN` | ❌ | For YouTube uploads |

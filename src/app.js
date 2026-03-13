@@ -95,6 +95,62 @@ app.get("/health", (req, res) => {
     res.json({ status: "ok" });
 });
 
+// Debug: check for hidden chars in ELEVENLABS_API_KEY (10=newline, 13=cr, 32=space). Remove after fixing.
+app.get("/debug-eleven", (req, res) => {
+    const key = process.env.ELEVENLABS_API_KEY || "";
+    const codes = [...key].map((c) => c.charCodeAt(0));
+    res.json({
+        length: key.length,
+        prefix: key.slice(0, 5),
+        suffix: key.slice(-5),
+        charCodes: codes,
+        lastCharCode: codes.length ? codes[codes.length - 1] : null,
+        hasNewline: codes.includes(10),
+        hasCarriageReturn: codes.includes(13),
+    });
+});
+
+// Debug: test ElevenLabs API directly from Railway. Remove after fixing.
+app.get("/test-eleven", async (req, res) => {
+    const axios = require("axios");
+    try {
+        const r = await axios.get("https://api.elevenlabs.io/v1/user", {
+            headers: { "xi-api-key": (process.env.ELEVENLABS_API_KEY || "").trim() },
+        });
+        res.json({ success: true, user: r.data });
+    } catch (e) {
+        res.json({
+            success: false,
+            status: e.response?.status,
+            error: e.response?.data || e.message,
+        });
+    }
+});
+
+// Debug: test ElevenLabs TTS endpoint (same as voiceGenerator). Remove after fixing.
+app.get("/test-eleven-tts", async (req, res) => {
+    const axios = require("axios");
+    const apiKey = (process.env.ELEVENLABS_API_KEY || "").trim();
+    const voiceId = (process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL").trim();
+    try {
+        const r = await axios.post(
+            `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+            { text: "Test.", model_id: "eleven_multilingual_v2" },
+            {
+                headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+                responseType: "arraybuffer",
+            }
+        );
+        res.json({ success: true, audioLength: r.data?.byteLength });
+    } catch (e) {
+        res.json({
+            success: false,
+            status: e.response?.status,
+            error: e.response?.data ? JSON.stringify(e.response.data) : e.message,
+        });
+    }
+});
+
 // Main pipeline route
 app.use("/api", generateVideoRouter);
 

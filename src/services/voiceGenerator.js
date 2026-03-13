@@ -16,9 +16,10 @@
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
-const { ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID } = require("../../config/apiKeys");
 const { OUTPUT_DIR } = require("../../config/paths");
 const logger = require("../../utils/logger");
+
+const VOICE_ID = (process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL").trim();
 
 /**
  * generateVoice
@@ -26,7 +27,8 @@ const logger = require("../../utils/logger");
  * @returns {Promise<string>} - Absolute path to the saved MP3 file
  */
 async function generateVoice(script) {
-    if (!ELEVENLABS_API_KEY) {
+    const apiKey = (process.env.ELEVENLABS_API_KEY || "").trim();
+    if (!apiKey) {
         throw new Error("ELEVENLABS_API_KEY is not set in .env");
     }
     if (!script || script.trim() === "") {
@@ -34,14 +36,14 @@ async function generateVoice(script) {
     }
     logger.info("VoiceGenerator", "Sending script to ElevenLabs TTS...");
 
-    const url = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}?output_format=mp3_44100_128`;
+    const url = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_128`;
 
     try {
         const response = await axios.post(
             url,
             {
                 text: script,
-                model_id: "eleven_multilingual_v2", // Current default, supports English + 28 languages
+                model_id: "eleven_multilingual_v2",
                 voice_settings: {
                     stability: 0.5,
                     similarity_boost: 0.75,
@@ -49,29 +51,33 @@ async function generateVoice(script) {
             },
             {
                 headers: {
-                    "xi-api-key": ELEVENLABS_API_KEY,
+                    "xi-api-key": apiKey,
                     "Content-Type": "application/json",
                 },
                 responseType: "arraybuffer",
             }
         );
 
-        // Write the audio buffer to disk
         const outputPath = path.join(OUTPUT_DIR, "narration.mp3");
         fs.writeFileSync(outputPath, response.data);
 
         logger.info("VoiceGenerator", `Narration saved to: ${outputPath}`);
         return outputPath;
     } catch (err) {
-        const detail = err.response?.data?.detail || err.response?.data?.message;
+        const data = err.response?.data;
         const status = err.response?.status;
-        logger.error("VoiceGenerator", "ElevenLabs TTS error", err);
         let msg = err.message;
-        if (status === 401) {
-            msg = "ElevenLabs API key invalid or expired. Check your key at elevenlabs.io → Profile → API Key. Regenerate if needed.";
-        } else if (detail) {
-            msg = detail;
+        if (data && typeof data === "object" && !Buffer.isBuffer(data)) {
+            msg = data.detail?.message || data.detail || data.message || JSON.stringify(data);
+        } else if (data && (typeof data === "string" || Buffer.isBuffer(data))) {
+            try {
+                const parsed = JSON.parse(Buffer.isBuffer(data) ? data.toString() : data);
+                msg = parsed?.detail?.message || parsed?.detail || parsed?.message || JSON.stringify(parsed);
+            } catch (_) {
+                msg = String(data).slice(0, 200);
+            }
         }
+        logger.error("VoiceGenerator", "ElevenLabs TTS error", { status, msg });
         throw new Error(`Voice generation failed: ${msg}`);
     }
 }

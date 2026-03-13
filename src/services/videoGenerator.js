@@ -139,9 +139,10 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         });
     };
 
-    // Shorts: 1080×1920 portrait (9:16). scale=width:height, pad=width:height
-    const W = 1080;
-    const H = 1920;
+    // Shorts: 1080×1920 portrait (9:16). Use 720×1280 on Railway to reduce OOM (SIGKILL)
+    const isRailway = !!process.env.RAILWAY_PROJECT_ID;
+    const W = isRailway ? 720 : 1080;
+    const H = isRailway ? 1280 : 1920;
     let baseFilters = [
         `scale=${W}:${H}:force_original_aspect_ratio=decrease`,
         `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=black`,
@@ -163,12 +164,14 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
 
     const outputOpts = [
         "-t", "15",
-        "-s", "1080x1920",
+        "-s", `${W}x${H}`,
         "-aspect", "9:16",
         "-metadata:s:v:0", "rotate=0",
         "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "23",
+        "-preset", isRailway ? "ultrafast" : "fast",
+        "-threads", "1",
+        "-max_muxing_queue_size", "1024",
+        "-crf", isRailway ? "28" : "23",
         "-c:a", "aac",
         "-b:a", "192k",
         "-pix_fmt", "yuv420p",
