@@ -16,10 +16,10 @@ Topic (text input)
 [2] ElevenLabs TTS      → Converts script to MP3 voice narration
     │
     ▼
-[3] Pexels API          → Downloads relevant portrait images
+[3] Pexels API          → Fetches portrait (9:16) first, landscape fallback
     │
     ▼
-[4] FFmpeg              → Assembles images + audio into a 9:16 vertical MP4
+[4] FFmpeg              → Crops to 9:16, assembles images + audio into vertical MP4
     │
     ▼
 [5] YouTube Data API    → Uploads the finished video to YouTube
@@ -150,12 +150,37 @@ Server starts at: **http://localhost:3000**
 
 ### `POST /api/generate-video`
 
-**Request:**
+**Request (topic – generates script):**
 ```bash
 curl -X POST http://localhost:3000/api/generate-video \
   -H "Content-Type: application/json" \
   -d '{ "topic": "The future of artificial intelligence" }'
 ```
+
+**Request (script – use your own script):**
+```bash
+curl -X POST http://localhost:3000/api/generate-video \
+  -H "Content-Type: application/json" \
+  -d '{ "script": "Stop damaging your skin. This herbal formula restores natural glow. Try it now!" }'
+```
+
+**Request (both – script takes precedence):**
+```bash
+curl -X POST http://localhost:3000/api/generate-video \
+  -H "Content-Type: application/json" \
+  -d '{ "topic": "Skincare", "script": "Your custom script here..." }'
+```
+
+**Request (with custom image search – better Pexels results):**
+```bash
+curl -X POST http://localhost:3000/api/generate-video \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "Ayurvedic skincare secrets",
+    "imageQuery": "beautiful ocean waves tropical sea sunset"
+  }'
+```
+Use `imageQuery` for visual keywords (e.g. `tropical ocean waves sunset cinematic`) when the topic returns poor images. Images are fetched in HD (original resolution).
 
 **Response (with Cloudinary configured):**
 ```json
@@ -212,6 +237,7 @@ curl -X POST http://localhost:3000/api/generate-video \
    | `ELEVENLABS_VOICE_ID` | ❌ | Default: Rachel |
    | `E2E_TEST_MODE` | ❌ | Set to `1` for testing (fewer credits) |
    | `E2E_SKIP_VOICE` | ❌ | Set to `1` to bypass ElevenLabs (use silent audio) when free tier blocks cloud IPs |
+   | `IMAGE_COUNT` | ❌ | Override images per video (default: 8). Use if you need more/fewer slides. |
    | `YOUTUBE_CLIENT_ID` | ❌ | For YouTube uploads |
    | `YOUTUBE_CLIENT_SECRET` | ❌ | For YouTube uploads |
    | `YOUTUBE_REFRESH_TOKEN` | ❌ | For YouTube uploads |

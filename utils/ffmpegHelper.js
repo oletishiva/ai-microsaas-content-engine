@@ -33,21 +33,17 @@ const logger = require("./logger");
  * @returns {string}               - Absolute path to the written concat file
  */
 function buildConcatFile(imagePaths, durationEach, outputDir) {
-    // Build the concat file content line by line
     const lines = [];
     for (const imgPath of imagePaths) {
-        lines.push(`file '${imgPath}'`);
+        const abs = path.resolve(imgPath);
+        lines.push(`file '${abs}'`);
         lines.push(`duration ${durationEach.toFixed(3)}`);
     }
+    lines.push(`file '${path.resolve(imagePaths[imagePaths.length - 1])}'`);
 
-    // FFmpeg requires a final file entry without a duration to avoid
-    // a 0-second black frame at the end
-    lines.push(`file '${imagePaths[imagePaths.length - 1]}'`);
-
-    const concatFilePath = path.join(outputDir, "concat.txt");
+    const concatFilePath = path.join(outputDir, `concat_${Date.now()}.txt`);
     fs.writeFileSync(concatFilePath, lines.join("\n"));
-
-    logger.info("FFmpegHelper", `Concat file written: ${concatFilePath}`);
+    logger.info("FFmpegHelper", `Concat: ${imagePaths.length} images @ ${durationEach.toFixed(1)}s each → ${(imagePaths.length * durationEach).toFixed(1)}s total`);
     return concatFilePath;
 }
 

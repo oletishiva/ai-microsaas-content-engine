@@ -46,7 +46,8 @@ function runFfmpegWithOverlays(concatPath, audioPath, overlayPaths, baseFilters,
         const o = overlayPaths[idx];
         const inIdx = idx + 2;
         const outLabel = idx === overlayPaths.length - 1 ? "out" : `v${idx}`;
-        const yExpr = `${o.yFrac}*H-h/2`;
+        // Bottom-anchor so text stays in frame: y = H - h - margin
+        const yExpr = `H-h-40`;
         const enableExpr = `between(t\\,${o.start}\\,${o.end})`;
         filterParts.push(
             `[${inIdx}:v]format=rgba[ov${idx}];[${prevLabel}][ov${idx}]overlay=x=(W-w)/2:y=${yExpr}:enable='${enableExpr}'[${outLabel}]`
@@ -114,20 +115,10 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         throw new Error(`Audio file not found: ${audioPath}`);
     }
 
-    logger.info("VideoGenerator", "Rendering 15s video...");
+    logger.info("VideoGenerator", `Rendering 15s video with ${imagePaths.length} images (${(VIDEO_DURATION / imagePaths.length).toFixed(1)}s per slide)...`);
 
     if (!fs.existsSync(OUTPUT_DIR)) {
         fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-    }
-
-    const durationPerImage = VIDEO_DURATION / imagePaths.length;
-    const concatFilePath = buildConcatFile(imagePaths, durationPerImage, OUTPUT_DIR);
-    const outputPath = path.join(OUTPUT_DIR, outputFilename);
-
-    const useDrawText = hasDrawTextFilter();
-    const useImageOverlay = !useDrawText;
-    if (useImageOverlay) {
-        logger.info("VideoGenerator", "Using image overlay (FFmpeg lacks drawtext).");
     }
 
     const tempFiles = [];
@@ -139,13 +130,26 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         });
     };
 
+    const durationPerImage = VIDEO_DURATION / imagePaths.length;
+    const concatFilePath = buildConcatFile(imagePaths, durationPerImage, OUTPUT_DIR);
+    const outputPath = path.join(OUTPUT_DIR, outputFilename);
+    tempFiles.push(concatFilePath);
+
+    const useDrawText = hasDrawTextFilter();
+    const useImageOverlay = !useDrawText;
+    if (useImageOverlay) {
+        logger.info("VideoGenerator", "Using image overlay (FFmpeg lacks drawtext).");
+    }
+
     // Shorts: 1080×1920 portrait (9:16). Use 720×1280 on Railway to reduce OOM (SIGKILL)
     const isRailway = !!process.env.RAILWAY_PROJECT_ID;
     const W = isRailway ? 720 : 1080;
     const H = isRailway ? 1280 : 1920;
+    // Crop to fill. Ken Burns zoom skipped on Railway (causes OOM/SIGKILL)
     let baseFilters = [
-        `scale=${W}:${H}:force_original_aspect_ratio=decrease`,
-        `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=black`,
+        `scale=${W}:${H}:force_original_aspect_ratio=increase`,
+        `crop=${W}:${H}:(iw-ow)/2:(ih-oh)/2`,
+        ...(isRailway ? [] : [`zoompan=z='min(zoom+0.0012,1.08)':d=1:s=${W}x${H}:fps=25`]),
         "setsar=1",
         "fps=25",
     ];
@@ -191,17 +195,18 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         const overlayPaths = [];
         const subtitleSegments = getSubtitleSegments(script);
 
+        const overlayOpts = { videoWidth: W };
         if (hookText) {
             const hookPath = path.join(OUTPUT_DIR, `overlay_hook_${ts}.png`);
-            await renderTextToImage(hookText, hookPath, { fontSize: 64 });
-            overlayPaths.push({ path: hookPath, start: 0, end: HOOK_DURATION, yFrac: 0.75 });
+            await renderTextToImage(hookText, hookPath, { fontSize: 56, ...overlayOpts });
+            overlayPaths.push({ path: hookPath, start: 0, end: HOOK_DURATION });
             tempFiles.push(hookPath);
         }
         for (let i = 0; i < subtitleSegments.length; i++) {
             const s = subtitleSegments[i];
             const subPath = path.join(OUTPUT_DIR, `overlay_sub${i}_${ts}.png`);
-            await renderTextToImage(s.text, subPath, { fontSize: 48 });
-            overlayPaths.push({ path: subPath, start: s.start, end: s.end, yFrac: 0.85 });
+            await renderTextToImage(s.text, subPath, { fontSize: 48, ...overlayOpts });
+            overlayPaths.push({ path: subPath, start: s.start, end: s.end });
             tempFiles.push(subPath);
         }
 
@@ -263,7 +268,7 @@ async function validatePipeline(imagePaths) {
     try {
         execSync(
             `ffmpeg -f concat -safe 0 -i "${concatPath}" -f lavfi -i anullsrc=r=44100:cl=stereo -t 2 ` +
-                `-vf "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=25" ` +
+                `-vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920:(iw-ow)/2:(ih-oh)/2,setsar=1,fps=25" ` +
                 `-s 1080x1920 -aspect 9:16 -c:v libx264 -preset ultrafast -c:a aac -shortest -y "${outPath}"`,
             { stdio: "pipe" }
         );
