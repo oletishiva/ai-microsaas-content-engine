@@ -145,10 +145,11 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
     const isRailway = !!process.env.RAILWAY_PROJECT_ID;
     const W = isRailway ? 720 : 1080;
     const H = isRailway ? 1280 : 1920;
-    // Crop to fill: scale up so frame is filled, then center-crop (no black bars)
+    // Crop to fill + subtle Ken Burns zoom (images feel dynamic)
     let baseFilters = [
         `scale=${W}:${H}:force_original_aspect_ratio=increase`,
         `crop=${W}:${H}:(iw-ow)/2:(ih-oh)/2`,
+        `zoompan=z='min(zoom+0.0012,1.08)':d=1:s=${W}x${H}:fps=25`,
         "setsar=1",
         "fps=25",
     ];
