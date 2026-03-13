@@ -37,9 +37,9 @@ function ensureMediaDir() {
  * @param {string} filename  - Name to save the file as (e.g. "image_0.jpg")
  * @returns {Promise<string>} - Local path to the saved image
  */
-async function downloadImage(imageUrl, filename) {
+async function downloadImage(imageUrl, filename, targetDir) {
     const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
-    const filePath = path.resolve(path.join(MEDIA_DIR, filename));
+    const filePath = path.resolve(path.join(targetDir, filename));
     fs.writeFileSync(filePath, response.data);
     return filePath;
 }
@@ -59,6 +59,11 @@ async function fetchImages(topic, count = 8) {
     logger.info("ImageFetcher", `Searching Pexels for "${topic}" (${count} images)...`);
 
     ensureMediaDir();
+    // Unique dir per request – prevents overwrites from concurrent requests
+    const runId = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const runDir = path.join(MEDIA_DIR, runId);
+    fs.mkdirSync(runDir, { recursive: true });
+    logger.info("ImageFetcher", `Using media dir: ${runId}`);
 
     try {
         const trySearch = async (query, orientation) => {
@@ -119,7 +124,17 @@ async function fetchImages(topic, count = 8) {
             throw new Error(`No images found for topic: "${topic}"`);
         }
 
-        const photos = combined.slice(0, count);
+        // Only use photos with UNIQUE URLs – Pexels can return same image multiple times
+        const urlSeen = new Set();
+        const photos = [];
+        for (const p of combined) {
+            if (photos.length >= count) break;
+            const url = p.src?.original || p.src?.large2x || p.src?.large;
+            if (url && !urlSeen.has(url)) {
+                urlSeen.add(url);
+                photos.push(p);
+            }
+        }
         const portraitCount = photos.filter((p) => portrait.some((x) => x.id === p.id)).length;
         const landscapeCount = photos.length - portraitCount;
         logger.info("ImageFetcher", `→ Video will use ${photos.length} images: ${portraitCount} portrait (native 9:16) + ${landscapeCount} landscape (crop to 9:16)`);
@@ -127,12 +142,20 @@ async function fetchImages(topic, count = 8) {
             logger.warn("ImageFetcher", `Only ${photos.length}/${count} images available – video will have fewer slides`);
         }
 
+        // Verify we have unique URLs (Pexels can return duplicates)
+        const urls = photos.map((p) => p.src.original || p.src.large2x || p.src.large);
+        const uniqueUrls = new Set(urls).size;
+        logger.info("ImageFetcher", `URLs: ${uniqueUrls} unique out of ${photos.length}`);
+        if (uniqueUrls < photos.length) {
+            logger.warn("ImageFetcher", `Pexels returned ${photos.length - uniqueUrls} duplicate image(s) – using ${uniqueUrls} unique`);
+        }
+
         // Download each photo – use original for HD, fallback to large2x then large
         const localPaths = [];
         for (let i = 0; i < photos.length; i++) {
             const src = photos[i].src;
             const url = src.original || src.large2x || src.large;
-            const filePath = await downloadImage(url, `image_${i}.jpg`);
+            const filePath = await downloadImage(url, `image_${i}.jpg`, runDir);
             localPaths.push(filePath);
         }
         logger.info("ImageFetcher", `Downloaded ${localPaths.length} images → video slideshow (${(VIDEO_DURATION / localPaths.length).toFixed(1)}s per image)`);
