@@ -39,10 +39,11 @@ function deriveHookFromScript(script) {
  * Body: { "topic": "..." } OR { "script": "..." } OR both (script takes precedence)
  */
 router.post("/generate-video", async (req, res) => {
-    const { topic, script: scriptInput } = req.body;
+    const { topic, script: scriptInput, imageQuery: imageQueryInput } = req.body;
 
     const topicTrimmed = typeof topic === "string" ? topic.trim() : "";
     const scriptTrimmed = typeof scriptInput === "string" ? scriptInput.trim() : "";
+    const imageQueryTrimmed = typeof imageQueryInput === "string" ? imageQueryInput.trim() : "";
 
     if (!topicTrimmed && !scriptTrimmed) {
         return res.status(400).json({
@@ -59,7 +60,8 @@ router.post("/generate-video", async (req, res) => {
     }
 
     const searchQuery = topicTrimmed || scriptTrimmed.split(/\s+/).slice(0, 5).join(" ");
-    logger.info("Pipeline", `Starting (topic: "${topicTrimmed || "(none)"}", script: ${scriptTrimmed ? "provided" : "will generate"})`);
+    const pexelsQuery = imageQueryTrimmed || searchQuery;
+    logger.info("Pipeline", `Starting (topic: "${topicTrimmed || "(none)"}", script: ${scriptTrimmed ? "provided" : "will generate"}, imageQuery: "${pexelsQuery}")`);
 
     let script, hook;
     let silentAudioPath = null;
@@ -76,10 +78,10 @@ router.post("/generate-video", async (req, res) => {
             hook = generated.hook;
         }
 
-        // STEP 2: Fetch images (before ElevenLabs)
+        // STEP 2: Fetch images (use imageQuery for Pexels, or topic/script)
         logger.info("Pipeline", "STEP 2/6 – Fetching images...");
         const imageCount = e2eTestMode ? 4 : 8;
-        const imagePaths = await fetchImages(searchQuery, imageCount);
+        const imagePaths = await fetchImages(pexelsQuery, imageCount);
 
         // STEP 3: Validate FFmpeg pipeline BEFORE using ElevenLabs
         logger.info("Pipeline", "STEP 3/6 – Validating FFmpeg pipeline...");
@@ -148,6 +150,7 @@ router.post("/generate-video", async (req, res) => {
             success: true,
             topic: topicTrimmed || null,
             script,
+            imageQuery: imageQueryTrimmed || null,
             youtubeUrl,
         };
         if (videoUrl) {

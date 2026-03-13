@@ -171,6 +171,17 @@ curl -X POST http://localhost:3000/api/generate-video \
   -d '{ "topic": "Skincare", "script": "Your custom script here..." }'
 ```
 
+**Request (with custom image search – better Pexels results):**
+```bash
+curl -X POST http://localhost:3000/api/generate-video \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "Ayurvedic skincare secrets",
+    "imageQuery": "beautiful ocean waves tropical sea sunset"
+  }'
+```
+Use `imageQuery` for visual keywords (e.g. `tropical ocean waves sunset cinematic`) when the topic returns poor images. Images are fetched in HD (original resolution).
+
 **Response (with Cloudinary configured):**
 ```json
 {

@@ -80,12 +80,13 @@ async function fetchImages(topic, count = 8) {
 
         logger.info("ImageFetcher", `Found ${photos.length} photos. Downloading...`);
 
-        // Download each photo and collect local paths
+        // Download each photo – use original for HD, fallback to large2x then large
         const localPaths = [];
         for (let i = 0; i < photos.length; i++) {
-            const url = photos[i].src.large; // ~940px wide – good quality without being huge
+            const src = photos[i].src;
+            const url = src.original || src.large2x || src.large;
             const filePath = await downloadImage(url, `image_${i}.jpg`);
-            logger.info("ImageFetcher", `Downloaded: ${filePath}`);
+            logger.info("ImageFetcher", `Downloaded (HD): ${filePath}`);
             localPaths.push(filePath);
         }
 
