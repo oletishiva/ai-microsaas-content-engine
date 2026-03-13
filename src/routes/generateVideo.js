@@ -28,9 +28,9 @@ function deriveHookFromScript(script) {
     const s = String(script || "").trim();
     if (!s) return "STOP SCROLLING";
     const firstSentence = s.split(/[.!?]/)[0]?.trim() || s;
-    // Keep hook short for overlay (max 4 words, ~24 chars) to avoid cropping
-    const hook = firstSentence.length > 28
-        ? firstSentence.split(/\s+/).slice(0, 4).join(" ") + "..."
+    // Keep hook short for overlay (max 3 words, ~18 chars) to avoid cropping
+    const hook = firstSentence.length > 20
+        ? firstSentence.split(/\s+/).slice(0, 3).join(" ") + "..."
         : firstSentence;
     return hook.toUpperCase();
 }

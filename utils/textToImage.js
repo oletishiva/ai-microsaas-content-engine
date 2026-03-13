@@ -11,11 +11,10 @@ const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_WIDTH = 1080;
-const MARGIN_RATIO = 0.15; // 15% left and right (title/hook need more margin)
-const TEXT_WIDTH_RATIO = 1 - 2 * MARGIN_RATIO; // 70% for text
+const MARGIN_RATIO = 0.2; // 20% left and right – strict margins for all overlays
+const TEXT_WIDTH_RATIO = 1 - 2 * MARGIN_RATIO; // 60% for text
 const LINE_HEIGHT = 1.3;
-// Proportional fonts + ALL CAPS = wider; use 0.65em equivalent
-const CHARS_PER_EM = 0.62;
+const CHARS_PER_EM = 0.65; // Wide-char assumption for caps and proportional fonts
 
 function escapeXml(s) {
     return String(s)
@@ -62,18 +61,22 @@ async function renderTextToImage(text, outputPath, options = {}) {
     const videoWidth = options.videoWidth || DEFAULT_WIDTH;
     const textAreaWidth = Math.floor(videoWidth * TEXT_WIDTH_RATIO);
     const width = videoWidth;
-    // Hook/title uses larger font → fewer chars. Cap: 12 for fontSize>=50, else 14
+    // Strict caps: 10 for hook (fontSize>=50), 12 for subtitles
     const maxCharsPerLine = Math.floor(textAreaWidth / (fontSize * CHARS_PER_EM));
-    const cap = fontSize >= 50 ? 12 : 14;
-    const lines = wrapText(String(text).trim() || " ", Math.max(8, Math.min(maxCharsPerLine, cap)));
+    const cap = fontSize >= 50 ? 10 : 12;
+    const lines = wrapText(String(text).trim() || " ", Math.max(6, Math.min(maxCharsPerLine, cap)));
     const lineHeightPx = fontSize * LINE_HEIGHT;
     const totalHeight = Math.max(220, Math.ceil(lines.length * lineHeightPx) + 60);
+
+    const pad = Math.floor(width * MARGIN_RATIO);
+    const textWidth = width - 2 * pad;
+    const textCenterX = pad + textWidth / 2;
 
     const escapedLines = lines.map((l) => escapeXml(l));
     const tspans = escapedLines
         .map(
             (line, i) =>
-                `<tspan x="${width / 2}" dy="${i === 0 ? 0 : lineHeightPx}">${line}</tspan>`
+                `<tspan x="${textCenterX}" dy="${i === 0 ? 0 : lineHeightPx}">${line}</tspan>`
         )
         .join("\n        ");
 
@@ -81,12 +84,15 @@ async function renderTextToImage(text, outputPath, options = {}) {
 
     const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}" overflow="hidden">
+  <defs><clipPath id="textClip"><rect x="${pad}" y="0" width="${textWidth}" height="${totalHeight}"/></clipPath></defs>
   <rect width="100%" height="100%" fill="rgba(0,0,0,0.85)"/>
-  <text x="${width / 2}" y="${startY}" text-anchor="middle"
-        font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}" font-weight="bold"
-        fill="white" stroke="black" stroke-width="4">
-        ${tspans}
-  </text>
+  <g clip-path="url(#textClip)">
+    <text x="${textCenterX}" y="${startY}" text-anchor="middle"
+          font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}" font-weight="bold"
+          fill="white" stroke="black" stroke-width="4">
+          ${tspans}
+    </text>
+  </g>
 </svg>`;
 
     await sharp(Buffer.from(svg))
