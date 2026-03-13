@@ -13,8 +13,9 @@ const path = require("path");
 const DEFAULT_WIDTH = 1080;
 const MARGIN_RATIO = 0.1; // 10% left and right
 const TEXT_WIDTH_RATIO = 0.8; // 80% for text
-const CHARS_PER_LINE = 28; // ~6-7 words per line
 const LINE_HEIGHT = 1.2;
+// Conservative chars per line for proportional fonts (Arial). ~0.55em avg char width.
+const CHARS_PER_EM = 0.55;
 
 function escapeXml(s) {
     return String(s)
@@ -26,9 +27,10 @@ function escapeXml(s) {
 }
 
 /**
- * Wrap text into lines that fit within ~80% width (~28 chars per line)
+ * Wrap text into lines that fit within text area.
+ * Uses pixel-based estimate: maxChars = textAreaWidth / (fontSize * charsPerEm)
  */
-function wrapText(text, maxCharsPerLine = CHARS_PER_LINE) {
+function wrapText(text, maxCharsPerLine) {
     const words = String(text).trim().split(/\s+/).filter(Boolean);
     if (words.length === 0) return [" "];
     const lines = [];
@@ -39,7 +41,12 @@ function wrapText(text, maxCharsPerLine = CHARS_PER_LINE) {
             current = next;
         } else {
             if (current) lines.push(current);
-            current = w.length > maxCharsPerLine ? w.slice(0, maxCharsPerLine) : w;
+            // Break long words that exceed line width
+            current = w;
+            while (current.length > maxCharsPerLine) {
+                lines.push(current.slice(0, maxCharsPerLine));
+                current = current.slice(maxCharsPerLine);
+            }
         }
     }
     if (current) lines.push(current);
@@ -55,7 +62,9 @@ async function renderTextToImage(text, outputPath, options = {}) {
     const videoWidth = options.videoWidth || DEFAULT_WIDTH;
     const textAreaWidth = Math.floor(videoWidth * TEXT_WIDTH_RATIO);
     const width = videoWidth;
-    const lines = wrapText(String(text).trim() || " ", Math.floor(CHARS_PER_LINE * (textAreaWidth / DEFAULT_WIDTH)));
+    // Pixel-based wrap: chars that fit = width / (fontSize * avgCharWidth)
+    const maxCharsPerLine = Math.floor(textAreaWidth / (fontSize * CHARS_PER_EM));
+    const lines = wrapText(String(text).trim() || " ", Math.max(12, maxCharsPerLine));
     const lineHeightPx = fontSize * LINE_HEIGHT;
     const totalHeight = Math.max(200, Math.ceil(lines.length * lineHeightPx) + 40);
 

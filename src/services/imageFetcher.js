@@ -63,20 +63,39 @@ async function fetchImages(topic, count = 8) {
 
     try {
         // Call the Pexels Photos Search endpoint
-        const response = await axios.get("https://api.pexels.com/v1/search", {
-            headers: { Authorization: PEXELS_API_KEY },
-            params: {
-                query: topic,
-                per_page: count,
-                orientation: "portrait", // Portrait = better match for vertical 9:16 video
-            },
-        });
+        // Try portrait first (better for 9:16); if fewer than count, retry without orientation
+        let photos = [];
+        const trySearch = async (orientation) => {
+            const res = await axios.get("https://api.pexels.com/v1/search", {
+                headers: { Authorization: PEXELS_API_KEY },
+                params: {
+                    query: topic,
+                    per_page: Math.max(count, 15),
+                    ...(orientation ? { orientation } : {}),
+                },
+            });
+            return res.data.photos || [];
+        };
 
-        const photos = response.data.photos;
+        photos = await trySearch("portrait");
+        if (photos.length < count) {
+            logger.info("ImageFetcher", `Portrait returned ${photos.length}, retrying without orientation...`);
+            const fallback = await trySearch(null);
+            if (fallback.length > photos.length) {
+                photos = fallback;
+            }
+        }
 
         if (!photos || photos.length === 0) {
             throw new Error(`No images found for topic: "${topic}"`);
         }
+
+        // Take exactly count images (repeat last if needed for consistent timing)
+        const selected = photos.slice(0, count);
+        while (selected.length < count) {
+            selected.push(photos[selected.length % photos.length]);
+        }
+        photos = selected.slice(0, count);
 
         logger.info("ImageFetcher", `Found ${photos.length} photos. Downloading...`);
 
