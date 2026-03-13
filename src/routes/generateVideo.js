@@ -82,6 +82,7 @@ router.post("/generate-video", async (req, res) => {
         logger.info("Pipeline", "STEP 2/6 – Fetching images...");
         const imageCount = e2eTestMode ? 4 : 8;
         const imagePaths = await fetchImages(pexelsQuery, imageCount);
+        logger.info("Pipeline", `Fetched ${imagePaths.length} images for video (target: ${imageCount})`);
 
         // STEP 3: Validate FFmpeg pipeline BEFORE using ElevenLabs
         logger.info("Pipeline", "STEP 3/6 – Validating FFmpeg pipeline...");
@@ -151,6 +152,7 @@ router.post("/generate-video", async (req, res) => {
             topic: topicTrimmed || null,
             script,
             imageQuery: imageQueryTrimmed || null,
+            imageCount: imagePaths.length,
             youtubeUrl,
         };
         if (videoUrl) {

@@ -1,17 +1,15 @@
 /**
  * src/services/imageFetcher.js
  * ------------------------------
- * STEP 3 of the pipeline: Fetch relevant images from the Pexels API
- * and download them to the /output/media/ folder.
+ * STEP 3 of the pipeline: Fetch images from Pexels for Shorts (9:16 vertical).
  *
- * Input  : topic (string) – used as the search query
- * Output : array of local file paths to the downloaded images
+ * Strategy:
+ *  1. Try orientation=portrait first (native vertical, Shorts-ready)
+ *  2. Fallback to no-orientation (landscape) – FFmpeg crops to 9:16
+ *  3. Short query fallback if few results
  *
- * Workshop note:
- *  - Pexels returns JSON with photo objects, each having src URLs at
- *    multiple resolutions. We pick "large" for a good quality/size balance.
- *  - We download N images (default 8 for Shorts) to give FFmpeg enough material
- *    for a slideshow that matches the audio length.
+ * FFmpeg uses: scale=W:H:force_original_aspect_ratio=increase,crop=W:H
+ * to convert landscape → vertical (center crop, no black bars).
  */
 
 const axios = require("axios");
@@ -19,6 +17,7 @@ const fs = require("fs");
 const path = require("path");
 const { PEXELS_API_KEY } = require("../../config/apiKeys");
 const { MEDIA_DIR } = require("../../config/paths");
+const { VIDEO_DURATION } = require("../../utils/subtitleHelper");
 const logger = require("../../utils/logger");
 
 /**
@@ -74,44 +73,59 @@ async function fetchImages(topic, count = 8) {
             return res.data.photos || [];
         };
 
-        // Try full query first (no orientation = most results)
-        let photos = await trySearch(topic, null);
-        logger.info("ImageFetcher", `Query "${topic}" returned ${photos.length} photos`);
+        // 1. Try portrait first (native 9:16 – Shorts-ready)
+        let portrait = await trySearch(topic, "portrait");
+        logger.info("ImageFetcher", `Portrait "${topic}" returned ${portrait.length} photos`);
 
-        // Fallback: if few results, try shorter query (e.g. "ocean waves" from "beautiful ocean waves sunset")
-        if (photos.length < count) {
+        // 2. Fallback: no-orientation (landscape) – we crop to 9:16 in FFmpeg
+        let landscape = [];
+        if (portrait.length < count) {
+            landscape = await trySearch(topic, null);
+            logger.info("ImageFetcher", `Adding landscape fallback: +${landscape.length} photos (portrait had ${portrait.length}, need ${count})`);
+        } else {
+            logger.info("ImageFetcher", `Portrait sufficient (${portrait.length} >= ${count}), skipping landscape`);
+        }
+
+        // 3. Short query fallback: "ocean waves" from "beautiful ocean waves sunset"
+        const uniqueBeforeShort = new Set([...portrait, ...landscape].map((p) => p.id)).size;
+        if (uniqueBeforeShort < count) {
             const shortQuery = topic.split(/\s+/).slice(0, 2).join(" ");
             if (shortQuery !== topic) {
                 const more = await trySearch(shortQuery, null);
-                logger.info("ImageFetcher", `Fallback "${shortQuery}" returned ${more.length} photos`);
-                const seen = new Set(photos.map((p) => p.id));
-                for (const p of more) {
-                    if (!seen.has(p.id)) {
-                        photos.push(p);
-                        seen.add(p.id);
-                    }
-                }
+                const morePortrait = await trySearch(shortQuery, "portrait");
+                const added = more.length + morePortrait.length;
+                landscape = [...landscape, ...more, ...morePortrait];
+                logger.info("ImageFetcher", `Short query "${shortQuery}" added +${added} photos (had ${uniqueBeforeShort} unique, need ${count})`);
             }
         }
 
-        // Last resort: add portrait results
-        if (photos.length < count) {
-            const portrait = await trySearch(topic, "portrait");
-            const seen = new Set(photos.map((p) => p.id));
-            for (const p of portrait) {
-                if (!seen.has(p.id)) {
-                    photos.push(p);
-                    seen.add(p.id);
-                }
+        // Prefer portrait first (native 9:16), then fill with landscape (cropped to 9:16 in FFmpeg)
+        const seen = new Set();
+        const combined = [];
+        for (const p of portrait) {
+            if (!seen.has(p.id)) {
+                combined.push(p);
+                seen.add(p.id);
+            }
+        }
+        for (const p of landscape) {
+            if (!seen.has(p.id)) {
+                combined.push(p);
+                seen.add(p.id);
             }
         }
 
-        if (!photos || photos.length === 0) {
+        if (!combined || combined.length === 0) {
             throw new Error(`No images found for topic: "${topic}"`);
         }
 
-        photos = photos.slice(0, count);
-        logger.info("ImageFetcher", `Using ${photos.length} unique photos. Downloading...`);
+        const photos = combined.slice(0, count);
+        const portraitCount = photos.filter((p) => portrait.some((x) => x.id === p.id)).length;
+        const landscapeCount = photos.length - portraitCount;
+        logger.info("ImageFetcher", `→ Video will use ${photos.length} images: ${portraitCount} portrait (native 9:16) + ${landscapeCount} landscape (crop to 9:16)`);
+        if (photos.length < count) {
+            logger.warn("ImageFetcher", `Only ${photos.length}/${count} images available – video will have fewer slides`);
+        }
 
         // Download each photo – use original for HD, fallback to large2x then large
         const localPaths = [];
@@ -119,10 +133,9 @@ async function fetchImages(topic, count = 8) {
             const src = photos[i].src;
             const url = src.original || src.large2x || src.large;
             const filePath = await downloadImage(url, `image_${i}.jpg`);
-            logger.info("ImageFetcher", `Downloaded (HD): ${filePath}`);
             localPaths.push(filePath);
         }
-
+        logger.info("ImageFetcher", `Downloaded ${localPaths.length} images → video slideshow (${(VIDEO_DURATION / localPaths.length).toFixed(1)}s per image)`);
         return localPaths;
     } catch (err) {
         const msg = err.response?.data?.error || err.message;

@@ -115,7 +115,7 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         throw new Error(`Audio file not found: ${audioPath}`);
     }
 
-    logger.info("VideoGenerator", "Rendering 15s video...");
+    logger.info("VideoGenerator", `Rendering 15s video with ${imagePaths.length} images (${(VIDEO_DURATION / imagePaths.length).toFixed(1)}s per slide)...`);
 
     if (!fs.existsSync(OUTPUT_DIR)) {
         fs.mkdirSync(OUTPUT_DIR, { recursive: true });

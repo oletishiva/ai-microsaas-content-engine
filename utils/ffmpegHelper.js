@@ -43,7 +43,7 @@ function buildConcatFile(imagePaths, durationEach, outputDir) {
 
     const concatFilePath = path.join(outputDir, `concat_${Date.now()}.txt`);
     fs.writeFileSync(concatFilePath, lines.join("\n"));
-    logger.info("FFmpegHelper", `Concat file: ${concatFilePath} (${imagePaths.length} images)`);
+    logger.info("FFmpegHelper", `Concat: ${imagePaths.length} images @ ${durationEach.toFixed(1)}s each → ${(imagePaths.length * durationEach).toFixed(1)}s total`);
     return concatFilePath;
 }
 

@@ -16,10 +16,10 @@ Topic (text input)
 [2] ElevenLabs TTS      → Converts script to MP3 voice narration
     │
     ▼
-[3] Pexels API          → Downloads relevant portrait images
+[3] Pexels API          → Fetches portrait (9:16) first, landscape fallback
     │
     ▼
-[4] FFmpeg              → Assembles images + audio into a 9:16 vertical MP4
+[4] FFmpeg              → Crops to 9:16, assembles images + audio into vertical MP4
     │
     ▼
 [5] YouTube Data API    → Uploads the finished video to YouTube
