@@ -120,12 +120,16 @@ async function fetchImages(topic, count = 8) {
             throw new Error(`No images found for topic: "${topic}"`);
         }
 
+        // On Railway: use large2x (1880px) instead of original to reduce OOM. Local: original for HD.
+        const isRailway = !!process.env.RAILWAY_PROJECT_ID;
+        const pickUrl = (src) => (isRailway ? (src?.large2x || src?.large || src?.original) : (src?.original || src?.large2x || src?.large));
+
         // Only use photos with UNIQUE URLs – Pexels can return same image multiple times
         let urlSeen = new Set();
         let photos = [];
         for (const p of combined) {
             if (photos.length >= count) break;
-            const url = p.src?.original || p.src?.large2x || p.src?.large;
+            const url = pickUrl(p.src) || p.src?.original || p.src?.large2x || p.src?.large;
             if (url && !urlSeen.has(url)) {
                 urlSeen.add(url);
                 photos.push(p);
@@ -139,7 +143,7 @@ async function fetchImages(topic, count = 8) {
             const page2Landscape = await trySearch(topic, null, 2);
             for (const p of [...page2Portrait, ...page2Landscape]) {
                 if (photos.length >= count) break;
-                const url = p.src?.original || p.src?.large2x || p.src?.large;
+                const url = pickUrl(p.src);
                 if (url && !urlSeen.has(url)) {
                     urlSeen.add(url);
                     photos.push(p);
@@ -158,7 +162,7 @@ async function fetchImages(topic, count = 8) {
                 const extra = await trySearch(kw, null);
                 for (const p of extra) {
                     if (photos.length >= count) break;
-                    const url = p.src?.original || p.src?.large2x || p.src?.large;
+                    const url = pickUrl(p.src);
                     if (url && !urlSeen.has(url)) {
                         urlSeen.add(url);
                         photos.push(p);
@@ -176,18 +180,17 @@ async function fetchImages(topic, count = 8) {
         }
 
         // Verify we have unique URLs (Pexels can return duplicates)
-        const urls = photos.map((p) => p.src.original || p.src.large2x || p.src.large);
+        const urls = photos.map((p) => pickUrl(p.src));
         const uniqueUrls = new Set(urls).size;
         logger.info("ImageFetcher", `URLs: ${uniqueUrls} unique out of ${photos.length}`);
         if (uniqueUrls < photos.length) {
             logger.warn("ImageFetcher", `Pexels returned ${photos.length - uniqueUrls} duplicate image(s) – using ${uniqueUrls} unique`);
         }
 
-        // Download each photo – use original for HD, fallback to large2x then large
+        // Download each photo
         const localPaths = [];
         for (let i = 0; i < photos.length; i++) {
-            const src = photos[i].src;
-            const url = src.original || src.large2x || src.large;
+            const url = pickUrl(photos[i].src);
             const filePath = await downloadImage(url, `image_${i}.jpg`, runDir);
             localPaths.push(filePath);
         }
