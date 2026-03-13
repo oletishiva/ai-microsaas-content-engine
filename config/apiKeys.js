@@ -84,6 +84,9 @@ module.exports = {
   // E2E_TEST_MODE=1 → 15 words max, 2 images. Full upload to YouTube.
   E2E_TEST_MODE: process.env.E2E_TEST_MODE === "1" || process.env.E2E_TEST_MODE === "true",
 
+  // Skip voice: use silent audio instead of ElevenLabs (for E2E when ElevenLabs blocks cloud IPs)
+  E2E_SKIP_VOICE: process.env.E2E_SKIP_VOICE === "1" || process.env.E2E_SKIP_VOICE === "true",
+
   // YouTube upload is optional – skip if credentials are placeholder/missing
   hasYouTubeConfig:
     !!process.env.YOUTUBE_CLIENT_ID &&

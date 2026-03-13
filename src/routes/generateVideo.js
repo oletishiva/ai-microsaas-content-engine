@@ -10,12 +10,16 @@ const router = express.Router();
 const logger = require("../../utils/logger");
 
 const fs = require("fs");
+const path = require("path");
+const { execSync } = require("child_process");
 const { generateScript } = require("../services/scriptGenerator");
 const { generateVoice } = require("../services/voiceGenerator");
 const { fetchImages } = require("../services/imageFetcher");
 const { generateVideo, validatePipeline } = require("../services/videoGenerator");
 const { uploadToYouTube } = require("../services/youtubeUploader");
 const { uploadVideoToCloudinary } = require("../services/cloudinaryUploader");
+const { OUTPUT_DIR } = require("../../config/paths");
+const { VIDEO_DURATION } = require("../../utils/subtitleHelper");
 
 /**
  * POST /api/generate-video
@@ -41,6 +45,7 @@ router.post("/generate-video", async (req, res) => {
 
     logger.info("Pipeline", `Starting for topic: "${topicTrimmed}"`);
 
+    let silentAudioPath = null;
     try {
         // STEP 1: Generate script
         logger.info("Pipeline", "STEP 1/6 – Generating script...");
@@ -55,9 +60,20 @@ router.post("/generate-video", async (req, res) => {
         logger.info("Pipeline", "STEP 3/6 – Validating FFmpeg pipeline...");
         await validatePipeline(imagePaths);
 
-        // STEP 4: Generate voice (only after FFmpeg validation passes)
-        logger.info("Pipeline", "STEP 4/6 – Generating voice...");
-        const audioPath = await generateVoice(script);
+        // STEP 4: Generate voice or silent audio (only after FFmpeg validation passes)
+        let audioPath;
+        if (apiKeys.E2E_SKIP_VOICE) {
+            logger.info("Pipeline", "STEP 4/6 – Skipping voice (E2E_SKIP_VOICE), using silent audio...");
+            silentAudioPath = path.join(OUTPUT_DIR, `silent_${Date.now()}.mp3`);
+            execSync(
+                `ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t ${VIDEO_DURATION} -q:a 9 -acodec libmp3lame -y "${silentAudioPath}"`,
+                { stdio: "pipe" }
+            );
+            audioPath = silentAudioPath;
+        } else {
+            logger.info("Pipeline", "STEP 4/6 – Generating voice...");
+            audioPath = await generateVoice(script);
+        }
 
         // STEP 5: Render 15s video
         const timestamp = Date.now();
@@ -122,6 +138,12 @@ router.post("/generate-video", async (req, res) => {
             success: false,
             error: err.message || "Pipeline failed",
         });
+    } finally {
+        if (typeof silentAudioPath === "string" && fs.existsSync(silentAudioPath)) {
+            try {
+                fs.unlinkSync(silentAudioPath);
+            } catch (_) {}
+        }
     }
 });
 
