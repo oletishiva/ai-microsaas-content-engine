@@ -48,11 +48,13 @@ function deriveHookFromScript(script) {
  *   tags (string[])     - YouTube tags (overrides auto viral tags)
  *   addMusic (boolean)  - Add background music from Pixabay (default: true if PIXABAY_API_KEY set)
  *   musicQuery (string) - Music theme override (e.g. "calm", "motivation")
+ *   hook (string)       - Custom hook text for first 2.2s overlay (default: derived from script)
  */
 router.post("/generate-video", async (req, res) => {
     const {
         topic,
         script: scriptInput,
+        hook: hookInput,
         imageQuery: imageQueryInput,
         maxWords: maxWordsInput,
         title: titleInput,
@@ -63,6 +65,7 @@ router.post("/generate-video", async (req, res) => {
 
     const topicTrimmed = typeof topic === "string" ? topic.trim() : "";
     const scriptTrimmed = typeof scriptInput === "string" ? scriptInput.trim() : "";
+    const hookTrimmed = typeof hookInput === "string" ? hookInput.trim() : null;
     const imageQueryTrimmed = typeof imageQueryInput === "string" ? imageQueryInput.trim() : "";
     const maxWords = maxWordsInput === 50 ? 50 : 35;
     const customTitle = typeof titleInput === "string" ? titleInput.trim() : null;
@@ -95,12 +98,12 @@ router.post("/generate-video", async (req, res) => {
         if (scriptTrimmed) {
             logger.info("Pipeline", "STEP 1/6 – Using provided script...");
             script = scriptTrimmed;
-            hook = deriveHookFromScript(script);
+            hook = hookTrimmed || deriveHookFromScript(script);
         } else {
             logger.info("Pipeline", `STEP 1/6 – Generating script (maxWords: ${maxWords})...`);
             const generated = await generateScript(topicTrimmed, e2eTestMode, { maxWords });
             script = generated.script;
-            hook = generated.hook;
+            hook = hookTrimmed || generated.hook;
         }
 
         // STEP 2: Fetch images (use imageQuery for Pexels, or topic/script)
