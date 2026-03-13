@@ -15,6 +15,8 @@ const { execSync } = require("child_process");
 const { generateScript } = require("../services/scriptGenerator");
 const { generateVoice } = require("../services/voiceGenerator");
 const { fetchImages } = require("../services/imageFetcher");
+const { fetchBackgroundMusic } = require("../services/musicFetcher");
+const { mixVoiceWithMusic } = require("../../utils/audioMixer");
 const { generateVideo, validatePipeline } = require("../services/videoGenerator");
 const { uploadToYouTube } = require("../services/youtubeUploader");
 const { uploadVideoToCloudinary } = require("../services/cloudinaryUploader");
@@ -44,6 +46,8 @@ function deriveHookFromScript(script) {
  *   maxWords (number)   - Script length: 35 (default) or 50 for longer ~20s video
  *   title (string)      - YouTube video title (default: topic + " #Shorts")
  *   tags (string[])     - YouTube tags (overrides auto viral tags)
+ *   addMusic (boolean)  - Add background music from Pixabay (default: true if PIXABAY_API_KEY set)
+ *   musicQuery (string) - Music theme override (e.g. "calm", "motivation")
  */
 router.post("/generate-video", async (req, res) => {
     const {
@@ -53,6 +57,8 @@ router.post("/generate-video", async (req, res) => {
         maxWords: maxWordsInput,
         title: titleInput,
         tags: tagsInput,
+        addMusic: addMusicInput,
+        musicQuery: musicQueryInput,
     } = req.body;
 
     const topicTrimmed = typeof topic === "string" ? topic.trim() : "";
@@ -61,6 +67,8 @@ router.post("/generate-video", async (req, res) => {
     const maxWords = maxWordsInput === 50 ? 50 : 35;
     const customTitle = typeof titleInput === "string" ? titleInput.trim() : null;
     const customTags = Array.isArray(tagsInput) ? tagsInput : null;
+    const addMusic = addMusicInput !== false && addMusicInput !== "false";
+    const musicQuery = typeof musicQueryInput === "string" ? musicQueryInput.trim() : null;
 
     if (!topicTrimmed && !scriptTrimmed) {
         return res.status(400).json({
@@ -121,7 +129,22 @@ router.post("/generate-video", async (req, res) => {
             audioPath = await generateVoice(script);
         }
 
-        // STEP 5: Render 15s video
+        // STEP 4b: Add background music (optional)
+        let musicPath = null;
+        if (addMusic && apiKeys.ADD_MUSIC && apiKeys.PIXABAY_API_KEY && !apiKeys.E2E_SKIP_VOICE) {
+            const theme = musicQuery || searchQuery;
+            musicPath = await fetchBackgroundMusic(theme);
+            if (musicPath) {
+                const mixedPath = path.join(OUTPUT_DIR, `mixed_${Date.now()}.mp3`);
+                await mixVoiceWithMusic(audioPath, musicPath, mixedPath);
+                audioPath = mixedPath;
+                try {
+                    if (fs.existsSync(musicPath)) fs.unlinkSync(musicPath);
+                } catch (_) {}
+            }
+        }
+
+        // STEP 5: Render video
         const timestamp = Date.now();
         const outputFilename = `video_${timestamp}.mp4`;
         logger.info("Pipeline", "STEP 5/6 – Rendering video...");

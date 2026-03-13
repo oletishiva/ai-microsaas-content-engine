@@ -74,6 +74,10 @@ module.exports = {
   // ── Pexels ───────────────────────────────────────────────
   PEXELS_API_KEY: process.env.PEXELS_API_KEY,
 
+  // ── Pixabay (for background music) ────────────────────────
+  PIXABAY_API_KEY: process.env.PIXABAY_API_KEY?.trim() || undefined,
+  ADD_MUSIC: process.env.ADD_MUSIC !== "0" && process.env.ADD_MUSIC !== "false",
+
   // ── YouTube / Google OAuth2 ───────────────────────────────
   YOUTUBE_CLIENT_ID: process.env.YOUTUBE_CLIENT_ID,
   YOUTUBE_CLIENT_SECRET: process.env.YOUTUBE_CLIENT_SECRET,
