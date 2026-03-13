@@ -131,9 +131,8 @@ router.post("/generate-video", async (req, res) => {
 
         // STEP 4b: Add background music (optional). When no voice (E2E_SKIP_VOICE), use music at full volume.
         let musicPath = null;
-        if (addMusic && apiKeys.ADD_MUSIC && apiKeys.PIXABAY_API_KEY) {
-            const theme = musicQuery || searchQuery;
-            musicPath = await fetchBackgroundMusic(theme);
+        if (addMusic && apiKeys.ADD_MUSIC) {
+            musicPath = fetchBackgroundMusic();
             if (musicPath) {
                 const mixedPath = path.join(OUTPUT_DIR, `mixed_${Date.now()}.mp3`);
                 await mixVoiceWithMusic(audioPath, musicPath, mixedPath, {

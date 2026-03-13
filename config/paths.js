@@ -10,5 +10,6 @@ const path = require("path");
 const ROOT = process.cwd();
 const OUTPUT_DIR = path.join(ROOT, "output");
 const MEDIA_DIR = path.join(OUTPUT_DIR, "media");
+const MUSIC_DIR = path.join(ROOT, "music");
 
-module.exports = { ROOT, OUTPUT_DIR, MEDIA_DIR };
+module.exports = { ROOT, OUTPUT_DIR, MEDIA_DIR, MUSIC_DIR };

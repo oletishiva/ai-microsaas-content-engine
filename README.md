@@ -245,7 +245,7 @@ Use `imageQuery` for visual keywords (e.g. `tropical ocean waves sunset cinemati
    | `CLOUDINARY_CLOUD_NAME` | ❌ | For public video URLs (recommended on Railway) |
    | `CLOUDINARY_API_KEY` | ❌ | For Cloudinary uploads |
    | `CLOUDINARY_API_SECRET` | ❌ | For Cloudinary uploads |
-   | `PIXABAY_API_KEY` | ❌ | For background music (free at pixabay.com/api/docs/) |
+   | `ADD_MUSIC` | ❌ | Set to `0` to disable. Music from ./music/ folder by default |
    | `ADD_MUSIC` | ❌ | Set to `0` to disable music (e.g. if Railway OOM) |
    | `RAILPACK_DEPLOY_APT_PACKAGES` | ✅ | **Required for video generation.** Set to `ffmpeg libatomic1` so FFmpeg is available at runtime. |
 
