@@ -84,10 +84,15 @@ async function renderTextToImage(text, outputPath, options = {}) {
 
     // Stroke 3px for visibility on light backgrounds (ocean/sky); paint-order keeps edges crisp
     const strokeWidth = 3;
+    // Semi-transparent dark bar behind text for contrast on light images
+    const barPad = Math.max(12, Math.floor(fontSize * 0.3));
+    const barY = Math.max(0, startY - lineHeightPx - barPad);
+    const barH = Math.min(totalHeight, lines.length * lineHeightPx + barPad * 2);
     const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}" overflow="hidden">
   <defs><clipPath id="textClip"><rect x="${pad}" y="0" width="${textWidth}" height="${totalHeight}"/></clipPath></defs>
   <g clip-path="url(#textClip)">
+    <rect x="${pad}" y="${barY}" width="${textWidth}" height="${barH}" fill="black" fill-opacity="0.45"/>
     <text x="${textCenterX}" y="${startY}" text-anchor="middle"
           font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}" font-weight="900"
           fill="white" stroke="black" stroke-width="${strokeWidth}" paint-order="stroke fill">

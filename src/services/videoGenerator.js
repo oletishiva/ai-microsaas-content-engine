@@ -34,13 +34,12 @@ function buildDrawTextFilter(textFilePath, fontSize, yExpr, enableExpr) {
 /**
  * Run FFmpeg with image overlays.
  * NO setpts on base – setpts breaks concat demuxer (only first image shows).
- * Use fps=25 + n-based enable for overlay timing.
+ * Use t-based enable (lt/gte) – more reliable than n on Railway.
  */
 function runFfmpegWithOverlays(concatPath, audioPath, overlayPaths, _baseFilters, outputPath, outputOpts, cleanup, videoDuration, W = 1080, H = 1920) {
     const { spawnSync } = require("child_process");
 
     const HOOK_DURATION = 2.2;
-    const HOOK_FRAMES = Math.floor(HOOK_DURATION * 25); // 55 frames at 25fps
     const hook = overlayPaths.find((o) => o.start === 0 && o.end === HOOK_DURATION);
     const quote = overlayPaths.find((o) => o.start === HOOK_DURATION);
 
@@ -48,16 +47,16 @@ function runFfmpegWithOverlays(concatPath, audioPath, overlayPaths, _baseFilters
     let loopInputs = [];
     let audioIdx;
 
-    // No setpts – it breaks concat multi-image. fps=25 for consistent n.
+    // fps=25 for smooth output. t-based enable (Railway FFmpeg n can be unreliable)
     const baseChain = `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}:(iw-ow)/2:(ih-oh)/2,setsar=1,fps=25[base]`;
     const overlayPrep = (idx) => `[${idx}:v]scale=${W}:-1,format=rgba`;
 
     if (hook && quote) {
-        filter = `${baseChain};${overlayPrep(1)}[hook];${overlayPrep(2)}[quote];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='lt(n,${HOOK_FRAMES})'[tmp];[tmp][quote]overlay=x=(W-w)/2:y=H*0.35:enable='gte(n,${HOOK_FRAMES})'[out]`;
+        filter = `${baseChain};${overlayPrep(1)}[hook];${overlayPrep(2)}[quote];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='lt(t,${HOOK_DURATION})'[tmp];[tmp][quote]overlay=x=(W-w)/2:y=H*0.35:enable='gte(t,${HOOK_DURATION})'[out]`;
         loopInputs = ["-loop", "1", "-i", hook.path, "-loop", "1", "-i", quote.path];
         audioIdx = 3;
     } else if (hook) {
-        filter = `${baseChain};${overlayPrep(1)}[hook];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='lt(n,${HOOK_FRAMES})'[out]`;
+        filter = `${baseChain};${overlayPrep(1)}[hook];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='lt(t,${HOOK_DURATION})'[out]`;
         loopInputs = ["-loop", "1", "-i", hook.path];
         audioIdx = 2;
     } else if (quote) {
@@ -210,15 +209,18 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         const ts = Date.now();
         const overlayPaths = [];
         // First 3s: hook. Then: quote (script). Both in 20%-70% band.
+        // Larger fonts on Railway (720×1280) for visibility
+        const hookFont = isRailway ? 80 : 70;
+        const quoteFont = isRailway ? 52 : 44;
         if (hookText) {
             const hookPath = path.join(OUTPUT_DIR, `overlay_hook_${ts}.png`);
-            await renderTextToImage(hookText, hookPath, { fontSize: 70, videoWidth: W });
+            await renderTextToImage(hookText, hookPath, { fontSize: hookFont, videoWidth: W });
             overlayPaths.push({ path: hookPath, start: 0, end: HOOK_DURATION });
             tempFiles.push(hookPath);
         }
         if (script) {
             const quotePath = path.join(OUTPUT_DIR, `overlay_quote_${ts}.png`);
-            await renderTextToImage(script, quotePath, { fontSize: 44, videoWidth: W });
+            await renderTextToImage(script, quotePath, { fontSize: quoteFont, videoWidth: W });
             overlayPaths.push({ path: quotePath, start: HOOK_DURATION, end: videoDuration });
             tempFiles.push(quotePath);
         }
