@@ -145,13 +145,12 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
     const isRailway = !!process.env.RAILWAY_PROJECT_ID;
     const W = isRailway ? 720 : 1080;
     const H = isRailway ? 1280 : 1920;
-    // Crop to fill. Ken Burns zoom skipped on Railway (causes OOM/SIGKILL)
+    // Crop to fill. No fps in filter – it can break concat demuxer duration (only first image shows)
     let baseFilters = [
         `scale=${W}:${H}:force_original_aspect_ratio=increase`,
         `crop=${W}:${H}:(iw-ow)/2:(ih-oh)/2`,
         ...(isRailway ? [] : [`zoompan=z='min(zoom+0.0012,1.08)':d=1:s=${W}x${H}:fps=25`]),
         "setsar=1",
-        "fps=25",
     ];
 
     if (useDrawText) {
@@ -168,6 +167,7 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
 
     const outputOpts = [
         "-t", "15",
+        "-r", "25",
         "-s", `${W}x${H}`,
         "-aspect", "9:16",
         "-metadata:s:v:0", "rotate=0",

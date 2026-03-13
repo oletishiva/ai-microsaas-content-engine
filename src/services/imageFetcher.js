@@ -132,7 +132,7 @@ async function fetchImages(topic, count = 8) {
             }
         }
 
-        // If still few unique URLs, try page 2 for more variety
+        // If still few unique URLs, try page 2
         if (photos.length < count) {
             const beforePage2 = photos.length;
             const page2Portrait = await trySearch(topic, "portrait", 2);
@@ -150,11 +150,29 @@ async function fetchImages(topic, count = 8) {
             }
         }
 
+        // Last resort: search by individual keywords for maximum variety
+        if (photos.length < count) {
+            const keywords = topic.split(/\s+/).filter((w) => w.length > 2).slice(0, 5);
+            for (const kw of keywords) {
+                if (photos.length >= count) break;
+                const extra = await trySearch(kw, null);
+                for (const p of extra) {
+                    if (photos.length >= count) break;
+                    const url = p.src?.original || p.src?.large2x || p.src?.large;
+                    if (url && !urlSeen.has(url)) {
+                        urlSeen.add(url);
+                        photos.push(p);
+                    }
+                }
+            }
+            logger.info("ImageFetcher", `Keyword search yielded ${photos.length} unique images`);
+        }
+
         const portraitCount = photos.filter((p) => portrait.some((x) => x.id === p.id)).length;
         const landscapeCount = photos.length - portraitCount;
         logger.info("ImageFetcher", `→ Video will use ${photos.length} images: ${portraitCount} portrait (native 9:16) + ${landscapeCount} landscape (crop to 9:16)`);
         if (photos.length < count) {
-            logger.warn("ImageFetcher", `Only ${photos.length}/${count} images available – video will have fewer slides`);
+            logger.warn("ImageFetcher", `Only ${photos.length}/${count} unique images – video will repeat or have fewer slides`);
         }
 
         // Verify we have unique URLs (Pexels can return duplicates)

@@ -43,7 +43,11 @@ function buildConcatFile(imagePaths, durationEach, outputDir) {
 
     const concatFilePath = path.join(outputDir, `concat_${Date.now()}.txt`);
     fs.writeFileSync(concatFilePath, lines.join("\n"));
-    logger.info("FFmpegHelper", `Concat: ${imagePaths.length} images @ ${durationEach.toFixed(1)}s each → ${(imagePaths.length * durationEach).toFixed(1)}s total`);
+    const uniquePaths = new Set(imagePaths.map((p) => path.resolve(p))).size;
+    logger.info("FFmpegHelper", `Concat: ${imagePaths.length} images (${uniquePaths} unique paths) @ ${durationEach.toFixed(1)}s each`);
+    if (uniquePaths < imagePaths.length) {
+        logger.warn("FFmpegHelper", "Duplicate paths in concat – video may show same image");
+    }
     return concatFilePath;
 }
 
