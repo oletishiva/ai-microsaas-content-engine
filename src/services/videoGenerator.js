@@ -198,7 +198,7 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         const overlayOpts = { videoWidth: W };
         if (hookText) {
             const hookPath = path.join(OUTPUT_DIR, `overlay_hook_${ts}.png`);
-            await renderTextToImage(hookText, hookPath, { fontSize: 56, ...overlayOpts });
+            await renderTextToImage(hookText, hookPath, { fontSize: 52, ...overlayOpts });
             overlayPaths.push({ path: hookPath, start: 0, end: HOOK_DURATION });
             tempFiles.push(hookPath);
         }

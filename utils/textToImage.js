@@ -11,11 +11,11 @@ const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_WIDTH = 1080;
-const MARGIN_RATIO = 0.1; // 10% left and right
-const TEXT_WIDTH_RATIO = 1 - 2 * MARGIN_RATIO; // 80% for text (10% margins each side)
+const MARGIN_RATIO = 0.15; // 15% left and right (title/hook need more margin)
+const TEXT_WIDTH_RATIO = 1 - 2 * MARGIN_RATIO; // 70% for text
 const LINE_HEIGHT = 1.3;
-// Very conservative – proportional fonts vary; assume wide chars
-const CHARS_PER_EM = 0.58;
+// Proportional fonts + ALL CAPS = wider; use 0.65em equivalent
+const CHARS_PER_EM = 0.62;
 
 function escapeXml(s) {
     return String(s)
@@ -62,9 +62,10 @@ async function renderTextToImage(text, outputPath, options = {}) {
     const videoWidth = options.videoWidth || DEFAULT_WIDTH;
     const textAreaWidth = Math.floor(videoWidth * TEXT_WIDTH_RATIO);
     const width = videoWidth;
-    // Enforce 10% margins: fewer chars per line for proportional fonts (W, M wider than i)
+    // Hook/title uses larger font → fewer chars. Cap: 12 for fontSize>=50, else 14
     const maxCharsPerLine = Math.floor(textAreaWidth / (fontSize * CHARS_PER_EM));
-    const lines = wrapText(String(text).trim() || " ", Math.max(10, Math.min(maxCharsPerLine, 16)));
+    const cap = fontSize >= 50 ? 12 : 14;
+    const lines = wrapText(String(text).trim() || " ", Math.max(8, Math.min(maxCharsPerLine, cap)));
     const lineHeightPx = fontSize * LINE_HEIGHT;
     const totalHeight = Math.max(220, Math.ceil(lines.length * lineHeightPx) + 60);
 
