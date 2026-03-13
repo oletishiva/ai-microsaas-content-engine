@@ -129,14 +129,16 @@ router.post("/generate-video", async (req, res) => {
             audioPath = await generateVoice(script);
         }
 
-        // STEP 4b: Add background music (optional)
+        // STEP 4b: Add background music (optional). When no voice (E2E_SKIP_VOICE), use music at full volume.
         let musicPath = null;
-        if (addMusic && apiKeys.ADD_MUSIC && apiKeys.PIXABAY_API_KEY && !apiKeys.E2E_SKIP_VOICE) {
+        if (addMusic && apiKeys.ADD_MUSIC && apiKeys.PIXABAY_API_KEY) {
             const theme = musicQuery || searchQuery;
             musicPath = await fetchBackgroundMusic(theme);
             if (musicPath) {
                 const mixedPath = path.join(OUTPUT_DIR, `mixed_${Date.now()}.mp3`);
-                await mixVoiceWithMusic(audioPath, musicPath, mixedPath);
+                await mixVoiceWithMusic(audioPath, musicPath, mixedPath, {
+                    musicOnly: apiKeys.E2E_SKIP_VOICE,
+                });
                 audioPath = mixedPath;
                 try {
                     if (fs.existsSync(musicPath)) fs.unlinkSync(musicPath);
