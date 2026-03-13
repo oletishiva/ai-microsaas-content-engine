@@ -63,26 +63,32 @@ async function fetchImages(topic, count = 8) {
 
     try {
         // Call the Pexels Photos Search endpoint
-        // Try portrait first (better for 9:16); if fewer than count, retry without orientation
-        let photos = [];
-        const trySearch = async (orientation) => {
-            const res = await axios.get("https://api.pexels.com/v1/search", {
-                headers: { Authorization: PEXELS_API_KEY },
-                params: {
-                    query: topic,
-                    per_page: Math.max(count, 15),
-                    ...(orientation ? { orientation } : {}),
-                },
-            });
-            return res.data.photos || [];
-        };
+        // Use NO orientation first – most stock photos (ocean, beach, nature) are landscape.
+        // Portrait filter often returns 1–2 images for queries like "ocean waves".
+        const res = await axios.get("https://api.pexels.com/v1/search", {
+            headers: { Authorization: PEXELS_API_KEY },
+            params: {
+                query: topic,
+                per_page: 20,
+            },
+        });
 
-        photos = await trySearch("portrait");
+        let photos = res.data.photos || [];
+        logger.info("ImageFetcher", `No-orientation search returned ${photos.length} photos`);
         if (photos.length < count) {
-            logger.info("ImageFetcher", `Portrait returned ${photos.length}, retrying without orientation...`);
-            const fallback = await trySearch(null);
-            if (fallback.length > photos.length) {
-                photos = fallback;
+            logger.info("ImageFetcher", `Got ${photos.length}, retrying with portrait...`);
+            const portraitRes = await axios.get("https://api.pexels.com/v1/search", {
+                headers: { Authorization: PEXELS_API_KEY },
+                params: { query: topic, per_page: 20, orientation: "portrait" },
+            });
+            const portrait = portraitRes.data.photos || [];
+            // Merge: prefer variety, dedupe by id
+            const seen = new Set(photos.map((p) => p.id));
+            for (const p of portrait) {
+                if (!seen.has(p.id)) {
+                    photos.push(p);
+                    seen.add(p.id);
+                }
             }
         }
 
@@ -90,14 +96,10 @@ async function fetchImages(topic, count = 8) {
             throw new Error(`No images found for topic: "${topic}"`);
         }
 
-        // Take exactly count images (repeat last if needed for consistent timing)
-        const selected = photos.slice(0, count);
-        while (selected.length < count) {
-            selected.push(photos[selected.length % photos.length]);
-        }
-        photos = selected.slice(0, count);
+        // Take up to count UNIQUE images – never duplicate the same photo
+        photos = photos.slice(0, count);
 
-        logger.info("ImageFetcher", `Found ${photos.length} photos. Downloading...`);
+        logger.info("ImageFetcher", `Using ${photos.length} unique photos. Downloading...`);
 
         // Download each photo – use original for HD, fallback to large2x then large
         const localPaths = [];
