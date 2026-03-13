@@ -33,44 +33,47 @@ function buildDrawTextFilter(textFilePath, fontSize, yExpr, enableExpr) {
 
 /**
  * Run FFmpeg with image overlays.
- * NO setpts on base – setpts breaks concat demuxer (only first image shows).
- * Use t-based enable (lt/gte) – more reliable than n on Railway.
+ * Uses concat FILTER (not demuxer) – reliable multi-image on all platforms.
  */
-function runFfmpegWithOverlays(concatPath, audioPath, overlayPaths, _baseFilters, outputPath, outputOpts, cleanup, videoDuration, W = 1080, H = 1920) {
+function runFfmpegWithOverlays(imagePaths, durationPerImage, audioPath, overlayPaths, _baseFilters, outputPath, outputOpts, cleanup, videoDuration, W = 1080, H = 1920) {
     const { spawnSync } = require("child_process");
 
     const HOOK_DURATION = 2.2;
     const hook = overlayPaths.find((o) => o.start === 0 && o.end === HOOK_DURATION);
     const quote = overlayPaths.find((o) => o.start === HOOK_DURATION);
+    const n = imagePaths.length;
 
-    let filter;
-    let loopInputs = [];
-    let audioIdx;
+    // Scale each image to WxH before concat (concat requires identical input dimensions)
+    const scaleCrop = (i) => `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}:(iw-ow)/2:(ih-oh)/2,setsar=1[${i}s]`;
+    const scaledInputs = imagePaths.map((_, i) => `[${i}s]`).join("");
+    const hookIdx = n;
+    const quoteIdx = n + 1;
+    const audioIdx = n + (hook && quote ? 2 : 1);
 
-    // fps=25 for smooth output. t-based enable (Railway FFmpeg n can be unreliable)
-    const baseChain = `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}:(iw-ow)/2:(ih-oh)/2,setsar=1,fps=25[base]`;
+    const baseChain = imagePaths.map((_, i) => scaleCrop(i)).join(";") + `;${scaledInputs}concat=n=${n}:v=1:a=0,fps=25[base]`;
     const overlayPrep = (idx) => `[${idx}:v]scale=${W}:-1,format=rgba`;
 
+    let filter;
+    const imageInputs = imagePaths.flatMap((p) => ["-loop", "1", "-t", String(durationPerImage.toFixed(2)), "-i", path.resolve(p)]);
+    const overlayInputs = [];
+
     if (hook && quote) {
-        filter = `${baseChain};${overlayPrep(1)}[hook];${overlayPrep(2)}[quote];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='lt(t,${HOOK_DURATION})'[tmp];[tmp][quote]overlay=x=(W-w)/2:y=H*0.35:enable='gte(t,${HOOK_DURATION})'[out]`;
-        loopInputs = ["-loop", "1", "-i", hook.path, "-loop", "1", "-i", quote.path];
-        audioIdx = 3;
+        filter = `${baseChain};${overlayPrep(hookIdx)}[hook];${overlayPrep(quoteIdx)}[quote];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='between(t,0,${HOOK_DURATION})'[tmp];[tmp][quote]overlay=x=(W-w)/2:y=H*0.35:enable='gte(t,${HOOK_DURATION})'[out]`;
+        overlayInputs.push("-loop", "1", "-i", hook.path, "-loop", "1", "-i", quote.path);
     } else if (hook) {
-        filter = `${baseChain};${overlayPrep(1)}[hook];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='lt(t,${HOOK_DURATION})'[out]`;
-        loopInputs = ["-loop", "1", "-i", hook.path];
-        audioIdx = 2;
+        filter = `${baseChain};${overlayPrep(hookIdx)}[hook];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='between(t,0,${HOOK_DURATION})'[out]`;
+        overlayInputs.push("-loop", "1", "-i", hook.path);
     } else if (quote) {
-        filter = `${baseChain};${overlayPrep(1)}[quote];[base][quote]overlay=x=(W-w)/2:y=H*0.35:enable='1'[out]`;
-        loopInputs = ["-loop", "1", "-i", quote.path];
-        audioIdx = 2;
+        filter = `${baseChain};${overlayPrep(hookIdx)}[quote];[base][quote]overlay=x=(W-w)/2:y=H*0.35:enable='1'[out]`;
+        overlayInputs.push("-loop", "1", "-i", quote.path);
     } else {
         throw new Error("No overlay paths");
     }
 
     const args = [
         "-y",
-        "-f", "concat", "-safe", "0", "-i", concatPath,
-        ...loopInputs,
+        ...imageInputs,
+        ...overlayInputs,
         "-i", audioPath,
         "-filter_complex", filter,
         "-map", "[out]", "-map", `${audioIdx}:a`,
@@ -146,10 +149,12 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
     const outputPath = path.join(OUTPUT_DIR, outputFilename);
     tempFiles.push(concatFilePath);
 
-    const useDrawText = hasDrawTextFilter();
+    // Always use image overlay when we have hook/script: drawtext+zoompan path breaks
+    // multi-image (only first image shows) and hook timing. Image overlay works everywhere.
+    const useDrawText = hasDrawTextFilter() && !(hookText || script);
     const useImageOverlay = !useDrawText;
-    if (useImageOverlay) {
-        logger.info("VideoGenerator", "Using image overlay (FFmpeg lacks drawtext).");
+    if (useImageOverlay && (hookText || script)) {
+        logger.info("VideoGenerator", "Using image overlay (hook+quote, multi-image safe).");
     }
 
     // Shorts: 1080×1920 portrait (9:16). Use 720×1280 on Railway to reduce OOM (SIGKILL)
@@ -227,7 +232,8 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
 
         if (overlayPaths.length > 0) {
             return runFfmpegWithOverlays(
-                concatFilePath,
+                imagePaths,
+                durationPerImage,
                 audioPath,
                 overlayPaths,
                 baseFilters,
