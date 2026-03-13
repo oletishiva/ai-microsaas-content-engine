@@ -43,13 +43,14 @@ async function main() {
         process.exit(1);
     }
 
-    console.log("\n📤 Uploading to YouTube (private)...\n");
+    console.log("\n📤 Uploading to YouTube (private, for testing)...\n");
 
     try {
         const url = await uploadToYouTube(
             TEST_VIDEO,
             "AI Content Engine – Test Upload",
-            "This is a test video from the YouTube integration script. Safe to delete."
+            "This is a test video from the YouTube integration script. Safe to delete.",
+            { privacyStatus: "private" }
         );
         console.log("\n✅ YouTube upload successful!");
         console.log(`   URL: ${url}`);

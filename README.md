@@ -209,7 +209,7 @@ Use `imageQuery` for visual keywords (e.g. `tropical ocean waves sunset cinemati
 ## 💡 Workshop Tips
 
 1. **Test each service independently** before running the full pipeline — add a small `test.js` next to each service file.
-2. **Start with YouTube privacy set to `"private"`** (already the default) until you're happy with the output.
+2. **YouTube uploads are public by default** with viral Shorts tags. Use `privacyStatus: "private"` in the upload options if you prefer to review first.
 3. **Change the voice** by swapping `ELEVENLABS_VOICE_ID` in `.env` — browse voices at [ElevenLabs Voice Library](https://elevenlabs.io/voice-library).
 4. **Tweak image count** by changing the `count` argument in the `fetchImages` call inside `generateVideo.js`.
 5. **Add captions** by piping the script to FFmpeg's `drawtext` filter in `videoGenerator.js`.

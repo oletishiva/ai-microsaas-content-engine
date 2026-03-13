@@ -115,13 +115,14 @@ router.post("/generate-video", async (req, res) => {
         // STEP 6: Upload to YouTube (optional, uses local file)
         let youtubeUrl = null;
         if (apiKeys.hasYouTubeConfig) {
-            logger.info("Pipeline", "STEP 6/6 – Uploading to YouTube...");
+            logger.info("Pipeline", "STEP 6/6 – Uploading to YouTube (public, viral tags)...");
             try {
-                youtubeUrl = await uploadToYouTube(
-                    videoPath,
-                    `${searchQuery} #Shorts`,
-                    `Auto-generated 15s Short\n\n#Shorts\n\nScript:\n${script}`
-                );
+                const ytTitle = `${searchQuery} #Shorts`;
+                const ytDesc = `Auto-generated 15s Short\n\n#Shorts #viral #motivation\n\nScript:\n${script}`;
+                youtubeUrl = await uploadToYouTube(videoPath, ytTitle, ytDesc, {
+                    topic: searchQuery,
+                    privacyStatus: "public",
+                });
                 logger.info("Pipeline", `YouTube URL: ${youtubeUrl}`);
             } catch (uploadErr) {
                 logger.warn("Pipeline", "YouTube upload failed (video still saved):", uploadErr.message);
