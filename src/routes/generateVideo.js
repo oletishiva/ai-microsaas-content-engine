@@ -22,20 +22,35 @@ const { OUTPUT_DIR } = require("../../config/paths");
 const { VIDEO_DURATION } = require("../../utils/subtitleHelper");
 
 /**
+ * Derive hook from script (first sentence or first 5 words)
+ */
+function deriveHookFromScript(script) {
+    const s = String(script || "").trim();
+    if (!s) return "STOP SCROLLING";
+    const firstSentence = s.split(/[.!?]/)[0]?.trim() || s;
+    const hook = firstSentence.length > 40
+        ? firstSentence.split(/\s+/).slice(0, 5).join(" ") + "..."
+        : firstSentence;
+    return hook.toUpperCase();
+}
+
+/**
  * POST /api/generate-video
- * Body: { "topic": "Your product or marketing angle" }
+ * Body: { "topic": "..." } OR { "script": "..." } OR both (script takes precedence)
  */
 router.post("/generate-video", async (req, res) => {
-    const { topic } = req.body;
+    const { topic, script: scriptInput } = req.body;
 
-    if (!topic || typeof topic !== "string" || topic.trim() === "") {
+    const topicTrimmed = typeof topic === "string" ? topic.trim() : "";
+    const scriptTrimmed = typeof scriptInput === "string" ? scriptInput.trim() : "";
+
+    if (!topicTrimmed && !scriptTrimmed) {
         return res.status(400).json({
             success: false,
-            error: 'Request body must include a non-empty "topic" string.',
+            error: 'Request body must include a non-empty "topic" or "script" string.',
         });
     }
 
-    const topicTrimmed = topic.trim();
     const apiKeys = require("../../config/apiKeys");
     const e2eTestMode = apiKeys.E2E_TEST_MODE;
 
@@ -43,18 +58,28 @@ router.post("/generate-video", async (req, res) => {
         logger.info("Pipeline", "E2E test mode: 15 words, 4 images (saves ElevenLabs + Pexels)");
     }
 
-    logger.info("Pipeline", `Starting for topic: "${topicTrimmed}"`);
+    const searchQuery = topicTrimmed || scriptTrimmed.split(/\s+/).slice(0, 5).join(" ");
+    logger.info("Pipeline", `Starting (topic: "${topicTrimmed || "(none)"}", script: ${scriptTrimmed ? "provided" : "will generate"})`);
 
+    let script, hook;
     let silentAudioPath = null;
     try {
-        // STEP 1: Generate script
-        logger.info("Pipeline", "STEP 1/6 – Generating script...");
-        const { script, hook } = await generateScript(topicTrimmed, e2eTestMode);
+        // STEP 1: Get script (generate or use provided)
+        if (scriptTrimmed) {
+            logger.info("Pipeline", "STEP 1/6 – Using provided script...");
+            script = scriptTrimmed;
+            hook = deriveHookFromScript(script);
+        } else {
+            logger.info("Pipeline", "STEP 1/6 – Generating script...");
+            const generated = await generateScript(topicTrimmed, e2eTestMode);
+            script = generated.script;
+            hook = generated.hook;
+        }
 
         // STEP 2: Fetch images (before ElevenLabs)
         logger.info("Pipeline", "STEP 2/6 – Fetching images...");
         const imageCount = e2eTestMode ? 4 : 8;
-        const imagePaths = await fetchImages(topicTrimmed, imageCount);
+        const imagePaths = await fetchImages(searchQuery, imageCount);
 
         // STEP 3: Validate FFmpeg pipeline BEFORE using ElevenLabs
         logger.info("Pipeline", "STEP 3/6 – Validating FFmpeg pipeline...");
@@ -89,8 +114,8 @@ router.post("/generate-video", async (req, res) => {
             try {
                 youtubeUrl = await uploadToYouTube(
                     videoPath,
-                    `${topicTrimmed} #Shorts`,
-                    `Auto-generated 15s Short about: ${topicTrimmed}\n\n#Shorts\n\nScript:\n${script}`
+                    `${searchQuery} #Shorts`,
+                    `Auto-generated 15s Short\n\n#Shorts\n\nScript:\n${script}`
                 );
                 logger.info("Pipeline", `YouTube URL: ${youtubeUrl}`);
             } catch (uploadErr) {
@@ -121,7 +146,7 @@ router.post("/generate-video", async (req, res) => {
 
         const response = {
             success: true,
-            topic,
+            topic: topicTrimmed || null,
             script,
             youtubeUrl,
         };

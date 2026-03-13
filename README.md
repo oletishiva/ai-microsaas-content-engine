@@ -150,11 +150,25 @@ Server starts at: **http://localhost:3000**
 
 ### `POST /api/generate-video`
 
-**Request:**
+**Request (topic – generates script):**
 ```bash
 curl -X POST http://localhost:3000/api/generate-video \
   -H "Content-Type: application/json" \
   -d '{ "topic": "The future of artificial intelligence" }'
+```
+
+**Request (script – use your own script):**
+```bash
+curl -X POST http://localhost:3000/api/generate-video \
+  -H "Content-Type: application/json" \
+  -d '{ "script": "Stop damaging your skin. This herbal formula restores natural glow. Try it now!" }'
+```
+
+**Request (both – script takes precedence):**
+```bash
+curl -X POST http://localhost:3000/api/generate-video \
+  -H "Content-Type: application/json" \
+  -d '{ "topic": "Skincare", "script": "Your custom script here..." }'
 ```
 
 **Response (with Cloudinary configured):**

@@ -191,16 +191,17 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         const overlayPaths = [];
         const subtitleSegments = getSubtitleSegments(script);
 
+        const overlayOpts = { videoWidth: W };
         if (hookText) {
             const hookPath = path.join(OUTPUT_DIR, `overlay_hook_${ts}.png`);
-            await renderTextToImage(hookText, hookPath, { fontSize: 64 });
+            await renderTextToImage(hookText, hookPath, { fontSize: 64, ...overlayOpts });
             overlayPaths.push({ path: hookPath, start: 0, end: HOOK_DURATION, yFrac: 0.75 });
             tempFiles.push(hookPath);
         }
         for (let i = 0; i < subtitleSegments.length; i++) {
             const s = subtitleSegments[i];
             const subPath = path.join(OUTPUT_DIR, `overlay_sub${i}_${ts}.png`);
-            await renderTextToImage(s.text, subPath, { fontSize: 48 });
+            await renderTextToImage(s.text, subPath, { fontSize: 48, ...overlayOpts });
             overlayPaths.push({ path: subPath, start: s.start, end: s.end, yFrac: 0.85 });
             tempFiles.push(subPath);
         }
