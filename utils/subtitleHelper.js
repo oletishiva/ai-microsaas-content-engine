@@ -9,9 +9,10 @@ const VIDEO_DURATION = 15;
 /**
  * Split script into 3-4 key phrases for subtitle display
  * @param {string} script - Full script text
+ * @param {number} [duration] - Video duration in seconds (default 15)
  * @returns {Array<{ text: string, start: number, end: number }>}
  */
-function getSubtitleSegments(script) {
+function getSubtitleSegments(script, duration = VIDEO_DURATION) {
     if (!script || script.trim() === "") return [];
 
     // Split by sentence boundaries or commas
@@ -43,8 +44,8 @@ function getSubtitleSegments(script) {
     segments = segments.slice(0, 6).filter(Boolean);
     if (segments.length === 0) segments = [script];
 
-    // Assign time slots evenly across 15 seconds
-    const durationPerSegment = VIDEO_DURATION / segments.length;
+    // Assign time slots evenly across duration
+    const durationPerSegment = duration / segments.length;
     return segments.map((text, i) => ({
         text: text.trim(),
         start: i * durationPerSegment,

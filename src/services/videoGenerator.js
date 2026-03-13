@@ -9,7 +9,7 @@ const ffmpeg = require("fluent-ffmpeg");
 const fs = require("fs");
 const path = require("path");
 const { OUTPUT_DIR } = require("../../config/paths");
-const { buildConcatFile } = require("../../utils/ffmpegHelper");
+const { buildConcatFile, getAudioDuration } = require("../../utils/ffmpegHelper");
 const { getSubtitleSegments, VIDEO_DURATION } = require("../../utils/subtitleHelper");
 const { renderTextToImage } = require("../../utils/textToImage");
 const logger = require("../../utils/logger");
@@ -115,7 +115,10 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         throw new Error(`Audio file not found: ${audioPath}`);
     }
 
-    logger.info("VideoGenerator", `Rendering 15s video with ${imagePaths.length} images (${(VIDEO_DURATION / imagePaths.length).toFixed(1)}s per slide)...`);
+    const videoDuration = await getAudioDuration(audioPath).catch(() => VIDEO_DURATION);
+    const durationPerImage = videoDuration / imagePaths.length;
+
+    logger.info("VideoGenerator", `Rendering ${videoDuration.toFixed(1)}s video with ${imagePaths.length} images (${durationPerImage.toFixed(1)}s per slide)...`);
 
     if (!fs.existsSync(OUTPUT_DIR)) {
         fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -129,8 +132,6 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
             } catch (_) {}
         });
     };
-
-    const durationPerImage = VIDEO_DURATION / imagePaths.length;
     const concatFilePath = buildConcatFile(imagePaths, durationPerImage, OUTPUT_DIR);
     const outputPath = path.join(OUTPUT_DIR, outputFilename);
     tempFiles.push(concatFilePath);
@@ -157,7 +158,7 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         const hookFile = writeTextFile(OUTPUT_DIR, "hook", hookText || "STOP MAKING THIS MISTAKE");
         tempFiles.push(hookFile);
         baseFilters.push(buildDrawTextFilter(hookFile, 64, "h*0.75", `between(t,0,${HOOK_DURATION})`));
-        const subtitleSegments = getSubtitleSegments(script);
+        const subtitleSegments = getSubtitleSegments(script, videoDuration);
         subtitleSegments.forEach((s, i) => {
             const f = writeTextFile(OUTPUT_DIR, `sub${i}`, s.text);
             tempFiles.push(f);
@@ -166,7 +167,7 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
     }
 
     const outputOpts = [
-        "-t", "15",
+        "-t", String(videoDuration),
         "-r", "25",
         "-s", `${W}x${H}`,
         "-aspect", "9:16",
@@ -193,7 +194,7 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
     } else if (useImageOverlay && (hookText || script)) {
         const ts = Date.now();
         const overlayPaths = [];
-        const subtitleSegments = getSubtitleSegments(script);
+        const subtitleSegments = getSubtitleSegments(script, videoDuration);
 
         const overlayOpts = { videoWidth: W };
         if (hookText) {

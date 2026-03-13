@@ -37,14 +37,30 @@ function deriveHookFromScript(script) {
 
 /**
  * POST /api/generate-video
- * Body: { "topic": "..." } OR { "script": "..." } OR both (script takes precedence)
+ * Body:
+ *   topic (string)      - Marketing topic (required if no script)
+ *   script (string)     - Pre-written script (optional, overrides topic)
+ *   imageQuery (string) - Pexels search keywords for images
+ *   maxWords (number)   - Script length: 35 (default) or 50 for longer ~20s video
+ *   title (string)      - YouTube video title (default: topic + " #Shorts")
+ *   tags (string[])     - YouTube tags (overrides auto viral tags)
  */
 router.post("/generate-video", async (req, res) => {
-    const { topic, script: scriptInput, imageQuery: imageQueryInput } = req.body;
+    const {
+        topic,
+        script: scriptInput,
+        imageQuery: imageQueryInput,
+        maxWords: maxWordsInput,
+        title: titleInput,
+        tags: tagsInput,
+    } = req.body;
 
     const topicTrimmed = typeof topic === "string" ? topic.trim() : "";
     const scriptTrimmed = typeof scriptInput === "string" ? scriptInput.trim() : "";
     const imageQueryTrimmed = typeof imageQueryInput === "string" ? imageQueryInput.trim() : "";
+    const maxWords = maxWordsInput === 50 ? 50 : 35;
+    const customTitle = typeof titleInput === "string" ? titleInput.trim() : null;
+    const customTags = Array.isArray(tagsInput) ? tagsInput : null;
 
     if (!topicTrimmed && !scriptTrimmed) {
         return res.status(400).json({
@@ -73,8 +89,8 @@ router.post("/generate-video", async (req, res) => {
             script = scriptTrimmed;
             hook = deriveHookFromScript(script);
         } else {
-            logger.info("Pipeline", "STEP 1/6 – Generating script...");
-            const generated = await generateScript(topicTrimmed, e2eTestMode);
+            logger.info("Pipeline", `STEP 1/6 – Generating script (maxWords: ${maxWords})...`);
+            const generated = await generateScript(topicTrimmed, e2eTestMode, { maxWords });
             script = generated.script;
             hook = generated.hook;
         }
@@ -117,10 +133,11 @@ router.post("/generate-video", async (req, res) => {
         if (apiKeys.hasYouTubeConfig) {
             logger.info("Pipeline", "STEP 6/6 – Uploading to YouTube (public, viral tags)...");
             try {
-                const ytTitle = `${searchQuery} #Shorts`;
-                const ytDesc = `Auto-generated 15s Short\n\n#Shorts #viral #motivation\n\nScript:\n${script}`;
+                const ytTitle = customTitle || `${searchQuery} #Shorts`;
+                const ytDesc = `Auto-generated Short\n\n#Shorts #viral #motivation\n\nScript:\n${script}`;
                 youtubeUrl = await uploadToYouTube(videoPath, ytTitle, ytDesc, {
                     topic: searchQuery,
+                    tags: customTags,
                     privacyStatus: "public",
                 });
                 logger.info("Pipeline", `YouTube URL: ${youtubeUrl}`);
@@ -154,6 +171,7 @@ router.post("/generate-video", async (req, res) => {
             success: true,
             topic: topicTrimmed || null,
             script,
+            maxWords,
             imageQuery: imageQueryTrimmed || null,
             imageCount: imagePaths.length,
             youtubeUrl,

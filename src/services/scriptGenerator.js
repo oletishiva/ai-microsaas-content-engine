@@ -14,6 +14,8 @@ const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 const MAX_WORDS = 35;
 const MAX_CHARS = 200;
+const MAX_WORDS_LONG = 50; // ~20 sec at 150 wpm; Shorts allow up to 60 sec
+const MAX_CHARS_LONG = 280;
 const E2E_TEST_WORDS = 15;
 const E2E_TEST_CHARS = 100;
 
@@ -21,13 +23,17 @@ const E2E_TEST_CHARS = 100;
  * generateScript
  * @param {string} topic - Marketing topic/product
  * @param {boolean} e2eTestMode - If true, use shorter limits to save ElevenLabs credits
+ * @param {Object} [opts] - { maxWords: number } override (35 default, 50 for longer scripts)
  * @returns {Promise<{ script: string, hook: string }>} - Script + hook for overlay
  */
-async function generateScript(topic, e2eTestMode = false) {
+async function generateScript(topic, e2eTestMode = false, opts = {}) {
     if (!OPENAI_API_KEY) {
         throw new Error("OPENAI_API_KEY is not set in .env");
     }
     logger.info("ScriptGenerator", `Generating script for topic: "${topic}"`);
+
+    const maxWords = e2eTestMode ? E2E_TEST_WORDS : (opts.maxWords ?? MAX_WORDS);
+    const maxChars = e2eTestMode ? E2E_TEST_CHARS : (opts.maxWords === 50 ? MAX_CHARS_LONG : MAX_CHARS);
 
     try {
         const completion = await openai.chat.completions.create({
@@ -35,11 +41,11 @@ async function generateScript(topic, e2eTestMode = false) {
             messages: [
                 {
                     role: "system",
-                    content: `You are a viral marketing copywriter for 15-second short-form videos (YouTube Shorts, Instagram Reels, TikTok).
+                    content: `You are a viral marketing copywriter for short-form videos (YouTube Shorts, Instagram Reels, TikTok).
 
 STRICT RULES:
-- Maximum ${e2eTestMode ? "15" : "35"} words total
-- Maximum ${e2eTestMode ? "100" : "200"} characters total
+- Maximum ${e2eTestMode ? "15" : String(maxWords)} words total
+- Maximum ${e2eTestMode ? "100" : String(maxChars)} characters total
 - Structure: Hook (attention grabber) → Problem → Solution → CTA (call to action)
 - Punchy, urgent, conversational. No stage directions or labels.
 - Example: "Stop damaging your skin with chemicals. This herbal formula restores natural glow in just days. Try it before it sells out."
@@ -48,7 +54,7 @@ Output ONLY the script text, nothing else.`,
                 },
                 {
                     role: "user",
-                    content: `Write a 15-second marketing script for: "${topic}"`,
+                    content: `Write a ${maxWords === 50 ? "~20 second" : "15-second"} marketing script for: "${topic}"`,
                 },
             ],
             max_tokens: 150,
@@ -59,8 +65,6 @@ Output ONLY the script text, nothing else.`,
         if (!script) throw new Error("OpenAI returned an empty script");
 
         // Enforce limits (truncate if over)
-        const maxWords = e2eTestMode ? E2E_TEST_WORDS : MAX_WORDS;
-        const maxChars = e2eTestMode ? E2E_TEST_CHARS : MAX_CHARS;
         const words = script.split(/\s+/);
         if (words.length > maxWords) {
             script = words.slice(0, maxWords).join(" ");
