@@ -39,6 +39,7 @@ function runFfmpegWithOverlays(concatPath, audioPath, overlayPaths, baseFilters,
     const { spawnSync } = require("child_process");
 
     const HOOK_DURATION = 2.2;
+    const HOOK_FRAMES = Math.floor(HOOK_DURATION * 25); // 55 at 25fps – use n not t (fps filter breaks concat)
     const hook = overlayPaths.find((o) => o.start === 0 && o.end === HOOK_DURATION);
     const quote = overlayPaths.find((o) => o.start === HOOK_DURATION);
 
@@ -49,20 +50,20 @@ function runFfmpegWithOverlays(concatPath, audioPath, overlayPaths, baseFilters,
     const loopInputs = [];
 
     const scaleOpt = `scale=${W}:-1`;
-    const overlayPrep = `${scaleOpt},format=rgba,setpts=PTS-STARTPTS`;
+    const overlayPrep = `${scaleOpt},format=rgba`;
     if (hook && quote) {
         filterParts.push(`[1:v]${overlayPrep}[hook]`);
         filterParts.push(`[2:v]${overlayPrep}[quote]`);
-        filterParts.push(`[main][hook]overlay=x=(W-w)/2:y=${hookY}:enable='lt(t,${HOOK_DURATION})'[tmp]`);
-        filterParts.push(`[tmp][quote]overlay=x=(W-w)/2:y=${quoteY}:enable='gte(t,${HOOK_DURATION})'[out]`);
+        filterParts.push(`[main][hook]overlay=x=(W-w)/2:y=${hookY}:enable='lt(n,${HOOK_FRAMES})'[tmp]`);
+        filterParts.push(`[tmp][quote]overlay=x=(W-w)/2:y=${quoteY}:enable='gte(n,${HOOK_FRAMES})'[out]`);
         loopInputs.push("-loop", "1", "-i", hook.path, "-loop", "1", "-i", quote.path);
     } else if (hook) {
         filterParts.push(`[1:v]${overlayPrep}[hook]`);
-        filterParts.push(`[main][hook]overlay=x=(W-w)/2:y=${hookY}:enable='lt(t,${HOOK_DURATION})'[out]`);
+        filterParts.push(`[main][hook]overlay=x=(W-w)/2:y=${hookY}:enable='lt(n,${HOOK_FRAMES})'[out]`);
         loopInputs.push("-loop", "1", "-i", hook.path);
     } else if (quote) {
         filterParts.push(`[1:v]${overlayPrep}[quote]`);
-        filterParts.push(`[main][quote]overlay=x=(W-w)/2:y=${quoteY}:enable='between(t,0,${videoDuration})'[out]`);
+        filterParts.push(`[main][quote]overlay=x=(W-w)/2:y=${quoteY}:enable='1'[out]`);
         loopInputs.push("-loop", "1", "-i", quote.path);
     }
 
@@ -158,27 +159,27 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
     const isRailway = !!process.env.RAILWAY_PROJECT_ID;
     const W = isRailway ? 720 : 1080;
     const H = isRailway ? 1280 : 1920;
-    // setpts + fps=25 normalizes timeline so overlay enable=t matches real seconds (fixes hook not disappearing)
+    // fps=25 needed for n-based overlay. Avoid setpts – it can break concat (only first image).
     let baseFilters = [
         `scale=${W}:${H}:force_original_aspect_ratio=increase`,
         `crop=${W}:${H}:(iw-ow)/2:(ih-oh)/2`,
         ...(isRailway ? [] : [`zoompan=z='min(zoom+0.0012,1.08)':d=1:s=${W}x${H}:fps=25`]),
         "setsar=1",
-        "setpts=PTS-STARTPTS",
         "fps=25",
     ];
 
     const HOOK_DURATION = 2.2;
+    const HOOK_FRAMES_DT = Math.floor(HOOK_DURATION * 25);
     if (useDrawText) {
         if (hookText) {
             const hookFile = writeTextFile(OUTPUT_DIR, "hook", hookText);
             tempFiles.push(hookFile);
-            baseFilters.push(buildDrawTextFilter(hookFile, 70, "h*0.15", `lt(t,${HOOK_DURATION})`));
+            baseFilters.push(buildDrawTextFilter(hookFile, 70, "h*0.15", `lt(n,${HOOK_FRAMES_DT})`));
         }
         if (script) {
             const scriptFile = writeTextFile(OUTPUT_DIR, "quote", script);
             tempFiles.push(scriptFile);
-            baseFilters.push(buildDrawTextFilter(scriptFile, 44, "h*0.35", `gte(t,${HOOK_DURATION})`));
+            baseFilters.push(buildDrawTextFilter(scriptFile, 44, "h*0.35", `gte(n,${HOOK_FRAMES_DT})`));
         }
     }
 

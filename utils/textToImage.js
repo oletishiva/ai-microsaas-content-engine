@@ -82,8 +82,8 @@ async function renderTextToImage(text, outputPath, options = {}) {
 
     const startY = totalHeight / 2 - ((lines.length - 1) * lineHeightPx) / 2 + fontSize * 0.4;
 
-    // Thinner stroke (2px) + paint-order for crisp edges; stroke-width 4 caused shadowing
-    const strokeWidth = 2;
+    // Stroke 3px for visibility on light backgrounds (ocean/sky); paint-order keeps edges crisp
+    const strokeWidth = 3;
     const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}" overflow="hidden">
   <defs><clipPath id="textClip"><rect x="${pad}" y="0" width="${textWidth}" height="${totalHeight}"/></clipPath></defs>
