@@ -40,7 +40,7 @@ function ensureMediaDir() {
  */
 async function downloadImage(imageUrl, filename) {
     const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
-    const filePath = path.join(MEDIA_DIR, filename);
+    const filePath = path.resolve(path.join(MEDIA_DIR, filename));
     fs.writeFileSync(filePath, response.data);
     return filePath;
 }
@@ -62,27 +62,41 @@ async function fetchImages(topic, count = 8) {
     ensureMediaDir();
 
     try {
-        // Call the Pexels Photos Search endpoint
-        // Use NO orientation first – most stock photos (ocean, beach, nature) are landscape.
-        // Portrait filter often returns 1–2 images for queries like "ocean waves".
-        const res = await axios.get("https://api.pexels.com/v1/search", {
-            headers: { Authorization: PEXELS_API_KEY },
-            params: {
-                query: topic,
-                per_page: 20,
-            },
-        });
-
-        let photos = res.data.photos || [];
-        logger.info("ImageFetcher", `No-orientation search returned ${photos.length} photos`);
-        if (photos.length < count) {
-            logger.info("ImageFetcher", `Got ${photos.length}, retrying with portrait...`);
-            const portraitRes = await axios.get("https://api.pexels.com/v1/search", {
+        const trySearch = async (query, orientation) => {
+            const res = await axios.get("https://api.pexels.com/v1/search", {
                 headers: { Authorization: PEXELS_API_KEY },
-                params: { query: topic, per_page: 20, orientation: "portrait" },
+                params: {
+                    query,
+                    per_page: 30,
+                    ...(orientation ? { orientation } : {}),
+                },
             });
-            const portrait = portraitRes.data.photos || [];
-            // Merge: prefer variety, dedupe by id
+            return res.data.photos || [];
+        };
+
+        // Try full query first (no orientation = most results)
+        let photos = await trySearch(topic, null);
+        logger.info("ImageFetcher", `Query "${topic}" returned ${photos.length} photos`);
+
+        // Fallback: if few results, try shorter query (e.g. "ocean waves" from "beautiful ocean waves sunset")
+        if (photos.length < count) {
+            const shortQuery = topic.split(/\s+/).slice(0, 2).join(" ");
+            if (shortQuery !== topic) {
+                const more = await trySearch(shortQuery, null);
+                logger.info("ImageFetcher", `Fallback "${shortQuery}" returned ${more.length} photos`);
+                const seen = new Set(photos.map((p) => p.id));
+                for (const p of more) {
+                    if (!seen.has(p.id)) {
+                        photos.push(p);
+                        seen.add(p.id);
+                    }
+                }
+            }
+        }
+
+        // Last resort: add portrait results
+        if (photos.length < count) {
+            const portrait = await trySearch(topic, "portrait");
             const seen = new Set(photos.map((p) => p.id));
             for (const p of portrait) {
                 if (!seen.has(p.id)) {
@@ -96,9 +110,7 @@ async function fetchImages(topic, count = 8) {
             throw new Error(`No images found for topic: "${topic}"`);
         }
 
-        // Take up to count UNIQUE images – never duplicate the same photo
         photos = photos.slice(0, count);
-
         logger.info("ImageFetcher", `Using ${photos.length} unique photos. Downloading...`);
 
         // Download each photo – use original for HD, fallback to large2x then large

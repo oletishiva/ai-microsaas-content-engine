@@ -21,20 +21,20 @@ function getSubtitleSegments(script) {
         .map((s) => s.trim())
         .filter(Boolean);
 
-    // If too few parts, split by ~8 words
+    // Split into short chunks (5–7 words) for readable overlays
     let segments = [];
     if (parts.length >= 2) {
         segments = parts;
     } else {
         const words = script.split(/\s+/);
-        const chunkSize = Math.max(1, Math.ceil(words.length / 3));
+        const chunkSize = Math.max(1, Math.min(6, Math.ceil(words.length / 4)));
         for (let i = 0; i < words.length; i += chunkSize) {
             segments.push(words.slice(i, i + chunkSize).join(" "));
         }
     }
 
-    // Limit to 4 segments max
-    segments = segments.slice(0, 4).filter(Boolean);
+    // Limit to 5 segments, each short enough to fit on screen
+    segments = segments.slice(0, 5).filter(Boolean);
     if (segments.length === 0) segments = [script];
 
     // Assign time slots evenly across 15 seconds

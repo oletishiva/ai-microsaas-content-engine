@@ -11,11 +11,10 @@ const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_WIDTH = 1080;
-const MARGIN_RATIO = 0.1; // 10% left and right
-const TEXT_WIDTH_RATIO = 0.8; // 80% for text
-const LINE_HEIGHT = 1.2;
-// Conservative chars per line for proportional fonts (Arial). ~0.55em avg char width.
-const CHARS_PER_EM = 0.55;
+const TEXT_WIDTH_RATIO = 0.75; // 75% for text (tighter margins)
+const LINE_HEIGHT = 1.25;
+// Very conservative for Arial – prevents overflow on any device
+const CHARS_PER_EM = 0.42;
 
 function escapeXml(s) {
     return String(s)
@@ -79,7 +78,7 @@ async function renderTextToImage(text, outputPath, options = {}) {
     const startY = totalHeight / 2 - ((lines.length - 1) * lineHeightPx) / 2 + fontSize * 0.4;
 
     const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}">
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}" overflow="hidden">
   <rect width="100%" height="100%" fill="rgba(0,0,0,0.6)"/>
   <text x="${width / 2}" y="${startY}" text-anchor="middle"
         font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}" font-weight="bold"
