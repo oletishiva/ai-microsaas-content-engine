@@ -11,10 +11,10 @@ const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_WIDTH = 1080;
-const TEXT_WIDTH_RATIO = 0.75; // 75% for text (tighter margins)
-const LINE_HEIGHT = 1.25;
-// Very conservative for Arial – prevents overflow on any device
-const CHARS_PER_EM = 0.42;
+const TEXT_WIDTH_RATIO = 0.7; // 70% for text – ensures no horizontal cutoff
+const LINE_HEIGHT = 1.3;
+// Conservative for Arial – wide chars (W, M) need more space
+const CHARS_PER_EM = 0.5;
 
 function escapeXml(s) {
     return String(s)
@@ -65,7 +65,7 @@ async function renderTextToImage(text, outputPath, options = {}) {
     const maxCharsPerLine = Math.floor(textAreaWidth / (fontSize * CHARS_PER_EM));
     const lines = wrapText(String(text).trim() || " ", Math.max(12, maxCharsPerLine));
     const lineHeightPx = fontSize * LINE_HEIGHT;
-    const totalHeight = Math.max(200, Math.ceil(lines.length * lineHeightPx) + 40);
+    const totalHeight = Math.max(220, Math.ceil(lines.length * lineHeightPx) + 60);
 
     const escapedLines = lines.map((l) => escapeXml(l));
     const tspans = escapedLines
@@ -79,10 +79,10 @@ async function renderTextToImage(text, outputPath, options = {}) {
 
     const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}" overflow="hidden">
-  <rect width="100%" height="100%" fill="rgba(0,0,0,0.6)"/>
+  <rect width="100%" height="100%" fill="rgba(0,0,0,0.85)"/>
   <text x="${width / 2}" y="${startY}" text-anchor="middle"
         font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}" font-weight="bold"
-        fill="white" stroke="black" stroke-width="3">
+        fill="white" stroke="black" stroke-width="4">
         ${tspans}
   </text>
 </svg>`;

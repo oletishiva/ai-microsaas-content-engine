@@ -204,7 +204,7 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         for (let i = 0; i < subtitleSegments.length; i++) {
             const s = subtitleSegments[i];
             const subPath = path.join(OUTPUT_DIR, `overlay_sub${i}_${ts}.png`);
-            await renderTextToImage(s.text, subPath, { fontSize: 44, ...overlayOpts });
+            await renderTextToImage(s.text, subPath, { fontSize: 48, ...overlayOpts });
             overlayPaths.push({ path: subPath, start: s.start, end: s.end });
             tempFiles.push(subPath);
         }
