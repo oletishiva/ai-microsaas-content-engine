@@ -62,8 +62,8 @@ async function renderTextToImage(text, outputPath, options = {}) {
     const videoWidth = options.videoWidth || DEFAULT_WIDTH;
     const textAreaWidth = Math.floor(videoWidth * TEXT_WIDTH_RATIO);
     const width = videoWidth;
-    // Conservative char width (0.55) so lines never overflow clip
-    const pixelBasedMax = Math.floor(textAreaWidth / (fontSize * 0.55));
+    // Bold caps (font-weight 900) are ~0.62–0.65em wide. Use 0.62 so text stays within 10% margins.
+    const pixelBasedMax = Math.floor(textAreaWidth / (fontSize * 0.62));
     const maxCharsPerLine = options.maxCharsPerLine != null
         ? Math.min(options.maxCharsPerLine, pixelBasedMax)
         : Math.min(pixelBasedMax, fontSize >= 50 ? 14 : 18);
