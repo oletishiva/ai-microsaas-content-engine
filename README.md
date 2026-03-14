@@ -27,6 +27,24 @@ Topic (text input)
 
 ---
 
+## 📋 Demo Prompts (E2E Build)
+
+For presenting or rebuilding from scratch: **[docs/demo-prompts/](docs/demo-prompts/)** – section-by-section prompts for vibe coders. Paste into Cursor in a new project, step by step:
+
+| Section | What |
+|---------|------|
+| 0 | Setup (Node, Express, .env) |
+| 1 | Quote generation (OpenAI) |
+| 2 | ElevenLabs voice |
+| 3 | Pexels images |
+| 4 | Audio mixing |
+| 5 | Video assembly (FFmpeg) |
+| 6 | Cloudinary |
+| 7 | YouTube viral Shorts |
+| 8 | Orchestration |
+
+---
+
 ## 📁 Project Structure
 
 ```
