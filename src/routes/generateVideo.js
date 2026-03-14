@@ -103,7 +103,7 @@ router.post("/generate-video", async (req, res) => {
     const pexelsQuery = imageQueryTrimmed || searchQuery;
     logger.info("Pipeline", `Starting (topic: "${topicTrimmed || "(none)"}", script: ${scriptTrimmed ? "provided" : "will generate"}, imageQuery: "${pexelsQuery}")`);
 
-    let script, hook;
+    let script, hook, quote = null, highlight = [], titleSuggest = null;
     let silentAudioPath = null;
     try {
         // STEP 1: Get script (generate or use provided)
@@ -116,6 +116,9 @@ router.post("/generate-video", async (req, res) => {
             const generated = await generateScript(topicTrimmed, e2eTestMode, { maxWords });
             script = generated.script;
             hook = hookTrimmed || generated.hook;
+            quote = generated.quote || null;
+            highlight = generated.highlight || [];
+            titleSuggest = generated.title || null;
         }
 
         // STEP 2: Fetch images (use imageQuery for Pexels, or topic/script)
@@ -162,7 +165,12 @@ router.post("/generate-video", async (req, res) => {
         const timestamp = Date.now();
         const outputFilename = `video_${timestamp}.mp4`;
         const enableQuote = showQuoteReq !== null ? showQuoteReq : apiKeys.ENABLE_QUOTE_OVERLAY;
-        const scriptForOverlay = enableQuote ? script : null;
+        let scriptForOverlay = null;
+        if (enableQuote) {
+            const overlayText = quote || script;
+            const words = overlayText.split(/\s+/);
+            scriptForOverlay = words.length > 45 ? words.slice(0, 45).join(" ") : overlayText;
+        }
         if (!enableQuote) {
             logger.info("Pipeline", "Quote overlay disabled – images only");
         }
@@ -177,8 +185,9 @@ router.post("/generate-video", async (req, res) => {
         if (canUploadToYouTube) {
             logger.info("Pipeline", "STEP 6/6 – Uploading to YouTube (public, viral tags)...");
             try {
-                const ytTitle = customTitle || `${searchQuery} #Shorts`;
-                const ytDesc = `#Shorts #viral #motivation\n\nScript:\n${script}`;
+                const punchyTitle = titleSuggest || (quote || script).split(/[.!?]/).filter(Boolean).pop()?.trim().split(/\s+/).slice(0, 8).join(" ") || searchQuery;
+                const ytTitle = customTitle || `${punchyTitle} #quotes #motivation #quoteoftheday #deepquotes #shorts #foryou`;
+                const ytDesc = `${punchyTitle}\n\n#quotes #motivation #quoteoftheday #deepquotes #lifelessons #shorts #foryou #viral`;
                 let thumbnailPath = null;
                 if (imagePaths.length > 0 && hook) {
                     thumbnailPath = path.join(OUTPUT_DIR, `thumb_${timestamp}.jpg`);

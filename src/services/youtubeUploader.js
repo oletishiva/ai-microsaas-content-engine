@@ -53,23 +53,16 @@ function getAuthenticatedClient(refreshToken) {
     return oauth2Client;
 }
 
-/** Viral Shorts tags – high-engagement keywords for discoverability */
+/** Viral quote Shorts tags – matches reference style (#quotes #motivation etc.) */
 const VIRAL_SHORTS_TAGS = [
-    "shorts",
-    "viral",
+    "quotes",
     "motivation",
-    "motivational",
-    "inspiration",
-    "motivational quotes",
-    "success",
-    "mindset",
-    "daily motivation",
-    "trending",
-    "lifestyle",
-    "life tips",
-    "self improvement",
-    "mindset matters",
-    "goals",
+    "quoteoftheday",
+    "deepquotes",
+    "lifelessons",
+    "shorts",
+    "foryou",
+    "viral",
 ];
 
 /** YouTube: max 500 chars total for tags, each tag max 30 chars */

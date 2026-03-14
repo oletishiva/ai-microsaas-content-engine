@@ -52,28 +52,69 @@ function wrapText(text, maxCharsPerLine) {
     return lines.length ? lines : [" "];
 }
 
+/** Approximate char width in em units for positioning highlights */
+const CHAR_WIDTH_EM = 0.6;
+
 /**
  * Create PNG with text (white, black outline). Returns path to saved file.
  * options.videoWidth: use 80% for text area (10% margins). Default 1080.
  * options.maxCharsPerLine: override (hook: 14, quote: 18–22).
+ * options.highlight: string[] – phrases to highlight with yellow background.
  */
 async function renderTextToImage(text, outputPath, options = {}) {
     const fontSize = options.fontSize || 48;
     const videoWidth = options.videoWidth || DEFAULT_WIDTH;
     const textAreaWidth = Math.floor(videoWidth * TEXT_WIDTH_RATIO);
     const width = videoWidth;
-    // Bold caps (font-weight 900) are ~0.62–0.65em wide. Use 0.62 so text stays within 10% margins.
+    const highlight = Array.isArray(options.highlight) ? options.highlight : [];
+    const charWidthPx = fontSize * CHAR_WIDTH_EM;
+
     const pixelBasedMax = Math.floor(textAreaWidth / (fontSize * 0.62));
     const maxCharsPerLine = options.maxCharsPerLine != null
         ? Math.min(options.maxCharsPerLine, pixelBasedMax)
         : Math.min(pixelBasedMax, fontSize >= 50 ? 14 : 18);
     const lines = wrapText(String(text).trim() || " ", Math.max(6, maxCharsPerLine));
     const lineHeightPx = fontSize * LINE_HEIGHT;
-    const totalHeight = Math.max(220, Math.ceil(lines.length * lineHeightPx) + 60);
+    const totalHeight = Math.max(220, Math.ceil(lines.length * lineHeightPx) + 80);
 
     const pad = Math.floor(width * MARGIN_RATIO);
     const textWidth = width - 2 * pad;
     const textCenterX = pad + textWidth / 2;
+
+    const startY = totalHeight / 2 - ((lines.length - 1) * lineHeightPx) / 2 + fontSize * 0.4;
+
+    const rects = [];
+    const lowerLine = (l) => String(l).toLowerCase();
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineY = startY + i * lineHeightPx;
+        const lineLen = line.length;
+        const lineStartX = textCenterX - (lineLen * charWidthPx) / 2;
+        for (const phrase of highlight) {
+            if (!phrase || !phrase.trim()) continue;
+            const p = phrase.trim().toLowerCase();
+            let idx = lowerLine(line).indexOf(p);
+            if (idx >= 0) {
+                const rectX = lineStartX + idx * charWidthPx;
+                const rectW = p.length * charWidthPx;
+                const rectY = lineY - fontSize * 0.85;
+                const rectH = fontSize * 1.15;
+                rects.push(`<rect x="${rectX}" y="${rectY}" width="${rectW}" height="${rectH}" fill="#FFEB3B" opacity="0.5"/>`);
+            } else {
+                for (const word of p.split(/\s+/)) {
+                    if (word.length < 2) continue;
+                    idx = lowerLine(line).indexOf(word);
+                    if (idx >= 0) {
+                        const rectX = lineStartX + idx * charWidthPx;
+                        const rectW = word.length * charWidthPx;
+                        const rectY = lineY - fontSize * 0.85;
+                        const rectH = fontSize * 1.15;
+                        rects.push(`<rect x="${rectX}" y="${rectY}" width="${rectW}" height="${rectH}" fill="#FFEB3B" opacity="0.5"/>`);
+                    }
+                }
+            }
+        }
+    }
 
     const escapedLines = lines.map((l) => escapeXml(l));
     const tspans = escapedLines
@@ -83,19 +124,18 @@ async function renderTextToImage(text, outputPath, options = {}) {
         )
         .join("\n        ");
 
-    const startY = totalHeight / 2 - ((lines.length - 1) * lineHeightPx) / 2 + fontSize * 0.4;
-
-    // Thin stroke for readability, no dark bar (avoids shadow look)
     const strokeWidth = 2;
+    const rectsSvg = rects.join("\n    ");
     const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}" overflow="hidden">
   <defs><clipPath id="textClip"><rect x="${pad}" y="0" width="${textWidth}" height="${totalHeight}"/></clipPath></defs>
   <g clip-path="url(#textClip)">
     <text x="${textCenterX}" y="${startY}" text-anchor="middle"
-          font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}" font-weight="900"
+          font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}" font-weight="700"
           fill="white" stroke="black" stroke-width="${strokeWidth}" paint-order="stroke fill">
           ${tspans}
     </text>
+    ${rectsSvg ? rectsSvg + "\n    " : ""}
   </g>
 </svg>`;
 

@@ -240,6 +240,15 @@
       padding: 0.25rem 0;
     }
     #result a:hover { text-decoration: underline; }
+    #result .url-copy { margin-top: 0.5rem; }
+    #result .url-copy code {
+      font-size: 0.75rem;
+      word-break: break-all;
+      color: var(--muted);
+      background: var(--surface);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+    }
     .spinner {
       display: inline-block;
       width: 18px;
@@ -383,6 +392,14 @@
           <option value="dark aesthetic wallpaper">Dark aesthetic wallpaper</option>
           <option value="night sky gradient background">Night sky gradient background</option>
           <option value="dark minimal background">Dark minimal background</option>
+          <option value="dark paper texture background">Dark paper texture background</option>
+          <option value="black paper texture background">Black paper texture background</option>
+          <option value="dark minimal texture background">Dark minimal texture background</option>
+          <option value="dark aesthetic texture background">Dark aesthetic texture background</option>
+          <option value="pastel paper texture background">Pastel paper texture background</option>
+          <option value="soft pastel texture background">Soft pastel texture background</option>
+          <option value="aesthetic pastel paper texture">Aesthetic pastel paper texture</option>
+          <option value="light pastel background texture">Light pastel background texture</option>
           <option value="custom">Custom...</option>
         </select>
         <div id="imageQueryCustomWrap" class="custom-input hidden">
@@ -578,7 +595,8 @@
 
         let html = '<h3>Video created!</h3>';
         if (data.videoUrl) {
-          html += `<p><a href="${data.videoUrl}" target="_blank" rel="noopener">Watch video</a></p>`;
+          html += `<p><a href="${data.videoUrl}" target="_blank" rel="noopener">Watch video</a> · <a href="${data.videoUrl}" download="video.mp4" target="_blank" rel="noopener">Download video</a></p>`;
+          html += `<p class="url-copy"><small>URL: <code>${data.videoUrl}</code></small></p>`;
         }
         if (data.youtubeUrl) {
           html += `<p><a href="${data.youtubeUrl}" target="_blank" rel="noopener">View on YouTube</a></p>`;

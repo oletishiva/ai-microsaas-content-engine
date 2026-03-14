@@ -121,7 +121,7 @@ function hasDrawTextFilter() {
 /**
  * generateVideo
  */
-async function generateVideo(imagePaths, audioPath, script, hookText, outputFilename) {
+async function generateVideo(imagePaths, audioPath, script, hookText, outputFilename, overlayOptions = {}) {
     if (!imagePaths || imagePaths.length === 0) {
         throw new Error("No image paths provided");
     }
@@ -216,10 +216,9 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
     } else if (useImageOverlay && (hookText || script)) {
         const ts = Date.now();
         const overlayPaths = [];
-        // First 3s: hook. Then: quote (script). Both in 20%-70% band.
-        // Larger fonts on Railway (720×1280) for visibility
-        const hookFont = isRailway ? 80 : 70;
-        const quoteFont = isRailway ? 46 : 38;
+        // First 3s: hook. Then: quote. Readable font size.
+        const hookFont = isRailway ? 80 : 72;
+        const quoteFont = isRailway ? 50 : 46;
         if (hookText) {
             const hookPath = path.join(OUTPUT_DIR, `overlay_hook_${ts}.png`);
             await renderTextToImage(hookText, hookPath, { fontSize: hookFont, videoWidth: W, maxCharsPerLine: 11 });
@@ -228,7 +227,8 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         }
         if (script) {
             const quotePath = path.join(OUTPUT_DIR, `overlay_quote_${ts}.png`);
-            await renderTextToImage(script, quotePath, { fontSize: quoteFont, videoWidth: W, maxCharsPerLine: 18 });
+            const highlight = overlayOptions.highlight || [];
+            await renderTextToImage(script, quotePath, { fontSize: quoteFont, videoWidth: W, maxCharsPerLine: 24, highlight });
             overlayPaths.push({ path: quotePath, start: HOOK_DURATION, end: videoDuration });
             tempFiles.push(quotePath);
         }
