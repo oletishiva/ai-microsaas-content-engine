@@ -14,6 +14,13 @@ const {
 } = require("../../config/apiKeys");
 
 function getBaseUrl(req) {
+    // Use request host so it works from any URL (mobile, custom domain, Railway subdomain)
+    const host = req.get("x-forwarded-host") || req.get("host");
+    const proto = (req.get("x-forwarded-proto") || "").toLowerCase();
+    if (host) {
+        const scheme = proto === "https" ? "https" : "http";
+        return `${scheme}://${host}`;
+    }
     const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
     if (domain) return `https://${domain}`;
     const port = process.env.PORT || 3000;
@@ -119,6 +126,16 @@ router.get("/youtube/status", async (req, res) => {
         req.session.youtubeRefreshToken = undefined;
         res.json({ connected: false, hasOAuth: true });
     }
+});
+
+/**
+ * GET /auth/youtube/redirect-uri
+ * Returns the redirect URI used for OAuth (add this exact URL to Google Console).
+ */
+router.get("/youtube/redirect-uri", (req, res) => {
+    const baseUrl = getBaseUrl(req);
+    const redirectUri = `${baseUrl}/auth/youtube/callback`;
+    res.json({ redirectUri });
 });
 
 /**
