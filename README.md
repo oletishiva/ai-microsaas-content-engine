@@ -270,11 +270,17 @@ Use `imageQuery` for visual keywords (e.g. `tropical ocean waves sunset cinemati
        "script": "The only way to do great work is to love what you do. Steve Jobs said it best. Find your passion and success will follow.",
        "hook": "STOP SCROLLING",
        "imageQuery": "inspiration motivation",
+       "imageCount": 4,
        "maxWords": 35,
        "addMusic": true
      }'
    ```
    Replace the Railway URL with yours from Railway → Settings → Networking if different.
+   - **imageCount** (3–10): Override number of images per video. Default: 4.
+   - **Thumbnail**: Videos get a custom thumbnail with the Hook text for better preview/attraction before opening.
+
+### Post to Your Own Channel
+Anyone can deploy this app and post to their own YouTube channel. Add your YouTube OAuth credentials (`YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`) in Railway Variables. Run `node scripts/get-youtube-refresh-token.js` locally to get a refresh token for your channel, then add it to Railway. Videos will upload to the channel you authorized.
 
 ### Fix: "secret App: not found" build error
 

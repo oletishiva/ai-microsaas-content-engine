@@ -102,7 +102,7 @@ function buildViralTags(topic = "") {
  * @param {string} videoPath   - Absolute path to the video file
  * @param {string} title       - Title of the YouTube video
  * @param {string} description - Description of the YouTube video
- * @param {Object} [opts]      - Optional: { topic, tags, privacyStatus }
+ * @param {Object} [opts]      - Optional: { topic, tags, privacyStatus, thumbnailPath }
  * @returns {Promise<string>}  - Full URL to the uploaded video
  */
 async function uploadToYouTube(
@@ -111,7 +111,7 @@ async function uploadToYouTube(
     description = "Created with AI Content Engine",
     opts = {}
 ) {
-    const { topic = "", tags: customTags, privacyStatus = "public" } = opts;
+    const { topic = "", tags: customTags, privacyStatus = "public", thumbnailPath } = opts;
     const tags = Array.isArray(customTags) && customTags.length > 0
         ? customTags.slice(0, 15).map((t) => String(t).slice(0, MAX_TAG_LENGTH))
         : buildViralTags(topic);
@@ -144,6 +144,18 @@ async function uploadToYouTube(
 
     const videoId = response.data.id;
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+    if (thumbnailPath && fs.existsSync(thumbnailPath)) {
+        try {
+            await youtube.thumbnails.set({
+                videoId,
+                media: { mimeType: "image/jpeg", body: fs.createReadStream(thumbnailPath) },
+            });
+            console.log(`[YouTubeUploader] Custom thumbnail (Hook) set`);
+        } catch (thumbErr) {
+            console.warn(`[YouTubeUploader] Thumbnail upload failed:`, thumbErr.message);
+        }
+    }
 
     console.log(`[YouTubeUploader] Upload complete! URL: ${videoUrl}`);
     return videoUrl;

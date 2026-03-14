@@ -87,7 +87,7 @@ server.listen(AUTH_PORT, () => {
     const authUrl = oauth2Client.generateAuthUrl({
         access_type: "offline",
         scope: ["https://www.googleapis.com/auth/youtube.upload"],
-        prompt: "consent", // Force consent to get refresh_token
+        prompt: "select_account consent", // Force account/channel picker + consent
     });
 
     console.log(`
@@ -98,7 +98,7 @@ server.listen(AUTH_PORT, () => {
 ║                                                             ║
 ║     ${authUrl}
 ║                                                             ║
-║  2. Sign in with the Google account for your YouTube channel║
+║  2. Sign in – if you have multiple channels, pick the one you want║
 ║  3. Click "Allow" to grant upload permission                 ║
 ║  4. You'll be redirected – the refresh token will appear    ║
 ╚══════════════════════════════════════════════════════════════╝

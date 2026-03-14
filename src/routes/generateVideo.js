@@ -20,6 +20,7 @@ const { mixVoiceWithMusic } = require("../../utils/audioMixer");
 const { generateVideo, validatePipeline } = require("../services/videoGenerator");
 const { uploadToYouTube } = require("../services/youtubeUploader");
 const { uploadVideoToCloudinary } = require("../services/cloudinaryUploader");
+const { generateThumbnailWithHook } = require("../../utils/thumbnailGenerator");
 const { OUTPUT_DIR } = require("../../config/paths");
 const { VIDEO_DURATION } = require("../../utils/subtitleHelper");
 
@@ -49,6 +50,7 @@ function deriveHookFromScript(script) {
  *   addMusic (boolean)  - Add background music from Pixabay (default: true if PIXABAY_API_KEY set)
  *   musicQuery (string) - Music theme override (e.g. "calm", "motivation")
  *   hook (string)       - Custom hook text for first 2.2s overlay (default: derived from script)
+ *   imageCount (number) - Number of images (3–10, default 4). Pass in request to override.
  */
 router.post("/generate-video", async (req, res) => {
     const {
@@ -56,6 +58,7 @@ router.post("/generate-video", async (req, res) => {
         script: scriptInput,
         hook: hookInput,
         imageQuery: imageQueryInput,
+        imageCount: imageCountInput,
         maxWords: maxWordsInput,
         title: titleInput,
         tags: tagsInput,
@@ -72,6 +75,10 @@ router.post("/generate-video", async (req, res) => {
     const customTags = Array.isArray(tagsInput) ? tagsInput : null;
     const addMusic = addMusicInput !== false && addMusicInput !== "false";
     const musicQuery = typeof musicQueryInput === "string" ? musicQueryInput.trim() : null;
+    const imageCountReq = (() => {
+        const n = typeof imageCountInput === "number" ? imageCountInput : parseInt(imageCountInput, 10);
+        return Number.isFinite(n) && n >= 3 && n <= 10 ? n : null;
+    })();
 
     if (!topicTrimmed && !scriptTrimmed) {
         return res.status(400).json({
@@ -109,7 +116,8 @@ router.post("/generate-video", async (req, res) => {
         // STEP 2: Fetch images (use imageQuery for Pexels, or topic/script)
         logger.info("Pipeline", "STEP 2/6 – Fetching images...");
         const isRailway = !!process.env.RAILWAY_PROJECT_ID;
-        const imageCount = Math.max(4, apiKeys.IMAGE_COUNT ?? (e2eTestMode ? 4 : isRailway ? 4 : 8));
+        const defaultCount = apiKeys.IMAGE_COUNT ?? (e2eTestMode ? 4 : isRailway ? 4 : 8);
+        const imageCount = Math.max(3, Math.min(10, imageCountReq ?? defaultCount));
         const imagePaths = await fetchImages(pexelsQuery, imageCount);
         logger.info("Pipeline", `Fetched ${imagePaths.length} images for video (target: ${imageCount})`);
 
@@ -161,12 +169,21 @@ router.post("/generate-video", async (req, res) => {
             logger.info("Pipeline", "STEP 6/6 – Uploading to YouTube (public, viral tags)...");
             try {
                 const ytTitle = customTitle || `${searchQuery} #Shorts`;
-                const ytDesc = `Auto-generated Short\n\n#Shorts #viral #motivation\n\nScript:\n${script}`;
+                const ytDesc = `#Shorts #viral #motivation\n\nScript:\n${script}`;
+                let thumbnailPath = null;
+                if (imagePaths.length > 0 && hook) {
+                    thumbnailPath = path.join(OUTPUT_DIR, `thumb_${timestamp}.jpg`);
+                    await generateThumbnailWithHook(imagePaths[0], hook, thumbnailPath);
+                }
                 youtubeUrl = await uploadToYouTube(videoPath, ytTitle, ytDesc, {
                     topic: searchQuery,
                     tags: customTags,
                     privacyStatus: "public",
+                    thumbnailPath,
                 });
+                if (thumbnailPath && fs.existsSync(thumbnailPath)) {
+                    try { fs.unlinkSync(thumbnailPath); } catch (_) {}
+                }
                 logger.info("Pipeline", `YouTube URL: ${youtubeUrl}`);
             } catch (uploadErr) {
                 logger.warn("Pipeline", "YouTube upload failed (video still saved):", uploadErr.message);
