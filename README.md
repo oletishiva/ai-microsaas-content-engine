@@ -45,6 +45,8 @@ ai-microsaas-content-engine/
 │   ├── routes/
 │   │   └── generateVideo.js    # POST /api/generate-video
 │   └── app.js                  # Express entry point
+├── public/
+│   └── index.html              # Web UI for non-technical users
 ├── utils/
 │   └── ffmpegHelper.js         # FFmpeg concat + probe utilities
 ├── output/                     # Runtime-generated files (gitignored)
@@ -143,6 +145,15 @@ npm run dev
 ```
 
 Server starts at: **http://localhost:3000**
+
+### Web UI (for non-technical users)
+
+Open **http://localhost:3000** in your browser. A simple form lets you:
+- Enter a topic or paste your own script
+- Set hook text, image keywords, image count, music options
+- Click **Generate Video** and get links to the video and YouTube when done
+
+No curl or Postman needed. API info for developers: **GET /api**
 
 ---
 

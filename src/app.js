@@ -64,29 +64,36 @@ app.use((req, res, next) => {
 
 // ── 5. Mount routes ───────────────────────────────────────────────────────
 
-// Root – API info (includes Railway domain when deployed)
+// Static files (UI)
+const publicDir = path.join(__dirname, "..", "public");
+if (fs.existsSync(publicDir)) {
+    app.use(express.static(publicDir));
+}
+
+// Root – serve UI for non-technical users
 app.get("/", (req, res) => {
+    const indexPath = path.join(publicDir, "index.html");
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        res.json({
+            name: "AI Content Engine",
+            status: "running",
+            endpoints: { health: "GET /health", generateVideo: "POST /api/generate-video" },
+        });
+    }
+});
+
+// API info (for devs / debugging)
+app.get("/api", (req, res) => {
     const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
     const baseUrl = domain ? `https://${domain}` : null;
-    const eleven = process.env.ELEVENLABS_API_KEY;
     res.json({
         name: "AI Content Engine",
         version: "1.0.0",
         status: "running",
-        ...(baseUrl && {
-            url: baseUrl,
-            youtubeRedirectUri: `${baseUrl}/oauth2callback`,
-        }),
-        endpoints: {
-            health: "GET /health",
-            generateVideo: "POST /api/generate-video",
-        },
-        // Debug: env vars (safe – no secrets). Remove after fixing ElevenLabs.
-        debug: {
-            ELEVENLABS_API_KEY: { set: !!eleven, length: eleven ? String(eleven).trim().length : 0 },
-            OPENAI_API_KEY: { set: !!process.env.OPENAI_API_KEY },
-            PEXELS_API_KEY: { set: !!process.env.PEXELS_API_KEY },
-        },
+        ...(baseUrl && { url: baseUrl, youtubeRedirectUri: `${baseUrl}/oauth2callback` }),
+        endpoints: { health: "GET /health", generateVideo: "POST /api/generate-video" },
     });
 });
 
