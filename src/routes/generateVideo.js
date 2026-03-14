@@ -155,9 +155,6 @@ router.post("/generate-video", async (req, res) => {
                     musicOnly: apiKeys.E2E_SKIP_VOICE,
                 });
                 audioPath = mixedPath;
-                try {
-                    if (fs.existsSync(musicPath)) fs.unlinkSync(musicPath);
-                } catch (_) {}
             }
         }
 
