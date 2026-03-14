@@ -1,0 +1,135 @@
+/**
+ * src/routes/auth.js
+ * ------------------
+ * OAuth2 routes for per-user YouTube channel connection.
+ * Users connect their channel via UI; videos upload to their channel.
+ */
+
+const express = require("express");
+const router = express.Router();
+const { google } = require("googleapis");
+const {
+    YOUTUBE_CLIENT_ID,
+    YOUTUBE_CLIENT_SECRET,
+} = require("../../config/apiKeys");
+
+function getBaseUrl(req) {
+    const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
+    if (domain) return `https://${domain}`;
+    const port = process.env.PORT || 3000;
+    return `http://localhost:${port}`;
+}
+
+function getOAuthClient(redirectUri) {
+    return new google.auth.OAuth2(
+        YOUTUBE_CLIENT_ID,
+        YOUTUBE_CLIENT_SECRET,
+        redirectUri
+    );
+}
+
+/**
+ * GET /auth/youtube
+ * Redirects to Google OAuth consent. User picks their channel.
+ */
+router.get("/youtube", (req, res) => {
+    if (!YOUTUBE_CLIENT_ID || !YOUTUBE_CLIENT_SECRET) {
+        return res.redirect("/?error=YouTube+credentials+not+configured");
+    }
+    const baseUrl = getBaseUrl(req);
+    const redirectUri = `${baseUrl}/auth/youtube/callback`;
+    const oauth2Client = getOAuthClient(redirectUri);
+    const authUrl = oauth2Client.generateAuthUrl({
+        access_type: "offline",
+        scope: [
+            "https://www.googleapis.com/auth/youtube.upload",
+            "https://www.googleapis.com/auth/youtube.readonly",
+        ],
+        prompt: "select_account consent",
+    });
+    res.redirect(authUrl);
+});
+
+/**
+ * GET /auth/youtube/callback
+ * Receives code from Google, exchanges for tokens, stores refresh_token in session.
+ */
+router.get("/youtube/callback", async (req, res) => {
+    const { code, error } = req.query;
+    if (error) {
+        return res.redirect(`/?error=${encodeURIComponent(error)}`);
+    }
+    if (!code) {
+        return res.redirect("/?error=No+code+received");
+    }
+    if (!YOUTUBE_CLIENT_ID || !YOUTUBE_CLIENT_SECRET) {
+        return res.redirect("/?error=YouTube+credentials+not+configured");
+    }
+
+    const baseUrl = getBaseUrl(req);
+    const redirectUri = `${baseUrl}/auth/youtube/callback`;
+    const oauth2Client = getOAuthClient(redirectUri);
+
+    try {
+        const { tokens } = await oauth2Client.getToken(code);
+        const refreshToken = tokens.refresh_token;
+
+        if (!refreshToken) {
+            return res.redirect("/?error=No+refresh+token+%E2%80%93+try+revoking+access+at+myaccount.google.com%2Fpermissions");
+        }
+
+        req.session.youtubeRefreshToken = refreshToken;
+        req.session.save((err) => {
+            if (err) {
+                return res.redirect("/?error=Session+save+failed");
+            }
+            res.redirect("/?youtube=connected");
+        });
+    } catch (err) {
+        console.error("[Auth] YouTube callback error:", err.message);
+        res.redirect(`/?error=${encodeURIComponent(err.message)}`);
+    }
+});
+
+/**
+ * GET /auth/youtube/status
+ * Returns { connected: boolean, channelTitle?: string }
+ */
+router.get("/youtube/status", async (req, res) => {
+    if (!YOUTUBE_CLIENT_ID || !YOUTUBE_CLIENT_SECRET) {
+        return res.json({ connected: false, hasOAuth: false });
+    }
+    const token = req.session?.youtubeRefreshToken;
+    if (!token) {
+        return res.json({ connected: false, hasOAuth: true });
+    }
+    try {
+        const baseUrl = getBaseUrl(req);
+        const redirectUri = `${baseUrl}/auth/youtube/callback`;
+        const oauth2Client = getOAuthClient(redirectUri);
+        oauth2Client.setCredentials({ refresh_token: token });
+        const youtube = google.youtube({ version: "v3", auth: oauth2Client });
+        const channels = await youtube.channels.list({
+            part: "snippet",
+            mine: true,
+        });
+        const channelTitle = channels.data.items?.[0]?.snippet?.title || "Your channel";
+        res.json({ connected: true, channelTitle, hasOAuth: true });
+    } catch (err) {
+        req.session.youtubeRefreshToken = undefined;
+        res.json({ connected: false, hasOAuth: true });
+    }
+});
+
+/**
+ * POST /auth/youtube/disconnect
+ * Clears stored refresh token from session.
+ */
+router.post("/youtube/disconnect", (req, res) => {
+    req.session.youtubeRefreshToken = undefined;
+    req.session.save((err) => {
+        res.json({ success: true });
+    });
+});
+
+module.exports = router;

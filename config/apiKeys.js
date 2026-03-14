@@ -79,7 +79,11 @@ module.exports = {
   // ── YouTube / Google OAuth2 ───────────────────────────────
   YOUTUBE_CLIENT_ID: process.env.YOUTUBE_CLIENT_ID,
   YOUTUBE_CLIENT_SECRET: process.env.YOUTUBE_CLIENT_SECRET,
-  YOUTUBE_REDIRECT_URI: process.env.YOUTUBE_REDIRECT_URI,
+  YOUTUBE_REDIRECT_URI:
+    process.env.YOUTUBE_REDIRECT_URI ||
+    (process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/auth/youtube/callback`
+      : `http://localhost:${process.env.PORT || 3000}/auth/youtube/callback`),
   YOUTUBE_REFRESH_TOKEN: process.env.YOUTUBE_REFRESH_TOKEN,
 
   // E2E test mode: limits ElevenLabs + images to save credits for 1 full pipeline test
@@ -92,7 +96,16 @@ module.exports = {
   // Optional: override image count. Default: 3 on Railway (OOM-safe), 8 locally. Set IMAGE_COUNT=4 if needed.
   IMAGE_COUNT: process.env.IMAGE_COUNT ? parseInt(process.env.IMAGE_COUNT, 10) : undefined,
 
-  // YouTube upload is optional – skip if credentials are placeholder/missing
+  // When images convey the meaning, skip quote overlay. Set to 0 to disable quote text on video.
+  ENABLE_QUOTE_OVERLAY: process.env.ENABLE_QUOTE_OVERLAY !== "0" && process.env.ENABLE_QUOTE_OVERLAY !== "false",
+
+  // YouTube OAuth: client ID + secret (needed for Connect YouTube flow)
+  hasYouTubeOAuthConfig:
+    !!process.env.YOUTUBE_CLIENT_ID &&
+    !!process.env.YOUTUBE_CLIENT_SECRET &&
+    process.env.YOUTUBE_CLIENT_ID !== "your_google_client_id_here",
+
+  // YouTube upload: OAuth config + (env refresh token OR user connects via UI)
   hasYouTubeConfig:
     !!process.env.YOUTUBE_CLIENT_ID &&
     !!process.env.YOUTUBE_CLIENT_SECRET &&

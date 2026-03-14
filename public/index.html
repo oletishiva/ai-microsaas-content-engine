@@ -259,6 +259,51 @@
     }
     .custom-input { margin-top: 0.5rem; }
     .custom-input.hidden { display: none; }
+    .youtube-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: rgba(42, 42, 50, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+    }
+    .youtube-banner.connected { border-color: var(--success); background: rgba(34, 197, 94, 0.08); }
+    .youtube-banner .status { font-size: 0.9rem; color: var(--muted); }
+    .youtube-banner.connected .status { color: var(--success); }
+    .youtube-banner .actions { display: flex; gap: 0.5rem; }
+    .youtube-banner a, .youtube-banner button {
+      font-size: 0.85rem;
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+    }
+    .youtube-banner .btn-connect {
+      background: var(--accent);
+      color: var(--bg);
+      font-weight: 600;
+    }
+    .youtube-banner .btn-disconnect {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .youtube-banner .btn-disconnect:hover { color: var(--text); }
+    .alert-error {
+      padding: 0.75rem 1rem;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 8px;
+      color: var(--error);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
   </style>
 </head>
 <body>
@@ -267,6 +312,16 @@
       <h1>AI Content Engine</h1>
       <p class="subtitle">Create 15-second Shorts with AI voice, images & music</p>
     </header>
+
+    <div id="alertError" class="alert-error" style="display:none"></div>
+
+    <div id="youtubeBanner" class="youtube-banner" style="display:none">
+      <span class="status" id="youtubeStatus">Checking...</span>
+      <div class="actions">
+        <a id="btnConnect" href="/auth/youtube" class="btn-connect" style="display:none">Connect YouTube</a>
+        <button type="button" id="btnDisconnect" class="btn-disconnect" style="display:none">Disconnect</button>
+      </div>
+    </div>
 
     <form id="form">
       <div class="field">
@@ -323,14 +378,16 @@
         <div class="field">
           <label for="imageCount">Images</label>
           <select id="imageCount" name="imageCount">
+            <option value="1">1</option>
+            <option value="2">2</option>
             <option value="3">3</option>
-            <option value="4" selected>4</option>
+            <option value="4">4</option>
             <option value="5">5</option>
             <option value="6">6</option>
             <option value="7">7</option>
             <option value="8">8</option>
             <option value="9">9</option>
-            <option value="10">10</option>
+            <option value="10" selected>10</option>
           </select>
         </div>
         <div class="field">
@@ -386,6 +443,50 @@
     const form = document.getElementById('form');
     const resultEl = document.getElementById('result');
     const submitBtn = document.getElementById('submitBtn');
+
+    // URL params: ?youtube=connected, ?error=...
+    const params = new URLSearchParams(location.search);
+    if (params.get('error')) {
+      const el = document.getElementById('alertError');
+      el.textContent = params.get('error').replace(/\+/g, ' ');
+      el.style.display = 'block';
+      history.replaceState({}, '', location.pathname);
+    }
+
+    // YouTube Connect status
+    (async function loadYoutubeStatus() {
+      const banner = document.getElementById('youtubeBanner');
+      const statusEl = document.getElementById('youtubeStatus');
+      const btnConnect = document.getElementById('btnConnect');
+      const btnDisconnect = document.getElementById('btnDisconnect');
+      try {
+        const r = await fetch('/auth/youtube/status', { credentials: 'include' });
+        const data = await r.json();
+        if (!data.hasOAuth) { banner.style.display = 'none'; return; }
+        if (data.connected) {
+          banner.style.display = 'flex';
+          banner.classList.add('connected');
+          statusEl.textContent = 'Connected as: ' + (data.channelTitle || 'Your channel');
+          btnConnect.style.display = 'none';
+          btnDisconnect.style.display = 'block';
+        } else {
+          banner.style.display = 'flex';
+          statusEl.textContent = 'Connect your YouTube channel to upload videos to your account';
+          btnConnect.style.display = 'inline-block';
+          btnDisconnect.style.display = 'none';
+        }
+      } catch (_) {
+        banner.style.display = 'none';
+      }
+
+      btnDisconnect.onclick = async () => {
+        await fetch('/auth/youtube/disconnect', { method: 'POST', credentials: 'include' });
+        statusEl.textContent = 'Connect your YouTube channel to upload videos to your account';
+        banner.classList.remove('connected');
+        btnConnect.style.display = 'inline-block';
+        btnDisconnect.style.display = 'none';
+      };
+    })();
 
     // Toggle custom inputs when "Custom" or empty is selected
     function setupSelectWithCustom(selectId, customWrapId, showWhenEmpty) {
@@ -451,6 +552,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
+          credentials: 'include',
         });
         const data = await res.json();
 

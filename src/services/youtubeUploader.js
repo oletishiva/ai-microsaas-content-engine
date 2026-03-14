@@ -31,21 +31,25 @@ const {
 
 /**
  * getAuthenticatedClient
- * Builds and returns an authenticated OAuth2 client using the stored
- * refresh token. No browser interaction needed after first-time setup.
+ * Builds and returns an authenticated OAuth2 client.
+ * Uses session refresh token if provided, else env YOUTUBE_REFRESH_TOKEN.
  *
+ * @param {string} [refreshToken] - Per-user token from session (overrides env)
  * @returns {google.auth.OAuth2} - Ready-to-use OAuth2 client
  */
-function getAuthenticatedClient() {
+function getAuthenticatedClient(refreshToken) {
+    const token = refreshToken || YOUTUBE_REFRESH_TOKEN;
+    if (!token) {
+        throw new Error("No YouTube refresh token. Connect your channel in the UI or set YOUTUBE_REFRESH_TOKEN in .env");
+    }
+
     const oauth2Client = new google.auth.OAuth2(
         YOUTUBE_CLIENT_ID,
         YOUTUBE_CLIENT_SECRET,
         YOUTUBE_REDIRECT_URI
     );
 
-    // Set credentials – googleapis will auto-refresh the access token
-    oauth2Client.setCredentials({ refresh_token: YOUTUBE_REFRESH_TOKEN });
-
+    oauth2Client.setCredentials({ refresh_token: token });
     return oauth2Client;
 }
 
@@ -111,14 +115,14 @@ async function uploadToYouTube(
     description = "Created with AI Content Engine",
     opts = {}
 ) {
-    const { topic = "", tags: customTags, privacyStatus = "public", thumbnailPath } = opts;
+    const { topic = "", tags: customTags, privacyStatus = "public", thumbnailPath, refreshToken } = opts;
     const tags = Array.isArray(customTags) && customTags.length > 0
         ? customTags.slice(0, 15).map((t) => String(t).slice(0, MAX_TAG_LENGTH))
         : buildViralTags(topic);
 
     console.log(`[YouTubeUploader] Uploading: ${path.basename(videoPath)} (${privacyStatus})`);
 
-    const auth = getAuthenticatedClient();
+    const auth = getAuthenticatedClient(refreshToken);
     const youtube = google.youtube({ version: "v3", auth });
 
     const response = await youtube.videos.insert({

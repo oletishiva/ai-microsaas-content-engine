@@ -20,6 +20,7 @@ require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
+const session = require("express-session");
 const { validateRequiredKeys } = require("../config/apiKeys");
 const { OUTPUT_DIR, MEDIA_DIR } = require("../config/paths");
 const logger = require("../utils/logger");
@@ -42,6 +43,7 @@ try {
 
 // ── 2. Import route modules ───────────────────────────────────────────────
 const generateVideoRouter = require("./routes/generateVideo");
+const authRouter = require("./routes/auth");
 
 // ── 3. Create Express app ─────────────────────────────────────────────────
 const app = express();
@@ -53,6 +55,17 @@ app.use(express.json());
 
 // Parse URL-encoded form bodies (useful for HTML form submissions)
 app.use(express.urlencoded({ extended: true }));
+
+// Session (for per-user YouTube Connect)
+const sessionSecret = process.env.SESSION_SECRET || "ai-content-engine-default-secret-change-in-production";
+app.use(
+    session({
+        secret: sessionSecret,
+        resave: false,
+        saveUninitialized: false,
+        cookie: { secure: process.env.NODE_ENV === "production" && !!process.env.RAILWAY_PUBLIC_DOMAIN },
+    })
+);
 
 // Request logging (for Railway logs)
 app.use((req, res, next) => {
@@ -157,6 +170,9 @@ app.get("/test-eleven-tts", async (req, res) => {
         });
     }
 });
+
+// Auth routes (Connect YouTube)
+app.use("/auth", authRouter);
 
 // Main pipeline route
 app.use("/api", generateVideoRouter);

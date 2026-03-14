@@ -50,7 +50,7 @@ function deriveHookFromScript(script) {
  *   addMusic (boolean)  - Add background music from Pixabay (default: true if PIXABAY_API_KEY set)
  *   musicQuery (string) - Music theme override (e.g. "calm", "motivation")
  *   hook (string)       - Custom hook text for first 3.5s overlay (default: derived from script)
- *   imageCount (number) - Number of images (3–10, default 4). Pass in request to override.
+ *   imageCount (number) - Number of images (1–10, default 10). Pass in request to override.
  *   showQuote (boolean) - Override quote overlay. When false, no quote text (images only). Default from ENABLE_QUOTE_OVERLAY env.
  */
 router.post("/generate-video", async (req, res) => {
@@ -79,7 +79,7 @@ router.post("/generate-video", async (req, res) => {
     const musicQuery = typeof musicQueryInput === "string" ? musicQueryInput.trim() : null;
     const imageCountReq = (() => {
         const n = typeof imageCountInput === "number" ? imageCountInput : parseInt(imageCountInput, 10);
-        return Number.isFinite(n) && n >= 3 && n <= 10 ? n : null;
+        return Number.isFinite(n) && n >= 1 && n <= 10 ? n : null;
     })();
     const showQuoteReq = showQuoteInput === false || showQuoteInput === "false" ? false
         : showQuoteInput === true || showQuoteInput === "true" ? true
@@ -122,7 +122,7 @@ router.post("/generate-video", async (req, res) => {
         logger.info("Pipeline", "STEP 2/6 – Fetching images...");
         const isRailway = !!process.env.RAILWAY_PROJECT_ID;
         const defaultCount = apiKeys.IMAGE_COUNT ?? (e2eTestMode ? 4 : isRailway ? 4 : 8);
-        const imageCount = Math.max(3, Math.min(10, imageCountReq ?? defaultCount));
+        const imageCount = Math.max(1, Math.min(10, imageCountReq ?? defaultCount));
         const imagePaths = await fetchImages(pexelsQuery, imageCount);
         logger.info("Pipeline", `Fetched ${imagePaths.length} images for video (target: ${imageCount})`);
 
@@ -173,9 +173,11 @@ router.post("/generate-video", async (req, res) => {
         const videoPath = await generateVideo(imagePaths, audioPath, scriptForOverlay, hook, outputFilename);
         logger.info("Pipeline", "Video generated", { videoPath });
 
-        // STEP 6: Upload to YouTube (optional, uses local file)
+        // STEP 6: Upload to YouTube (optional – env token or session token from Connect YouTube)
+        const sessionToken = req.session?.youtubeRefreshToken;
+        const canUploadToYouTube = apiKeys.hasYouTubeConfig || (apiKeys.hasYouTubeOAuthConfig && sessionToken);
         let youtubeUrl = null;
-        if (apiKeys.hasYouTubeConfig) {
+        if (canUploadToYouTube) {
             logger.info("Pipeline", "STEP 6/6 – Uploading to YouTube (public, viral tags)...");
             try {
                 const ytTitle = customTitle || `${searchQuery} #Shorts`;
@@ -190,6 +192,7 @@ router.post("/generate-video", async (req, res) => {
                     tags: customTags,
                     privacyStatus: "public",
                     thumbnailPath,
+                    refreshToken: sessionToken || undefined,
                 });
                 if (thumbnailPath && fs.existsSync(thumbnailPath)) {
                     try { fs.unlinkSync(thumbnailPath); } catch (_) {}

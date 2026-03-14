@@ -123,7 +123,10 @@ cp .env .env.local  # optional – or just edit .env directly
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a project → Enable **YouTube Data API v3**
 3. Create **OAuth 2.0 credentials** (Web Application type)
-4. Add `http://localhost:3000/oauth2callback` as an authorised redirect URI
+4. Add these as authorised redirect URIs in Google Cloud Console:
+   - `http://localhost:3456/oauth2callback` (for `npm run youtube:auth` script)
+   - `http://localhost:3000/auth/youtube/callback` (for Connect YouTube in UI)
+   - `https://your-app.railway.app/auth/youtube/callback` (when deployed)
 5. Add `YOUTUBE_CLIENT_ID` and `YOUTUBE_CLIENT_SECRET` to `.env`
 6. Run the auth script and follow the prompts:
    ```bash
@@ -169,9 +172,19 @@ Server starts at: **http://localhost:3000**
 Open **http://localhost:3000** in your browser. A simple form lets you:
 - Enter a topic or paste your own script
 - Set hook text, image keywords, image count, music options
+- **Connect YouTube** – upload videos to your own channel (not the owner's)
 - Click **Generate Video** and get links to the video and YouTube when done
 
 No curl or Postman needed. API info for developers: **GET /api**
+
+### Multi-user YouTube (Connect YouTube)
+
+Friends can use the app and upload to **their** channel:
+1. Open the UI → click **Connect YouTube**
+2. Sign in with Google, pick the channel
+3. Generate videos → they upload to that channel
+
+Session-based: no database. Each browser session = one user. Optional: set `SESSION_SECRET` in env for production.
 
 ---
 
