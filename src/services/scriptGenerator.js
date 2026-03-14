@@ -88,7 +88,7 @@ Output ONLY the script text, nothing else.`;
             script = script.slice(0, maxChars).trim();
         }
 
-        // Extract hook: short punchy phrase for first 2.2s overlay (max 3–5 words)
+        // Extract hook: short punchy phrase for first 3.5s overlay (max 3–5 words)
         const firstSentence = script.split(/[.!?]/)[0]?.trim() || script;
         const hookWords = firstSentence.split(/\s+/).filter(Boolean);
         const hook = firstSentence.length > 25

@@ -38,7 +38,9 @@ function buildDrawTextFilter(textFilePath, fontSize, yExpr, enableExpr) {
 function runFfmpegWithOverlays(imagePaths, durationPerImage, audioPath, overlayPaths, _baseFilters, outputPath, outputOpts, cleanup, videoDuration, W = 1080, H = 1920) {
     const { spawnSync } = require("child_process");
 
-    const HOOK_DURATION = 2.2;
+    // 3.5s hook: YouTube Shorts auto-generate thumbnails from video frames (no custom thumb API).
+    // Longer hook = more frames with hook = higher chance YouTube picks hook for thumbnail.
+    const HOOK_DURATION = 3.5;
     const hook = overlayPaths.find((o) => o.start === 0 && o.end === HOOK_DURATION);
     const quote = overlayPaths.find((o) => o.start === HOOK_DURATION);
     const n = imagePaths.length;
@@ -170,7 +172,8 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         "fps=25",
     ];
 
-    const HOOK_DURATION = 2.2;
+    // 3.5s hook: YouTube Shorts auto-generate thumbnails from video frames (no custom thumb API).
+    const HOOK_DURATION = 3.5;
     const HOOK_FRAMES_DT = Math.floor(HOOK_DURATION * 25);
     if (useDrawText) {
         if (hookText) {

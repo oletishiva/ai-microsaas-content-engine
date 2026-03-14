@@ -49,8 +49,9 @@ function deriveHookFromScript(script) {
  *   tags (string[])     - YouTube tags (overrides auto viral tags)
  *   addMusic (boolean)  - Add background music from Pixabay (default: true if PIXABAY_API_KEY set)
  *   musicQuery (string) - Music theme override (e.g. "calm", "motivation")
- *   hook (string)       - Custom hook text for first 2.2s overlay (default: derived from script)
+ *   hook (string)       - Custom hook text for first 3.5s overlay (default: derived from script)
  *   imageCount (number) - Number of images (3–10, default 4). Pass in request to override.
+ *   showQuote (boolean) - Override quote overlay. When false, no quote text (images only). Default from ENABLE_QUOTE_OVERLAY env.
  */
 router.post("/generate-video", async (req, res) => {
     const {
@@ -59,6 +60,7 @@ router.post("/generate-video", async (req, res) => {
         hook: hookInput,
         imageQuery: imageQueryInput,
         imageCount: imageCountInput,
+        showQuote: showQuoteInput,
         maxWords: maxWordsInput,
         title: titleInput,
         tags: tagsInput,
@@ -79,6 +81,9 @@ router.post("/generate-video", async (req, res) => {
         const n = typeof imageCountInput === "number" ? imageCountInput : parseInt(imageCountInput, 10);
         return Number.isFinite(n) && n >= 3 && n <= 10 ? n : null;
     })();
+    const showQuoteReq = showQuoteInput === false || showQuoteInput === "false" ? false
+        : showQuoteInput === true || showQuoteInput === "true" ? true
+        : null;
 
     if (!topicTrimmed && !scriptTrimmed) {
         return res.status(400).json({
@@ -159,8 +164,13 @@ router.post("/generate-video", async (req, res) => {
         // STEP 5: Render video
         const timestamp = Date.now();
         const outputFilename = `video_${timestamp}.mp4`;
+        const enableQuote = showQuoteReq !== null ? showQuoteReq : apiKeys.ENABLE_QUOTE_OVERLAY;
+        const scriptForOverlay = enableQuote ? script : null;
+        if (!enableQuote) {
+            logger.info("Pipeline", "Quote overlay disabled – images only");
+        }
         logger.info("Pipeline", "STEP 5/6 – Rendering video...");
-        const videoPath = await generateVideo(imagePaths, audioPath, script, hook, outputFilename);
+        const videoPath = await generateVideo(imagePaths, audioPath, scriptForOverlay, hook, outputFilename);
         logger.info("Pipeline", "Video generated", { videoPath });
 
         // STEP 6: Upload to YouTube (optional, uses local file)
@@ -218,6 +228,7 @@ router.post("/generate-video", async (req, res) => {
             maxWords,
             imageQuery: imageQueryTrimmed || null,
             imageCount: imagePaths.length,
+            showQuote: enableQuote,
             youtubeUrl,
         };
         if (videoUrl) {

@@ -238,6 +238,7 @@ Use `imageQuery` for visual keywords (e.g. `tropical ocean waves sunset cinemati
    | `E2E_TEST_MODE` | ❌ | Set to `1` for testing (fewer credits) |
    | `E2E_SKIP_VOICE` | ❌ | Set to `1` to bypass ElevenLabs (use silent audio) when free tier blocks cloud IPs |
    | `IMAGE_COUNT` | ❌ | Override images per video (default: 8). Use if you need more/fewer slides. |
+   | `ENABLE_QUOTE_OVERLAY` | ❌ | Set to `0` to disable quote text overlay (images + voice only, no on-screen quote). |
    | `YOUTUBE_CLIENT_ID` | ❌ | For YouTube uploads |
    | `YOUTUBE_CLIENT_SECRET` | ❌ | For YouTube uploads |
    | `YOUTUBE_REFRESH_TOKEN` | ❌ | For YouTube uploads |
@@ -277,7 +278,8 @@ Use `imageQuery` for visual keywords (e.g. `tropical ocean waves sunset cinemati
    ```
    Replace the Railway URL with yours from Railway → Settings → Networking if different.
    - **imageCount** (3–10): Override number of images per video. Default: 4.
-   - **Thumbnail**: Videos get a custom thumbnail with the Hook text for better preview/attraction before opening.
+   - **showQuote** (boolean): Set to `false` to skip quote overlay (images + voice only). Or use env `ENABLE_QUOTE_OVERLAY=0`.
+   - **Thumbnail**: YouTube Shorts auto-generate thumbnails from video frames (no custom thumb API). The Hook is shown for 3.5s at the start so YouTube is more likely to pick a hook frame for the thumbnail.
 
 ### Post to Your Own Channel
 Anyone can deploy this app and post to their own YouTube channel. Add your YouTube OAuth credentials (`YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`) in Railway Variables. Run `node scripts/get-youtube-refresh-token.js` locally to get a refresh token for your channel, then add it to Railway. Videos will upload to the channel you authorized.
