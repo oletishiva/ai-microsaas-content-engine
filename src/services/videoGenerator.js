@@ -98,7 +98,7 @@ function runFfmpegWithOverlays(imagePaths, durationPerImage, audioPath, overlayP
     if (subscribePath) {
         // Scale the subscribe button to 60% of video width max; keep aspect ratio
         const subMaxW = Math.round(W * 0.60);
-        filter += `;[${subscribeIdx}:v]scale=${subMaxW}:-1,format=rgba[sub];[preout][sub]overlay=x=(W-w)/2:y=H-h-H*0.05:enable='1'[out]`;
+        filter += `;[${subscribeIdx}:v]scale=${subMaxW}:-1,format=rgba[sub];[preout][sub]overlay=x=(W-w)/2:y=H-h-H*0.07:enable='1'[out]`;
         overlayInputs.push("-loop", "1", "-i", subscribePath);
     } else {
         // Rename preout → out if no subscribe button
@@ -252,7 +252,7 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         const overlayPaths = [];
         // First 3s: hook. Then: quote. Readable font size.
         const hookFont = isRailway ? 80 : 72;
-        const quoteFont = isRailway ? 50 : 46;
+        const quoteFont = isRailway ? 45 : 46;  // Railway: 10% smaller (was 50) to avoid overflow
         if (hookText) {
             const hookPath = path.join(OUTPUT_DIR, `overlay_hook_${ts}.png`);
             await renderTextToImage(hookText, hookPath, { fontSize: hookFont, videoWidth: W, maxCharsPerLine: 11 });
