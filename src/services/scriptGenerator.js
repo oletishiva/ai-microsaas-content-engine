@@ -10,7 +10,7 @@ const OpenAI = require("openai");
 const { OPENAI_API_KEY } = require("../../config/apiKeys");
 const logger = require("../../utils/logger");
 
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY, timeout: 30_000 }); // 30s hard timeout
 
 const MAX_WORDS = 35;
 const MAX_CHARS = 200;
@@ -58,7 +58,7 @@ RULES:
 
     try {
         const completion = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-4o-mini",  // faster + higher rate limits on $5 tier vs gpt-4o
             messages: [
                 { role: "system", content: systemPrompt },
                 {
@@ -66,7 +66,7 @@ RULES:
                     content: `Topic: "${topic}". Write SCRIPT (voice), QUOTE (on-screen, up to 45 words), and HIGHLIGHT (1–2 phrases from quote, separated by |).`,
                 },
             ],
-            max_tokens: 200,
+            max_tokens: 400,  // was 200 – too low for 4-section output (SCRIPT+QUOTE+HIGHLIGHT+TITLE)
             temperature: 0.7,
         });
 
