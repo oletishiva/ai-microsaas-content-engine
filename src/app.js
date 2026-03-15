@@ -171,6 +171,34 @@ app.get("/test-eleven-tts", async (req, res) => {
     }
 });
 
+// Debug: test OpenAI API connectivity + key validity from Railway.
+// Hit GET /test-openai to instantly diagnose key/network issues.
+app.get("/test-openai", async (req, res) => {
+    const OpenAI = require("openai");
+    const key = (process.env.OPENAI_API_KEY || "").trim();
+    if (!key) return res.json({ success: false, error: "OPENAI_API_KEY not set in Railway Variables" });
+    try {
+        const openai = new OpenAI({ apiKey: key, timeout: 15_000 });
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: "Say OK" }],
+            max_tokens: 5,
+        });
+        res.json({
+            success: true,
+            keyPrefix: key.slice(0, 8) + "...",
+            reply: completion.choices[0].message.content,
+        });
+    } catch (e) {
+        res.json({
+            success: false,
+            keyPrefix: key.slice(0, 8) + "...",
+            error: e.message,
+            type: e.constructor.name,
+        });
+    }
+});
+
 // Auth routes (Connect YouTube)
 app.use("/auth", authRouter);
 
