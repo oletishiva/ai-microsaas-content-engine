@@ -25,7 +25,23 @@ const { OUTPUT_DIR } = require("../../config/paths");
 const { VIDEO_DURATION } = require("../../utils/subtitleHelper");
 
 const multer = require("multer");
+const sharp = require("sharp");
 const upload = multer({ dest: path.join(__dirname, "../../../output/uploads") });
+
+/** Pre-resize uploaded images for Railway – reduces FFmpeg encode time (large uploads → target size) */
+async function preResizeForRailway(filePaths, targetW, targetH) {
+    const ts = Date.now();
+    const resized = [];
+    for (let i = 0; i < filePaths.length; i++) {
+        const out = path.join(OUTPUT_DIR, `resized_${ts}_${i}.jpg`);
+        await sharp(filePaths[i])
+            .resize(targetW, targetH, { fit: "cover", position: "center" })
+            .jpeg({ quality: 85 })
+            .toFile(out);
+        resized.push(out);
+    }
+    return resized;
+}
 
 /**
  * Derive hook from script (first sentence or first 5 words)
@@ -132,12 +148,18 @@ router.post("/generate-video", upload.array("images", 10), async (req, res) => {
         }
 
         // STEP 2: Images (Local Uploads OR Pexels)
+        const isRailway = !!process.env.RAILWAY_PROJECT_ID;
         if (req.files && req.files.length > 0) {
             logger.info("Pipeline", `STEP 2/6 – Using ${req.files.length} locally uploaded images...`);
-            imagePaths = req.files.map((file) => file.path);
+            const rawPaths = req.files.map((file) => file.path);
+            if (isRailway) {
+                logger.info("Pipeline", "Pre-resizing uploads for Railway (faster FFmpeg)...");
+                imagePaths = await preResizeForRailway(rawPaths, 720, 1280);
+            } else {
+                imagePaths = rawPaths;
+            }
         } else {
             logger.info("Pipeline", "STEP 2/6 – Fetching images from Pexels...");
-            const isRailway = !!process.env.RAILWAY_PROJECT_ID;
             const defaultCount = apiKeys.IMAGE_COUNT ?? (e2eTestMode ? 4 : isRailway ? 4 : 8);
             const imageCount = Math.max(1, Math.min(10, imageCountReq ?? defaultCount));
             imagePaths = await fetchImages(pexelsQuery, imageCount);

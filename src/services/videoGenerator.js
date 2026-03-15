@@ -230,7 +230,7 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         "-metadata:s:v:0", "rotate=0",
         "-c:v", "libx264",
         "-preset", isRailway ? "ultrafast" : "fast",
-        "-threads", "1",
+        "-threads", isRailway ? "2" : "1",
         "-max_muxing_queue_size", "1024",
         "-crf", isRailway ? "28" : "23",
         "-c:a", "aac",
