@@ -12,6 +12,7 @@ const { OUTPUT_DIR } = require("../../config/paths");
 const { buildConcatFile, getAudioDuration } = require("../../utils/ffmpegHelper");
 const { VIDEO_DURATION } = require("../../utils/subtitleHelper");
 const { renderTextToImage } = require("../../utils/textToImage");
+const { renderSubscribeButton } = require("../../utils/subscribeButton");
 const logger = require("../../utils/logger");
 
 /**
@@ -35,7 +36,23 @@ function buildDrawTextFilter(textFilePath, fontSize, yExpr, enableExpr) {
  * Run FFmpeg with image overlays.
  * Uses concat FILTER (not demuxer) – reliable multi-image on all platforms.
  */
-function runFfmpegWithOverlays(imagePaths, durationPerImage, audioPath, overlayPaths, _baseFilters, outputPath, outputOpts, cleanup, videoDuration, W = 1080, H = 1920) {
+/**
+ * runFfmpegWithOverlays
+ * ---------------------
+ * @param {string[]} imagePaths
+ * @param {number}   durationPerImage
+ * @param {string}   audioPath
+ * @param {Array}    overlayPaths     - [{path, start, end}, ...]
+ * @param {*}        _baseFilters     - unused (kept for signature compat)
+ * @param {string}   outputPath
+ * @param {string[]} outputOpts
+ * @param {Function} cleanup
+ * @param {number}   videoDuration
+ * @param {number}   [W=1080]         - video width
+ * @param {number}   [H=1920]         - video height
+ * @param {string|null} [subscribePath=null] - Subscribe button PNG path (full duration)
+ */
+function runFfmpegWithOverlays(imagePaths, durationPerImage, audioPath, overlayPaths, _baseFilters, outputPath, outputOpts, cleanup, videoDuration, W = 1080, H = 1920, subscribePath = null) {
     const { spawnSync } = require("child_process");
 
     // 3.5s hook: YouTube Shorts auto-generate thumbnails from video frames (no custom thumb API).
@@ -50,7 +67,11 @@ function runFfmpegWithOverlays(imagePaths, durationPerImage, audioPath, overlayP
     const scaledInputs = imagePaths.map((_, i) => `[${i}s]`).join("");
     const hookIdx = n;
     const quoteIdx = n + 1;
-    const audioIdx = n + (hook && quote ? 2 : 1);
+
+    // How many overlay images come before the audio?
+    const contentOverlayCount = (hook ? 1 : 0) + (quote ? 1 : 0);
+    const subscribeIdx = n + contentOverlayCount;   // index of subscribe input (if used)
+    const audioIdx    = subscribeIdx + (subscribePath ? 1 : 0);
 
     const baseChain = imagePaths.map((_, i) => scaleCrop(i)).join(";") + `;${scaledInputs}concat=n=${n}:v=1:a=0,fps=25[base]`;
     const overlayPrep = (idx) => `[${idx}:v]scale=${W}:-1,format=rgba`;
@@ -59,17 +80,29 @@ function runFfmpegWithOverlays(imagePaths, durationPerImage, audioPath, overlayP
     const imageInputs = imagePaths.flatMap((p) => ["-loop", "1", "-t", String(durationPerImage.toFixed(2)), "-i", path.resolve(p)]);
     const overlayInputs = [];
 
+    // ── Build hook / quote chained overlays ──────────────────────────────────
     if (hook && quote) {
-        filter = `${baseChain};${overlayPrep(hookIdx)}[hook];${overlayPrep(quoteIdx)}[quote];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='between(t,0,${HOOK_DURATION})'[tmp];[tmp][quote]overlay=x=(W-w)/2:y=H*0.15:enable='gte(t,${HOOK_DURATION})'[out]`;
+        filter = `${baseChain};${overlayPrep(hookIdx)}[hook];${overlayPrep(quoteIdx)}[quote];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='between(t,0,${HOOK_DURATION})'[tmp];[tmp][quote]overlay=x=(W-w)/2:y=H*0.15:enable='gte(t,${HOOK_DURATION})'[preout]`;
         overlayInputs.push("-loop", "1", "-i", hook.path, "-loop", "1", "-i", quote.path);
     } else if (hook) {
-        filter = `${baseChain};${overlayPrep(hookIdx)}[hook];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='between(t,0,${HOOK_DURATION})'[out]`;
+        filter = `${baseChain};${overlayPrep(hookIdx)}[hook];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='between(t,0,${HOOK_DURATION})'[preout]`;
         overlayInputs.push("-loop", "1", "-i", hook.path);
     } else if (quote) {
-        filter = `${baseChain};${overlayPrep(hookIdx)}[quote];[base][quote]overlay=x=(W-w)/2:y=H*0.15:enable='1'[out]`;
+        filter = `${baseChain};${overlayPrep(hookIdx)}[quote];[base][quote]overlay=x=(W-w)/2:y=H*0.15:enable='1'[preout]`;
         overlayInputs.push("-loop", "1", "-i", quote.path);
     } else {
         throw new Error("No overlay paths");
+    }
+
+    // ── Chain Subscribe button overlay (full-duration, 15% from bottom) ──────
+    if (subscribePath) {
+        // Scale the subscribe button to 60% of video width max; keep aspect ratio
+        const subMaxW = Math.round(W * 0.60);
+        filter += `;[${subscribeIdx}:v]scale=${subMaxW}:-1,format=rgba[sub];[preout][sub]overlay=x=(W-w)/2:y=H-h-H*0.05:enable='1'[out]`;
+        overlayInputs.push("-loop", "1", "-i", subscribePath);
+    } else {
+        // Rename preout → out if no subscribe button
+        filter = filter.replace("[preout]", "[out]");
     }
 
     const args = [
@@ -122,6 +155,7 @@ function hasDrawTextFilter() {
  * generateVideo
  */
 async function generateVideo(imagePaths, audioPath, script, hookText, outputFilename, overlayOptions = {}) {
+    // overlayOptions.addSubscribeButton  – boolean, default true
     if (!imagePaths || imagePaths.length === 0) {
         throw new Error("No image paths provided");
     }
@@ -233,6 +267,22 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
             tempFiles.push(quotePath);
         }
 
+        // ── Subscribe button overlay ────────────────────────────────────────
+        // Default ON; caller can disable via overlayOptions.addSubscribeButton = false
+        const addSubscribeBtn = overlayOptions.addSubscribeButton !== false;
+        let subscribePath = null;
+        if (addSubscribeBtn) {
+            subscribePath = path.join(OUTPUT_DIR, `overlay_subscribe_${ts}.png`);
+            try {
+                await renderSubscribeButton(subscribePath, { videoWidth: W });
+                tempFiles.push(subscribePath);
+                logger.info("VideoGenerator", "Subscribe button overlay rendered.");
+            } catch (subErr) {
+                logger.warn("VideoGenerator", "Subscribe button render failed (skipping):", subErr.message);
+                subscribePath = null;
+            }
+        }
+
         if (overlayPaths.length > 0) {
             return runFfmpegWithOverlays(
                 imagePaths,
@@ -246,6 +296,7 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
                 videoDuration,
                 W,
                 H,
+                subscribePath,
             );
         } else {
             cmd.videoFilters(baseFilters);

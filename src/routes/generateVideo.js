@@ -66,6 +66,7 @@ router.post("/generate-video", async (req, res) => {
         tags: tagsInput,
         addMusic: addMusicInput,
         musicQuery: musicQueryInput,
+        addSubscribeButton: addSubscribeButtonInput,
     } = req.body;
 
     const topicTrimmed = typeof topic === "string" ? topic.trim() : "";
@@ -77,6 +78,8 @@ router.post("/generate-video", async (req, res) => {
     const customTags = Array.isArray(tagsInput) ? tagsInput : null;
     const addMusic = addMusicInput !== false && addMusicInput !== "false";
     const musicQuery = typeof musicQueryInput === "string" ? musicQueryInput.trim() : null;
+    // addSubscribeButton: default true (ON). Caller can opt out with false / "false".
+    const addSubscribeButton = addSubscribeButtonInput === false || addSubscribeButtonInput === "false" ? false : true;
     const imageCountReq = (() => {
         const n = typeof imageCountInput === "number" ? imageCountInput : parseInt(imageCountInput, 10);
         return Number.isFinite(n) && n >= 1 && n <= 10 ? n : null;
@@ -175,7 +178,10 @@ router.post("/generate-video", async (req, res) => {
             logger.info("Pipeline", "Quote overlay disabled – images only");
         }
         logger.info("Pipeline", "STEP 5/6 – Rendering video...");
-        const videoPath = await generateVideo(imagePaths, audioPath, scriptForOverlay, hook, outputFilename);
+        const videoPath = await generateVideo(imagePaths, audioPath, scriptForOverlay, hook, outputFilename, {
+            highlight,
+            addSubscribeButton,
+        });
         logger.info("Pipeline", "Video generated", { videoPath });
 
         // STEP 6: Upload to YouTube (optional – env token or session token from Connect YouTube)
@@ -185,7 +191,15 @@ router.post("/generate-video", async (req, res) => {
         if (canUploadToYouTube) {
             logger.info("Pipeline", "STEP 6/6 – Uploading to YouTube (public, viral tags)...");
             try {
-                const punchyTitle = titleSuggest || (quote || script).split(/[.!?]/).filter(Boolean).pop()?.trim().split(/\s+/).slice(0, 8).join(" ") || searchQuery;
+                // Derive a punchy title – cascade: AI suggest → hook → quote → script → topic
+                const rawSource = titleSuggest
+                    || (hook ? hook.replace(/\.\.\.$/,"").trim() : null)
+                    || (quote ? quote.split(/[.!?]/).filter(Boolean)[0]?.trim() : null)
+                    || (script ? script.split(/[.!?]/).filter(Boolean)[0]?.trim() : null)
+                    || searchQuery
+                    || "Motivation";
+                // Keep to 8 words max and strip trailing ellipsis/punctuation
+                const punchyTitle = rawSource.split(/\s+/).slice(0, 8).join(" ").replace(/[.!?,]+$/, "").trim() || "Motivation";
                 const ytTitle = customTitle || `${punchyTitle} #quotes #motivation #quoteoftheday #deepquotes #shorts #foryou`;
                 const ytDesc = `${punchyTitle}\n\n#quotes #motivation #quoteoftheday #deepquotes #lifelessons #shorts #foryou #viral`;
                 let thumbnailPath = null;
