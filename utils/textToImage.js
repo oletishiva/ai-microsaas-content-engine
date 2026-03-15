@@ -53,7 +53,7 @@ function wrapText(text, maxCharsPerLine) {
 }
 
 /** Approximate char width in em units for positioning highlights */
-const CHAR_WIDTH_EM = 0.6;
+const CHAR_WIDTH_EM = 0.62;  // Increased slightly to accommodate wide Arial Bold chars
 
 /**
  * Create PNG with text (white, black outline). Returns path to saved file.
@@ -95,21 +95,21 @@ async function renderTextToImage(text, outputPath, options = {}) {
             const p = phrase.trim().toLowerCase();
             let idx = lowerLine(line).indexOf(p);
             if (idx >= 0) {
-                const rectX = lineStartX + idx * charWidthPx;
-                const rectW = p.length * charWidthPx;
+                const rectX = lineStartX + idx * charWidthPx - 8; // -8px padding left
+                const rectW = p.length * charWidthPx + 16;       // +16px total padding
                 const rectY = lineY - fontSize * 0.85;
                 const rectH = fontSize * 1.15;
-                rects.push(`<rect x="${rectX}" y="${rectY}" width="${rectW}" height="${rectH}" fill="#FFEB3B" opacity="0.5"/>`);
+                rects.push(`<rect x="${rectX}" y="${rectY}" width="${rectW}" height="${rectH}" fill="#FFEB3B" opacity="0.75"/>`);
             } else {
                 for (const word of p.split(/\s+/)) {
                     if (word.length < 2) continue;
                     idx = lowerLine(line).indexOf(word);
                     if (idx >= 0) {
-                        const rectX = lineStartX + idx * charWidthPx;
-                        const rectW = word.length * charWidthPx;
+                        const rectX = lineStartX + idx * charWidthPx - 8;
+                        const rectW = word.length * charWidthPx + 16;
                         const rectY = lineY - fontSize * 0.85;
                         const rectH = fontSize * 1.15;
-                        rects.push(`<rect x="${rectX}" y="${rectY}" width="${rectW}" height="${rectH}" fill="#FFEB3B" opacity="0.5"/>`);
+                        rects.push(`<rect x="${rectX}" y="${rectY}" width="${rectW}" height="${rectH}" fill="#FFEB3B" opacity="0.75"/>`);
                     }
                 }
             }
@@ -126,16 +126,22 @@ async function renderTextToImage(text, outputPath, options = {}) {
 
     const strokeWidth = 2;
     const rectsSvg = rects.join("\n    ");
+    
+    const isBlackFont = options.textColor === "black";
+    const textFill = isBlackFont ? "black" : "white";
+    const textStroke = isBlackFont ? "white" : "black";
+    
+    // IMPORTANT: rectsSvg goes BEFORE text so the yellow highlight sits BEHIND the text
     const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}" overflow="hidden">
   <defs><clipPath id="textClip"><rect x="${pad}" y="0" width="${textWidth}" height="${totalHeight}"/></clipPath></defs>
   <g clip-path="url(#textClip)">
+    ${rectsSvg ? rectsSvg + "\n    " : ""}
     <text x="${textCenterX}" y="${startY}" text-anchor="middle"
           font-family="Arial, Helvetica, sans-serif" font-size="${fontSize}" font-weight="700"
-          fill="white" stroke="black" stroke-width="${strokeWidth}" paint-order="stroke fill">
+          fill="${textFill}" stroke="${textStroke}" stroke-width="${strokeWidth}" paint-order="stroke fill">
           ${tspans}
     </text>
-    ${rectsSvg ? rectsSvg + "\n    " : ""}
   </g>
 </svg>`;
 

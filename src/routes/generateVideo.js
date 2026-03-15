@@ -24,6 +24,9 @@ const { generateThumbnailWithHook } = require("../../utils/thumbnailGenerator");
 const { OUTPUT_DIR } = require("../../config/paths");
 const { VIDEO_DURATION } = require("../../utils/subtitleHelper");
 
+const multer = require("multer");
+const upload = multer({ dest: path.join(__dirname, "../../../output/uploads") });
+
 /**
  * Derive hook from script (first sentence or first 5 words)
  */
@@ -40,20 +43,12 @@ function deriveHookFromScript(script) {
 
 /**
  * POST /api/generate-video
- * Body:
- *   topic (string)      - Marketing topic (required if no script)
- *   script (string)     - Pre-written script (optional, overrides topic)
- *   imageQuery (string) - Pexels search keywords for images
- *   maxWords (number)   - Script length: 35 (default) or 50 for longer ~20s video
- *   title (string)      - YouTube video title (default: topic + " #Shorts")
- *   tags (string[])     - YouTube tags (overrides auto viral tags)
- *   addMusic (boolean)  - Add background music from Pixabay (default: true if PIXABAY_API_KEY set)
- *   musicQuery (string) - Music theme override (e.g. "calm", "motivation")
- *   hook (string)       - Custom hook text for first 3.5s overlay (default: derived from script)
- *   imageCount (number) - Number of images (1–10, default 10). Pass in request to override.
- *   showQuote (boolean) - Override quote overlay. When false, no quote text (images only). Default from ENABLE_QUOTE_OVERLAY env.
+ * Body (multipart/form-data):
+ *   topic, script, imageQuery, maxWords, title, tags, addMusic, musicQuery, hook, imageCount, showQuote
+ *   textColor (string)  - "white" (default) or "black"
+ *   images (files)      - Up to 10 local image files (overrides Pexels)
  */
-router.post("/generate-video", async (req, res) => {
+router.post("/generate-video", upload.array("images", 10), async (req, res) => {
     const {
         topic,
         script: scriptInput,
@@ -67,19 +62,29 @@ router.post("/generate-video", async (req, res) => {
         addMusic: addMusicInput,
         musicQuery: musicQueryInput,
         addSubscribeButton: addSubscribeButtonInput,
+        textColor: textColorInput,
+        pushToYouTube: pushToYouTubeInput,
+        youtubeTitle: youtubeTitleInput,
+        youtubeTags: youtubeTagsInput,
+        audioMode: audioModeInput,
     } = req.body;
 
     const topicTrimmed = typeof topic === "string" ? topic.trim() : "";
     const scriptTrimmed = typeof scriptInput === "string" ? scriptInput.trim() : "";
     const hookTrimmed = typeof hookInput === "string" ? hookInput.trim() : null;
     const imageQueryTrimmed = typeof imageQueryInput === "string" ? imageQueryInput.trim() : "";
-    const maxWords = maxWordsInput === 50 ? 50 : 35;
+    const maxWords = maxWordsInput === "50" || maxWordsInput === 50 ? 50 : 35;
     const customTitle = typeof titleInput === "string" ? titleInput.trim() : null;
     const customTags = Array.isArray(tagsInput) ? tagsInput : null;
     const addMusic = addMusicInput !== false && addMusicInput !== "false";
     const musicQuery = typeof musicQueryInput === "string" ? musicQueryInput.trim() : null;
-    // addSubscribeButton: default true (ON). Caller can opt out with false / "false".
     const addSubscribeButton = addSubscribeButtonInput === false || addSubscribeButtonInput === "false" ? false : true;
+    const textColor = textColorInput === "black" ? "black" : "white";
+    const pushToYouTube = pushToYouTubeInput === true || pushToYouTubeInput === "true";
+    const customYouTubeTitle = typeof youtubeTitleInput === "string" ? youtubeTitleInput.trim() : null;
+    const customYouTubeTags = typeof youtubeTagsInput === "string" ? youtubeTagsInput.split(',').map(t => t.trim()).filter(Boolean) : null;
+    const audioMode = ["full", "voice-only", "silent"].includes(audioModeInput) ? audioModeInput : "full";
+    
     const imageCountReq = (() => {
         const n = typeof imageCountInput === "number" ? imageCountInput : parseInt(imageCountInput, 10);
         return Number.isFinite(n) && n >= 1 && n <= 10 ? n : null;
@@ -108,6 +113,8 @@ router.post("/generate-video", async (req, res) => {
 
     let script, hook, quote = null, highlight = [], titleSuggest = null;
     let silentAudioPath = null;
+    let imagePaths = [];
+    
     try {
         // STEP 1: Get script (generate or use provided)
         if (scriptTrimmed) {
@@ -124,13 +131,18 @@ router.post("/generate-video", async (req, res) => {
             titleSuggest = generated.title || null;
         }
 
-        // STEP 2: Fetch images (use imageQuery for Pexels, or topic/script)
-        logger.info("Pipeline", "STEP 2/6 – Fetching images...");
-        const isRailway = !!process.env.RAILWAY_PROJECT_ID;
-        const defaultCount = apiKeys.IMAGE_COUNT ?? (e2eTestMode ? 4 : isRailway ? 4 : 8);
-        const imageCount = Math.max(1, Math.min(10, imageCountReq ?? defaultCount));
-        const imagePaths = await fetchImages(pexelsQuery, imageCount);
-        logger.info("Pipeline", `Fetched ${imagePaths.length} images for video (target: ${imageCount})`);
+        // STEP 2: Images (Local Uploads OR Pexels)
+        if (req.files && req.files.length > 0) {
+            logger.info("Pipeline", `STEP 2/6 – Using ${req.files.length} locally uploaded images...`);
+            imagePaths = req.files.map((file) => file.path);
+        } else {
+            logger.info("Pipeline", "STEP 2/6 – Fetching images from Pexels...");
+            const isRailway = !!process.env.RAILWAY_PROJECT_ID;
+            const defaultCount = apiKeys.IMAGE_COUNT ?? (e2eTestMode ? 4 : isRailway ? 4 : 8);
+            const imageCount = Math.max(1, Math.min(10, imageCountReq ?? defaultCount));
+            imagePaths = await fetchImages(pexelsQuery, imageCount);
+            logger.info("Pipeline", `Fetched ${imagePaths.length} images for video (target: ${imageCount})`);
+        }
 
         // STEP 3: Validate FFmpeg pipeline BEFORE using ElevenLabs
         logger.info("Pipeline", "STEP 3/6 – Validating FFmpeg pipeline...");
@@ -138,8 +150,8 @@ router.post("/generate-video", async (req, res) => {
 
         // STEP 4: Generate voice or silent audio (only after FFmpeg validation passes)
         let audioPath;
-        if (apiKeys.E2E_SKIP_VOICE) {
-            logger.info("Pipeline", "STEP 4/6 – Skipping voice (E2E_SKIP_VOICE), using silent audio...");
+        if (audioMode === "silent" || apiKeys.E2E_SKIP_VOICE) {
+            logger.info("Pipeline", `STEP 4/6 – Skipping voice (mode: ${audioMode}, test: ${apiKeys.E2E_SKIP_VOICE}), using silent audio...`);
             silentAudioPath = path.join(OUTPUT_DIR, `silent_${Date.now()}.mp3`);
             execSync(
                 `ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t ${VIDEO_DURATION} -q:a 9 -acodec libmp3lame -y "${silentAudioPath}"`,
@@ -151,14 +163,14 @@ router.post("/generate-video", async (req, res) => {
             audioPath = await generateVoice(script);
         }
 
-        // STEP 4b: Add background music (optional). When no voice (E2E_SKIP_VOICE), use music at full volume.
+        // STEP 4b: Add background music (optional). 
         let musicPath = null;
-        if (addMusic && apiKeys.ADD_MUSIC) {
+        if (addMusic && apiKeys.ADD_MUSIC && audioMode === "full") {
             musicPath = fetchBackgroundMusic();
             if (musicPath) {
                 const mixedPath = path.join(OUTPUT_DIR, `mixed_${Date.now()}.mp3`);
                 await mixVoiceWithMusic(audioPath, musicPath, mixedPath, {
-                    musicOnly: apiKeys.E2E_SKIP_VOICE,
+                    musicOnly: (apiKeys.E2E_SKIP_VOICE || audioMode === "silent"),
                 });
                 audioPath = mixedPath;
             }
@@ -184,9 +196,9 @@ router.post("/generate-video", async (req, res) => {
         });
         logger.info("Pipeline", "Video generated", { videoPath });
 
-        // STEP 6: Upload to YouTube (optional – env token or session token from Connect YouTube)
+        // STEP 6: Upload to YouTube (optional – env token or session token from Connect YouTube + Push Toggle)
         const sessionToken = req.session?.youtubeRefreshToken;
-        const canUploadToYouTube = apiKeys.hasYouTubeConfig || (apiKeys.hasYouTubeOAuthConfig && sessionToken);
+        const canUploadToYouTube = pushToYouTube && (apiKeys.hasYouTubeConfig || (apiKeys.hasYouTubeOAuthConfig && sessionToken));
         let youtubeUrl = null;
         if (canUploadToYouTube) {
             logger.info("Pipeline", "STEP 6/6 – Uploading to YouTube (public, viral tags)...");
@@ -200,7 +212,7 @@ router.post("/generate-video", async (req, res) => {
                     || "Motivation";
                 // Keep to 8 words max and strip trailing ellipsis/punctuation
                 const punchyTitle = rawSource.split(/\s+/).slice(0, 8).join(" ").replace(/[.!?,]+$/, "").trim() || "Motivation";
-                const ytTitle = customTitle || `${punchyTitle} #quotes #motivation #quoteoftheday #deepquotes #shorts #foryou`;
+                const ytTitle = customYouTubeTitle || customTitle || `${punchyTitle} #quotes #motivation #quoteoftheday #deepquotes #shorts #foryou`;
                 const ytDesc = `${punchyTitle}\n\n#quotes #motivation #quoteoftheday #deepquotes #lifelessons #shorts #foryou #viral`;
                 let thumbnailPath = null;
                 if (imagePaths.length > 0 && hook) {
@@ -209,7 +221,7 @@ router.post("/generate-video", async (req, res) => {
                 }
                 youtubeUrl = await uploadToYouTube(videoPath, ytTitle, ytDesc, {
                     topic: searchQuery,
-                    tags: customTags,
+                    tags: customYouTubeTags || customTags,
                     privacyStatus: "public",
                     thumbnailPath,
                     refreshToken: sessionToken || undefined,
@@ -222,7 +234,7 @@ router.post("/generate-video", async (req, res) => {
                 logger.warn("Pipeline", "YouTube upload failed (video still saved):", uploadErr.message);
             }
         } else {
-            logger.info("Pipeline", "STEP 6/6 – Skipping YouTube (credentials not configured)");
+            logger.info("Pipeline", "STEP 6/6 – Skipping YouTube (pushToYouTube is false or credentials not configured)");
         }
 
         // Upload to Cloudinary and return public video URL

@@ -3,636 +3,835 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#0f0f12">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>AI Content Engine – Create Shorts</title>
+  <title>AI Content Engine – Make Viral Shorts</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0f0f12;
-      --surface: #1a1a1f;
-      --border: #2a2a32;
-      --text: #e8e8ed;
-      --muted: #8b8b9a;
-      --accent: #f59e0b;
-      --accent-hover: #fbbf24;
-      --success: #22c55e;
+      --bg: #09090e; /* Deep dark indigo/black */
+      --surface: #141221; /* Rich purple-tinted card bg */
+      --card: #181528;
+      --card-hover: #1e1b33;
+      --border: rgba(123, 44, 191, 0.2);
+      --border-focus: rgba(123, 44, 191, 0.6);
+      --text: #ffffff;
+      --text-glow: 0 0 10px rgba(123, 44, 191, 0.5);
+      --muted: #948ea5;
+      --accent: #9d4edd;
+      --accent-grad: linear-gradient(135deg, #7b2cbf 0%, #3a0ca3 100%);
+      --accent-hover: #c77dff;
+      --success: #10b981;
+      --success-bg: rgba(16, 185, 129, 0.1);
       --error: #ef4444;
+      --error-bg: rgba(239, 68, 68, 0.1);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html {
-      -webkit-text-size-adjust: 100%;
-      -webkit-tap-highlight-color: transparent;
-    }
     body {
-      font-family: 'DM Sans', system-ui, sans-serif;
-      background: var(--bg);
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 15% 50%, rgba(123, 44, 191, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 85% 30%, rgba(58, 12, 163, 0.08) 0%, transparent 50%);
+      background-attachment: fixed;
       color: var(--text);
       min-height: 100vh;
-      min-height: 100dvh;
       line-height: 1.5;
-      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-      overflow-x: hidden;
+      padding-bottom: 2rem;
+      position: relative;
     }
-    .container {
-      max-width: 520px;
-      margin: 0 auto;
-      padding: 1.25rem 1rem;
-      padding-left: max(1rem, env(safe-area-inset-left));
-      padding-right: max(1rem, env(safe-area-inset-right));
+    /* Subtle glowing orb effect behind the main content */
+    .bg-glow {
+        position: absolute;
+        top: -10%; left: 50%; transform: translateX(-50%);
+        width: 60vw; height: 60vw;
+        background: radial-gradient(circle, rgba(123, 44, 191, 0.15) 0%, transparent 60%);
+        filter: blur(80px);
+        z-index: -1;
+        pointer-events: none;
     }
-    @media (min-width: 480px) {
-      .container { padding: 2rem 1.5rem; }
-    }
-    header {
+    .hero {
       text-align: center;
-      margin-bottom: 1.5rem;
+      padding: 4rem 1rem 3rem;
+      border-bottom: 1px solid rgba(123, 44, 191, 0.15);
+      margin-bottom: 2.5rem;
+      position: relative;
     }
-    @media (min-width: 480px) {
-      header { margin-bottom: 2rem; }
-    }
-    h1 {
-      font-size: 1.35rem;
+    .hero-badge {
+      display: inline-block;
+      padding: 0.3rem 0.8rem;
+      background: rgba(157, 78, 221, 0.15);
+      border: 1px solid rgba(157, 78, 221, 0.4);
+      color: #e0aaff;
+      border-radius: 100px;
+      font-size: 0.75rem;
       font-weight: 700;
-      color: var(--text);
-      margin-bottom: 0.25rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+      box-shadow: 0 0 15px rgba(157, 78, 221, 0.2);
     }
-    @media (min-width: 480px) {
-      h1 { font-size: 1.5rem; }
+    .hero h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(to right, #ffffff, #a1a1aa);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
-    .subtitle {
-      font-size: 0.85rem;
+    .hero p {
       color: var(--muted);
+      font-size: 1.05rem;
+      max-width: 400px;
+      margin: 0 auto;
     }
-    @media (min-width: 480px) {
-      .subtitle { font-size: 0.9rem; }
+    /* Feature Pills */
+    .features {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-top: 1.5rem;
+    }
+    .pill {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    /* Main Layout */
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 0 1rem;
     }
     form {
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
+      gap: 2rem;
     }
+    /* Card Groups */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.5rem;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--text);
+    }
+    .card-header span {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      font-size: 1rem;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    /* Form Fields */
     .field {
       display: flex;
       flex-direction: column;
-      gap: 0.4rem;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
     }
+    .field:last-child { margin-bottom: 0; }
     label {
       font-size: 0.85rem;
-      font-weight: 500;
+      font-weight: 600;
       color: var(--muted);
     }
     label .req { color: var(--accent); }
-    input, textarea, select {
+    input[type="text"], textarea, select {
       font-family: inherit;
-      font-size: 16px; /* prevents iOS zoom on focus */
-      padding: 0.75rem 1rem;
-      min-height: 44px; /* touch target */
-      width: 100%;
-      max-width: 100%;
-      background: var(--surface);
+      font-size: 16px;
+      padding: 0.85rem 1rem;
+      background: rgba(255,255,255,0.02);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 10px;
       color: var(--text);
-      transition: border-color 0.2s;
-      -webkit-appearance: none;
-      appearance: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
     }
-    select {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238b8b9a' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 1rem center;
-      padding-right: 2.5rem;
-    }
+    textarea { min-height: 90px; resize: vertical; }
     input:focus, textarea:focus, select:focus {
       outline: none;
-      border-color: var(--accent);
+      border-color: var(--border-focus);
+      background: rgba(255,255,255,0.04);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2), 0 0 0 3px rgba(255, 153, 0, 0.15);
     }
-    input::placeholder, textarea::placeholder {
-      color: var(--muted);
-      opacity: 0.7;
-    }
-    textarea {
-      min-height: 80px;
-      resize: vertical;
-    }
-    @media (max-width: 479px) {
-      textarea { min-height: 72px; }
-    }
-    .row {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-    .row .field { flex: 1; min-width: 0; }
-    @media (max-width: 380px) {
-      .row { flex-direction: column; gap: 1.25rem; }
-      .row .field { min-width: 100%; }
-    }
-    .checkbox-field {
-      flex-direction: row;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.75rem 1rem;
-      background: rgba(42, 42, 50, 0.5);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-    }
-    .checkbox-field input[type="checkbox"] {
-      width: 22px;
-      height: 22px;
-      min-width: 22px;
-      min-height: 22px;
-      margin: 0;
-      cursor: pointer;
-      flex-shrink: 0;
-      -webkit-appearance: none;
+    select {
       appearance: none;
-      border: 2px solid var(--muted);
-      border-radius: 5px;
-      background: var(--surface);
-      position: relative;
-    }
-    .checkbox-field input[type="checkbox"]:checked {
-      background: var(--accent);
-      border-color: var(--accent);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 13l4 4L19 7'/%3E%3C/svg%3E");
-      background-size: 14px 14px;
-      background-position: center;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23a1a1aa' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
+      background-position: right 1rem center;
     }
-    .checkbox-field label {
-      margin-bottom: 0;
+    .hint { font-size: 0.75rem; color: var(--muted); opacity: 0.8; margin-top: 0.2rem; }
+    
+    /* Image Upload Zone */
+    .image-mode-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+      padding: 0.3rem;
+      background: rgba(255,255,255,0.02);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 0.6rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
       cursor: pointer;
-      font-size: 0.95rem;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    .tab.active {
+      background: rgba(255,255,255,0.08);
       color: var(--text);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
-    .default-hint {
-      font-size: 0.8rem;
-      color: var(--muted);
-      font-weight: 400;
-    }
-    .section-title {
-      font-size: 0.8rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--muted);
-      margin-top: 0.5rem;
-      margin-bottom: -0.5rem;
-    }
-    button[type="submit"] {
-      font-family: inherit;
-      font-size: 1rem;
-      font-weight: 600;
-      padding: 1rem 1.5rem;
-      min-height: 48px; /* touch target */
-      background: var(--accent);
-      color: var(--bg);
-      border: none;
-      border-radius: 8px;
+    .upload-zone {
+      border: 2px dashed rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.01);
+      border-radius: 12px;
+      padding: 3rem 1rem;
+      text-align: center;
       cursor: pointer;
-      transition: background 0.2s;
-      margin-top: 0.5rem;
-      -webkit-tap-highlight-color: transparent;
+      transition: all 0.3s;
     }
-    button[type="submit"]:hover:not(:disabled) {
-      background: var(--accent-hover);
+    .upload-zone:hover { 
+      border-color: var(--accent); 
+      background: rgba(255,153,0,0.04); 
     }
-    button[type="submit"]:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+    .upload-zone input { display: none; }
+    .upload-icon { font-size: 2.5rem; margin-bottom: 0.5rem; display: block; transition: transform 0.3s; }
+    .upload-zone:hover .upload-icon { transform: translateY(-5px); }
+    .upload-title { font-weight: 600; color: var(--text); margin-bottom: 0.25rem; }
+    .upload-subtitle { font-size: 0.85rem; color: var(--muted); }
+    .preview-grid {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
     }
-    #result {
-      margin-top: 2rem;
-      padding: 1.25rem;
-      border-radius: 8px;
-      display: none;
+    .preview-thumb {
+      width: 60px;
+      height: 80px;
+      border-radius: 6px;
+      object-fit: cover;
+      border: 1px solid var(--border);
     }
-    #result.success {
-      display: block;
-      background: rgba(34, 197, 94, 0.1);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-    }
-    #result.error {
-      display: block;
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-    }
-    #result h3 {
-      font-size: 0.95rem;
-      margin-bottom: 0.75rem;
-      color: var(--success);
-    }
-    #result.error h3 { color: var(--error); }
-    #result p, #result a {
-      font-size: 0.9rem;
-      margin-bottom: 0.5rem;
-      word-break: break-all;
-    }
-    #result a {
-      color: var(--accent);
-      text-decoration: none;
-      display: inline-block;
-      padding: 0.25rem 0;
-    }
-    #result a:hover { text-decoration: underline; }
-    #result .url-copy { margin-top: 0.5rem; }
-    #result .url-copy code {
-      font-size: 0.75rem;
-      word-break: break-all;
-      color: var(--muted);
-      background: var(--surface);
-      padding: 0.25rem 0.5rem;
-      border-radius: 4px;
-    }
-    .spinner {
-      display: inline-block;
-      width: 18px;
-      height: 18px;
-      border: 2px solid rgba(0,0,0,0.2);
-      border-top-color: var(--bg);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      vertical-align: middle;
-      margin-right: 0.5rem;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .hint {
-      font-size: 0.8rem;
-      color: var(--muted);
-      margin-top: 0.2rem;
-    }
-    .custom-input { margin-top: 0.5rem; }
-    .custom-input.hidden { display: none; }
-    .youtube-banner {
+    
+    /* Switches */
+    .switch-field {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      padding: 0.75rem 1rem;
-      background: rgba(42, 42, 50, 0.6);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: rgba(255,255,255,0.015);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      margin-bottom: 0.75rem;
+      transition: background 0.2s;
     }
-    .youtube-banner.connected { border-color: var(--success); background: rgba(34, 197, 94, 0.08); }
-    .youtube-banner .status { font-size: 0.9rem; color: var(--muted); }
-    .youtube-banner.connected .status { color: var(--success); }
-    .youtube-banner .actions { display: flex; gap: 0.5rem; }
-    .youtube-banner a, .youtube-banner button {
-      font-size: 0.85rem;
-      padding: 0.4rem 0.75rem;
-      border-radius: 6px;
-      text-decoration: none;
-      cursor: pointer;
-      border: none;
+    .switch-field:hover { background: rgba(255,255,255,0.03); }
+    .switch-field label { margin: 0; font-size: 0.9rem; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; }
+    .switch-field input[type="checkbox"] {
+      appearance: none; width: 44px; height: 24px; background: rgba(255,255,255,0.1); border-radius: 12px; position: relative; cursor: pointer; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: none; padding: 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .switch-field input[type="checkbox"]::after {
+      content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: white; border-radius: 50%; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    .switch-field input[type="checkbox"]:checked { background: var(--accent); }
+    .switch-field input[type="checkbox"]:checked::after { transform: translateX(20px); }
+    
+    /* Sticky Generate Button */
+    .sticky-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(5, 5, 5, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding: 1.25rem 1rem;
+      z-index: 100;
+    }
+    .sticky-container { max-width: 600px; margin: 0 auto; }
+    button[type="submit"] {
+      width: 100%;
       font-family: inherit;
+      font-size: 1.15rem;
+      font-weight: 800;
+      padding: 1.15rem;
+      background: var(--accent-grad);
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(255, 153, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      position: relative;
+      overflow: hidden;
     }
-    .youtube-banner .btn-connect {
-      background: var(--accent);
-      color: var(--bg);
-      font-weight: 600;
+    button[type="submit"]::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 50%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+      transform: skewX(-20deg);
+      transition: 0.5s;
     }
-    .youtube-banner .btn-disconnect {
-      background: transparent;
+    button[type="submit"]:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(255, 153, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+    button[type="submit"]:hover:not(:disabled)::before {
+      left: 150%;
+    }
+    button[type="submit"]:disabled {
+      background: rgba(255,255,255,0.05);
       color: var(--muted);
-      border: 1px solid var(--border);
+      box-shadow: none;
+      transform: none;
+      cursor: not-allowed;
+      text-shadow: none;
     }
-    .youtube-banner .btn-disconnect:hover { color: var(--text); }
-    .alert-error {
-      padding: 0.75rem 1rem;
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      border-radius: 8px;
-      color: var(--error);
-      font-size: 0.9rem;
-      margin-bottom: 1rem;
+    .spinner {
+      width: 20px; height: 20px; border: 3px solid rgba(0,0,0,0.2); border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.8s linear infinite; display: none;
     }
-    /* Subscribe checkbox accent */
-    #addSubscribeBtn:checked {
-      background: #ef4444;
-      border-color: #ef4444;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 13l4 4L19 7'/%3E%3C/svg%3E");
-      background-size: 14px 14px;
-      background-position: center;
-      background-repeat: no-repeat;
+    button:disabled .spinner { display: block; border-top-color: var(--muted); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    /* Result Box */
+    #result {
+      margin-top: 2rem; padding: 1.5rem; border-radius: 12px; display: none;
+      text-align: center;
     }
+    #result.success { background: var(--success-bg); border: 1px solid rgba(16, 185, 129, 0.3); }
+    #result.error { background: var(--error-bg); border: 1px solid rgba(239, 68, 68, 0.3); }
+    #result h3 { font-size: 1.1rem; margin-bottom: 1rem; }
+    #result.success h3 { color: var(--success); }
+    #result.error h3 { color: var(--error); }
+    .btn-link {
+      display: inline-block; padding: 0.8rem 1.5rem; background: var(--surface);
+      border: 1px solid var(--border); color: var(--text); text-decoration: none;
+      border-radius: 8px; font-weight: 600; margin: 0.5rem; transition: 0.2s;
+    }
+    .btn-link:hover { border-color: var(--accent); color: var(--accent); }
   </style>
 </head>
 <body>
+  
+  <div class="bg-glow"></div>
+
+  <div class="hero">
+    <div class="hero-badge">Beta v2.0</div>
+    <h1>AI Content Engine</h1>
+    <p>Upload your photos or type a prompt. Get a viral, fully edited voiceover Short in 60 seconds.</p>
+    <div class="features">
+      <div class="pill">✨ AI Script</div>
+      <div class="pill">🎙️ Voiceover</div>
+      <div class="pill">🎬 Auto-Edit</div>
+      <div class="pill">📤 YouTube Ready</div>
+    </div>
+  </div>
+
   <div class="container">
-    <header>
-      <h1>AI Content Engine</h1>
-      <p class="subtitle">Create 15-second Shorts with AI voice, images & music</p>
-    </header>
-
-    <div id="alertError" class="alert-error" style="display:none"></div>
-
-    <div id="youtubeBanner" class="youtube-banner" style="display:none">
-      <span class="status" id="youtubeStatus">Checking...</span>
-      <div class="actions">
-        <a id="btnConnect" href="/auth/youtube" class="btn-connect" style="display:none">Connect YouTube</a>
-        <button type="button" id="btnDisconnect" class="btn-disconnect" style="display:none">Disconnect</button>
+    
+    <!-- TOP LEVEL: THE MAGIC BAR -->
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <h2 style="margin-bottom: 1rem; color: var(--text);">What is your video about?</h2>
+      <div style="position: relative; max-width: 600px; margin: 0 auto;">
+        <input type="text" id="topLevelTopic" placeholder="e.g. 3 stoic rules for morning success" style="width: 100%; padding: 1.2rem; font-size: 1.1rem; border-radius: 16px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); color: var(--text); box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+        <div style="font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem; text-align: left; padding-left: 1rem;">Leave blank for a surprise viral topic!</div>
       </div>
     </div>
 
-    <form id="form">
-      <div class="field">
-        <label for="topicSelect">Topic <span class="req">*</span></label>
-        <select id="topicSelect" name="topicSelect">
-          <option value="">— Choose or type custom —</option>
-          <option value="world famous quotation">World famous quotation</option>
-          <option value="morning motivation">Morning motivation</option>
-          <option value="success mindset">Success mindset</option>
-          <option value="inspirational quotes">Inspirational quotes</option>
-          <option value="daily wisdom">Daily wisdom</option>
-          <option value="entrepreneur motivation">Entrepreneur motivation</option>
-          <option value="life lessons">Life lessons</option>
-          <option value="positive affirmations">Positive affirmations</option>
-          <option value="custom">Custom...</option>
-        </select>
-        <div id="topicCustomWrap" class="custom-input hidden">
-          <input type="text" id="topic" name="topic" placeholder="e.g. AI trends, skincare tips">
-        </div>
-        <span class="hint">What should the video be about? (Required if no script)</span>
+    <!-- YOUTUBE AUTH STATUS (Moved to Top Level) -->
+    <div id="ytAuthSection" style="max-width: 600px; margin: 0 auto 2rem auto; text-align: center; padding: 1.5rem; background: rgba(123, 44, 191, 0.05); border: 1px dashed rgba(123, 44, 191, 0.4); border-radius: 12px; backdrop-filter: blur(10px);">
+      <h4 style="margin-bottom: 0.5rem; color: #e0aaff;">Connect your YouTube Channel</h4>
+      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem;">To use the One-Click Push, you must connect your account first.</p>
+      <a href="/auth/youtube" class="btn-link" style="display: inline-block; padding: 0.8rem 1.5rem; background: var(--accent-grad); color: white; text-decoration: none; border-radius: 8px; font-weight: 700; box-shadow: 0 4px 15px rgba(123, 44, 191, 0.3); display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: fit-content; margin: 0 auto; transition: transform 0.2s;">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        Connect YouTube
+      </a>
+    </div>
+    
+    <div id="ytConnectedSection" style="display: none; max-width: 600px; margin: 0 auto 2rem auto;">
+      <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.8rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16,185,129,0.2); border-radius: 8px; color: var(--success); font-size: 0.9rem; font-weight: 600;">
+        ✅ Connected to YouTube! 
+        <a href="/auth/youtube/logout" style="color: var(--muted); font-size: 0.8rem; margin-left: 1rem; text-decoration: underline;">Disconnect</a>
       </div>
+    </div>
 
-      <div class="field">
-        <label for="script">Script (optional)</label>
-        <textarea id="script" name="script" placeholder="Leave empty to auto-generate from topic. Or paste your own script here."></textarea>
-      </div>
-
-      <span class="section-title">Customize</span>
-
-      <div class="field">
-        <label for="hook">Hook text</label>
-        <input type="text" id="hook" name="hook" placeholder="e.g. STOP SCROLLING (auto-derived if empty)">
-        <span class="hint">Shown for first 3.5s – helps YouTube pick it for thumbnail</span>
-      </div>
-
-      <div class="field">
-        <label for="imageQuerySelect">Image search keywords</label>
-        <select id="imageQuerySelect" name="imageQuerySelect">
-          <option value="">Use topic (default)</option>
-          <option value="inspiration motivation">Inspiration motivation</option>
-          <option value="nature landscape">Nature landscape</option>
-          <option value="success achievement">Success achievement</option>
-          <option value="calm peaceful">Calm peaceful</option>
-          <option value="urban lifestyle">Urban lifestyle</option>
-          <option value="minimalist aesthetic">Minimalist aesthetic</option>
-          <option value="minimal gradient background">Minimal gradient background</option>
-          <option value="pastel gradient background">Pastel gradient background</option>
-          <option value="soft color background minimal">Soft color background minimal</option>
-          <option value="plain pastel background">Plain pastel background</option>
-          <option value="minimal aesthetic background">Minimal aesthetic background</option>
-          <option value="abstract gradient background soft">Abstract gradient background soft</option>
-          <option value="smooth color gradient background">Smooth color gradient background</option>
-          <option value="minimal wallpaper background">Minimal wallpaper background</option>
-          <option value="dark gradient background">Dark gradient background</option>
-          <option value="dark blue gradient background">Dark blue gradient background</option>
-          <option value="dark abstract background minimal">Dark abstract background minimal</option>
-          <option value="black gradient background">Black gradient background</option>
-          <option value="dark purple gradient background">Dark purple gradient background</option>
-          <option value="dark aesthetic wallpaper">Dark aesthetic wallpaper</option>
-          <option value="night sky gradient background">Night sky gradient background</option>
-          <option value="dark minimal background">Dark minimal background</option>
-          <option value="dark paper texture background">Dark paper texture background</option>
-          <option value="black paper texture background">Black paper texture background</option>
-          <option value="dark minimal texture background">Dark minimal texture background</option>
-          <option value="dark aesthetic texture background">Dark aesthetic texture background</option>
-          <option value="pastel paper texture background">Pastel paper texture background</option>
-          <option value="soft pastel texture background">Soft pastel texture background</option>
-          <option value="aesthetic pastel paper texture">Aesthetic pastel paper texture</option>
-          <option value="light pastel background texture">Light pastel background texture</option>
-          <option value="custom">Custom...</option>
-        </select>
-        <div id="imageQueryCustomWrap" class="custom-input hidden">
-          <input type="text" id="imageQuery" name="imageQuery" placeholder="e.g. tropical beach sunset">
-        </div>
-      </div>
-
-      <div class="row">
-        <div class="field">
-          <label for="imageCount">Images</label>
-          <select id="imageCount" name="imageCount">
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-            <option value="6">6</option>
-            <option value="7">7</option>
-            <option value="8">8</option>
-            <option value="9">9</option>
-            <option value="10" selected>10</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="maxWords">Script length</label>
-          <select id="maxWords" name="maxWords">
-            <option value="35" selected>~15 sec (35 words)</option>
-            <option value="50">~20 sec (50 words)</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="field checkbox-field">
-        <input type="checkbox" id="showQuote" name="showQuote" checked>
-        <label for="showQuote">Show quote overlay on video <span class="default-hint">(default: ON)</span></label>
-      </div>
-
-      <div class="field checkbox-field">
-        <input type="checkbox" id="addMusic" name="addMusic" checked>
-        <label for="addMusic">Add background music <span class="default-hint">(default: ON)</span></label>
-      </div>
-
-      <div class="field checkbox-field" style="border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.06);">
-        <input type="checkbox" id="addSubscribeBtn" name="addSubscribeBtn" checked>
-        <label for="addSubscribeBtn">🔴 Add Subscribe button to video <span class="default-hint">(default: ON)</span></label>
-      </div>
-
-      <div class="field">
-        <label for="musicQuerySelect">Music theme</label>
-        <select id="musicQuerySelect" name="musicQuerySelect">
-          <option value="">Default</option>
-          <option value="calm">Calm</option>
-          <option value="motivation">Motivation</option>
-          <option value="uplifting">Uplifting</option>
-          <option value="peaceful">Peaceful</option>
-          <option value="energy">Energy</option>
-          <option value="inspirational">Inspirational</option>
-          <option value="custom">Custom...</option>
-        </select>
-        <div id="musicQueryCustomWrap" class="custom-input hidden">
-          <input type="text" id="musicQuery" name="musicQuery" placeholder="e.g. cinematic, ambient">
-        </div>
-      </div>
-
-      <div class="field">
-        <label for="title">YouTube title</label>
-        <input type="text" id="title" name="title" placeholder="Default: topic + #Shorts">
-      </div>
-
-      <button type="submit" id="submitBtn">
-        Generate Video
+    <!-- PRIMARY MAIN ACTIONS -->
+    <div style="max-width: 600px; margin: 0 auto 3rem auto; display: flex; flex-direction: column; gap: 1rem;">
+      <button type="button" id="autoSubmitBtn" style="background: var(--accent-grad); padding: 1.2rem; position: relative; overflow: hidden; font-size: 1.25rem; font-weight: 800; border-radius: 16px; box-shadow: 0 8px 30px rgba(123, 44, 191, 0.4); border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 100%; transition: transform 0.2s, box-shadow 0.2s;">
+        <span class="spinner" id="autoSpinner" style="display: none; border-color: rgba(255,255,255,0.3); border-top-color: white;"></span>
+        <span id="autoBtnText">⚡ One-Click YouTube Push</span>
       </button>
-    </form>
 
-    <div id="result"></div>
+      <button type="button" id="toggleAdvancedSettingsBtn" style="background: rgba(255,255,255,0.03); color: #e0aaff; padding: 1rem; font-size: 1rem; font-weight: 600; border: 1px solid rgba(123, 44, 191, 0.4); border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+        <span id="advancedToggleText">⚙️ Customize Video Settings</span>
+      </button>
+    </div>
+
+    <!-- RESULT BOX -->
+    <div id="result" style="display: none; max-width: 600px; margin: 0 auto 2rem auto;"></div>
+
+
+    <!-- ADVANCED SETTINGS PANE (Hidden by default) -->
+    <div id="advancedSettingsPane" style="display: none;">
+      <form id="form">
+        
+        <!-- 1. SCRIPT OVERRIDE -->
+        <div class="card">
+          <div class="card-header"><span>✍️</span> 1. Script & Topic Settings</div>
+          
+          <div class="field">
+            <label for="script">Have your own script? (Optional)</label>
+            <textarea id="script" placeholder="Paste script here. If empty, AI generates based on your Top Level Topic."></textarea>
+          </div>
+          
+          <div class="field" style="flex-direction: row; align-items: center; justify-content: space-between;">
+            <label for="maxWords" style="margin:0;">Target Length:</label>
+            <select id="maxWords" style="width: 200px;">
+              <option value="35">Short (~15 sec)</option>
+              <option value="50">Long (~20 sec)</option>
+            </select>
+          </div>
+        </div>
+
+      <!-- 2. VISUALS -->
+      <div class="card">
+        <div class="card-header"><span>🖼️</span> 2. Visuals</div>
+        
+        <div class="image-mode-tabs">
+          <div class="tab active" data-target="uploadPane">Your Photos (Pro)</div>
+          <div class="tab" data-target="pexelsPane">AI Stock Photos</div>
+        </div>
+
+        <!-- Local Upload Pane -->
+        <div id="uploadPane">
+          <div class="upload-zone" onclick="document.getElementById('imageUpload').click()">
+            <input type="file" id="imageUpload" multiple accept="image/*">
+            <span class="upload-icon">📸</span>
+            <div class="upload-title">Tap to upload photos</div>
+            <div class="upload-subtitle">Select up to 10 images from your gallery</div>
+          </div>
+          <div class="preview-grid" id="previewGrid"></div>
+        </div>
+
+        <!-- Pexels Pane -->
+        <div id="pexelsPane" style="display: none;">
+          <div class="field">
+            <label for="imageQuerySelect">Pexels search theme</label>
+            <select id="imageQuerySelect">
+              <option value="">Match topic (Auto)</option>
+              <option value="dark aesthetic background">Dark aesthetic</option>
+              <option value="pastel gradient background">Pastel gradient</option>
+              <option value="nature landscape">Nature / Calm</option>
+              <option value="urban lifestyle">Urban luxury</option>
+              <option value="custom">Custom...</option>
+            </select>
+            <input type="text" id="imageQuery" placeholder="e.g. tropical beach" style="display:none; margin-top:0.5rem;">
+          </div>
+        </div>
+        
+        <hr style="border:0; border-top:1px solid var(--border); margin: 1.5rem 0;">
+        
+        <div class="field">
+          <label for="textColor">Subtitle Color</label>
+          <select id="textColor">
+            <option value="white">White font + Black outline</option>
+            <option value="black">Black font + White outline (Best for light photos)</option>
+          </select>
+        </div>
+        
+        <div class="switch-field">
+          <label for="showQuote">Show Quote Text Overlay</label>
+          <input type="checkbox" id="showQuote" checked>
+        </div>
+        
+        <div class="switch-field">
+          <label for="addSubscribeBtn"><span>🔴</span> Show Subscribe Button</label>
+          <input type="checkbox" id="addSubscribeBtn" checked>
+        </div>
+      </div>
+
+      <!-- 3. AUDIO & MUSIC -->
+      <div class="card">
+        <div class="card-header"><span>🎵</span> 3. Audio & Hook</div>
+        
+        <div class="field">
+          <label for="hook">Opening Hook Text (First 3s)</label>
+          <input type="text" id="hook" placeholder="e.g. STOP SCROLLING (auto-generated if empty)">
+        </div>
+        
+        <div class="field">
+          <label>Audio Output <span class="req">*</span></label>
+          <div style="display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.015); padding: 1rem; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text); cursor: pointer; margin: 0; font-size: 0.9rem;">
+              <input type="radio" name="audioMode" value="full" checked style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;">
+              **Full Audio** (Voiceover + Background Music)
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text); cursor: pointer; margin: 0; font-size: 0.9rem;">
+              <input type="radio" name="audioMode" value="voice-only" style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;">
+              **Voice Only** (Clear Voiceover)
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text); cursor: pointer; margin: 0; font-size: 0.9rem;">
+              <input type="radio" name="audioMode" value="silent" style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;">
+              **No Audio / Silent** (Best for adding TikTok/Reels trending sounds later)
+            </label>
+          </div>
+        </div>
+        
+        <div class="field" id="musicThemeWrap">
+          <label for="musicQuery">Background Music Vibe (if Full Audio)</label>
+          <select id="musicQuery">
+            <option value="">Auto (Match Topic)</option>
+            <option value="motivation">Motivation & Cinematic</option>
+            <option value="calm">Calm & Peaceful</option>
+            <option value="energy">High Energy</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 4. PUBLISH TO YOUTUBE -->
+      <div class="card">
+        <div class="card-header"><span>🚀</span> 4. Publish to YouTube</div>
+        
+        <div id="ytNotConnectedMsg" style="margin-bottom: 1.5rem; text-align: center; padding: 1.5rem; background: rgba(123, 44, 191, 0.05); border: 1px dashed rgba(123, 44, 191, 0.4); border-radius: 12px;">
+          <p style="font-size: 0.95rem; color: var(--muted); margin: 0;">⚠️ Please connect your YouTube account at the top of the page to enable direct publishing.</p>
+        </div>
+
+        <div id="ytConnectedSectionAdvanced" style="display: none;">
+          <div class="switch-field" style="margin-bottom: 0;">
+            <label for="pushToYouTube">Push directly to YouTube channel</label>
+            <input type="checkbox" id="pushToYouTube">
+          </div>
+          
+          <div id="youtubeSettingsPane" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+            <div class="field">
+              <label for="youtubeTitle">Custom Title (Optional)</label>
+              <input type="text" id="youtubeTitle" placeholder="e.g. My Viral Short #shorts">
+              <div class="hint">Overrides the auto-generated AI title.</div>
+            </div>
+            
+            <div class="field">
+              <label for="youtubeTags">Custom Tags (Optional)</label>
+              <input type="text" id="youtubeTags" placeholder="e.g. motivation, productivity, luxury">
+              <div class="hint">Comma separated. Overrides the auto-generated viral tags.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+        
+        <!-- Custom Execute Button inside the Advanced Form -->
+        <div style="margin-top: 2rem; text-align: center;">
+            <button type="submit" id="customSubmitBtn" style="background: rgba(255,255,255,0.05); color: var(--text); padding: 1.2rem; font-size: 1.1rem; border-radius: 12px; width: 100%; box-shadow: none; border: 1px solid rgba(255,255,255,0.1);">
+                <span class="spinner" id="customSpinner" style="display: none;"></span>
+                <span id="customBtnText">⚙️ Generate with Custom Settings</span>
+            </button>
+        </div>
+
+      </form>
+    </div> <!-- End Advanced Settings Pane -->
+
   </div>
 
+<!-- Sticky Bar removed for cleaner layout -->
+
   <script>
-    const form = document.getElementById('form');
-    const resultEl = document.getElementById('result');
-    const submitBtn = document.getElementById('submitBtn');
-
-    // URL params: ?youtube=connected, ?error=...
-    const params = new URLSearchParams(location.search);
-    if (params.get('error')) {
-      const el = document.getElementById('alertError');
-      el.textContent = params.get('error').replace(/\+/g, ' ');
-      el.style.display = 'block';
-      history.replaceState({}, '', location.pathname);
-    }
-
-    // YouTube Connect status
-    (async function loadYoutubeStatus() {
-      const banner = document.getElementById('youtubeBanner');
-      const statusEl = document.getElementById('youtubeStatus');
-      const btnConnect = document.getElementById('btnConnect');
-      const btnDisconnect = document.getElementById('btnDisconnect');
-      try {
-        const r = await fetch('/auth/youtube/status', { credentials: 'include' });
-        const data = await r.json();
-        if (!data.hasOAuth) { banner.style.display = 'none'; return; }
-        if (data.connected) {
-          banner.style.display = 'flex';
-          banner.classList.add('connected');
-          statusEl.textContent = 'Connected as: ' + (data.channelTitle || 'Your channel');
-          btnConnect.style.display = 'none';
-          btnDisconnect.style.display = 'block';
-        } else {
-          banner.style.display = 'flex';
-          statusEl.textContent = 'Connect your YouTube channel to upload videos to your account';
-          btnConnect.style.display = 'inline-block';
-          btnDisconnect.style.display = 'none';
-        }
-      } catch (_) {
-        banner.style.display = 'none';
-      }
-
-      btnDisconnect.onclick = async () => {
-        await fetch('/auth/youtube/disconnect', { method: 'POST', credentials: 'include' });
-        statusEl.textContent = 'Connect your YouTube channel to upload videos to your account';
-        banner.classList.remove('connected');
-        btnConnect.style.display = 'inline-block';
-        btnDisconnect.style.display = 'none';
-      };
-    })();
-
-    // Toggle custom inputs when "Custom" or empty is selected
-    function setupSelectWithCustom(selectId, customWrapId, showWhenEmpty) {
+    // Custom select reveals
+    function setupCustomParams(selectId, inputId, defaultShow = false) {
       const sel = document.getElementById(selectId);
-      const wrap = document.getElementById(customWrapId);
-      const update = () => {
-        const show = sel.value === 'custom' || (showWhenEmpty && !sel.value);
-        wrap.classList.toggle('hidden', !show);
-        if (!show) wrap.querySelector('input').value = '';
-      };
-      sel.addEventListener('change', update);
-      update();
+      const inp = document.getElementById(inputId);
+      if(!sel || !inp) return;
+      sel.addEventListener('change', () => {
+        inp.style.display = (sel.value === 'custom' || (!sel.value && defaultShow)) ? 'block' : 'none';
+        if (inp.style.display === 'none') inp.value = '';
+      });
     }
-    setupSelectWithCustom('topicSelect', 'topicCustomWrap', true);  // show custom when placeholder
-    setupSelectWithCustom('imageQuerySelect', 'imageQueryCustomWrap', false);
-    setupSelectWithCustom('musicQuerySelect', 'musicQueryCustomWrap', false);
+    setupCustomParams('topicSelect', 'topic', true);
+    setupCustomParams('imageQuerySelect', 'imageQuery', false);
 
-    function getTopic() {
-      const sel = document.getElementById('topicSelect');
-      if (sel.value && sel.value !== 'custom') return sel.value.trim();
-      return document.getElementById('topic').value.trim();
-    }
-    function getImageQuery() {
-      const sel = document.getElementById('imageQuerySelect');
-      if (sel.value === 'custom') return document.getElementById('imageQuery').value.trim();
-      return sel.value ? sel.value.trim() : '';
-    }
-    function getMusicQuery() {
-      const sel = document.getElementById('musicQuerySelect');
-      if (sel.value === 'custom') return document.getElementById('musicQuery').value.trim();
-      return sel.value ? sel.value.trim() : '';
-    }
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const topic = getTopic();
-      const script = document.getElementById('script').value.trim();
-      if (!topic && !script) {
-        showResult('error', 'Please choose a topic, enter a custom topic, or paste a script.');
-        return;
-      }
-
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner"></span>Generating... (1–2 min)';
-      resultEl.className = '';
-      resultEl.style.display = 'none';
-
-      const body = {
-        topic: topic || undefined,
-        script: script || undefined,
-        hook: document.getElementById('hook').value.trim() || undefined,
-        imageQuery: getImageQuery() || undefined,
-        imageCount: parseInt(document.getElementById('imageCount').value, 10),
-        maxWords: parseInt(document.getElementById('maxWords').value, 10),
-        showQuote: document.getElementById('showQuote').checked,
-        addMusic: document.getElementById('addMusic').checked,
-        musicQuery: getMusicQuery() || undefined,
-        title: document.getElementById('title').value.trim() || undefined,
-        addSubscribeButton: document.getElementById('addSubscribeBtn').checked,
-      };
-
-      try {
-        const res = await fetch('/api/generate-video', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-          credentials: 'include',
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.error || `Error ${res.status}`);
-        }
-
-        let html = '<h3>Video created!</h3>';
-        if (data.videoUrl) {
-          html += `<p><a href="${data.videoUrl}" target="_blank" rel="noopener">Watch video</a> · <a href="${data.videoUrl}" download="video.mp4" target="_blank" rel="noopener">Download video</a></p>`;
-          html += `<p class="url-copy"><small>URL: <code>${data.videoUrl}</code></small></p>`;
-        }
-        if (data.youtubeUrl) {
-          html += `<p><a href="${data.youtubeUrl}" target="_blank" rel="noopener">View on YouTube</a></p>`;
-        }
-        if (data.videoPath && !data.videoUrl) {
-          html += `<p>Saved locally: ${data.videoPath}</p>`;
-        }
-        showResult('success', html);
-      } catch (err) {
-        showResult('error', err.message);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Generate Video';
-      }
+    // Tabs for Image Modes
+    const tabs = document.querySelectorAll('.tab');
+    let useLocalImages = true; // Default
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('uploadPane').style.display = tab.dataset.target === 'uploadPane' ? 'block' : 'none';
+        document.getElementById('pexelsPane').style.display = tab.dataset.target === 'pexelsPane' ? 'block' : 'none';
+        useLocalImages = tab.dataset.target === 'uploadPane';
+      });
     });
 
-    function showResult(type, content) {
-      resultEl.className = type;
-      resultEl.innerHTML = typeof content === 'string' && content.startsWith('<') ? content : `<p>${content}</p>`;
-      resultEl.style.display = 'block';
+    // YouTube Settings Toggle
+    const pushToYouTubeToggle = document.getElementById('pushToYouTube');
+    const youtubeSettingsPane = document.getElementById('youtubeSettingsPane');
+    if(pushToYouTubeToggle && youtubeSettingsPane) {
+      pushToYouTubeToggle.addEventListener('change', (e) => {
+        youtubeSettingsPane.style.display = e.target.checked ? 'block' : 'none';
+      });
     }
+
+    // File Upload Preview
+    const fileInput = document.getElementById('imageUpload');
+    const grid = document.getElementById('previewGrid');
+    fileInput.addEventListener('change', () => {
+      grid.innerHTML = '';
+      const files = Array.from(fileInput.files).slice(0, 10); // max 10
+      files.forEach(file => {
+        const url = URL.createObjectURL(file);
+        const img = document.createElement('img');
+        img.src = url;
+        img.className = 'preview-thumb';
+        grid.appendChild(img);
+      });
+    });
+
+    // Form Submission JS
+    const form = document.getElementById('form');
+    const autoBtn = document.getElementById('autoSubmitBtn');
+    const customBtn = document.getElementById('customSubmitBtn');
+    const autoBtnText = document.getElementById('autoBtnText');
+    const customBtnText = document.getElementById('customBtnText');
+    const autoSpinner = document.getElementById('autoSpinner');
+    const customSpinner = document.getElementById('customSpinner');
+    const resultBox = document.getElementById('result');
+
+    // Toggle Advanced Settings Pane
+    const advancedSettingsPane = document.getElementById('advancedSettingsPane');
+    const toggleAdvancedBtn = document.getElementById('toggleAdvancedSettingsBtn');
+    const advancedToggleText = document.getElementById('advancedToggleText');
+
+    toggleAdvancedBtn.addEventListener('click', () => {
+        if (advancedSettingsPane.style.display === 'none') {
+            advancedSettingsPane.style.display = 'block';
+            advancedToggleText.textContent = '❌ Close Custom Settings';
+            autoBtn.style.display = 'none'; // Hide auto button
+        } else {
+            advancedSettingsPane.style.display = 'none';
+            advancedToggleText.textContent = '⚙️ Customize Video Settings';
+            autoBtn.style.display = 'flex'; // Show auto button
+        }
+    });
+
+    async function checkYoutubeAuth() {
+      try {
+        const res = await fetch('/auth/youtube/status');
+        const data = await res.json();
+        const topAuth = document.getElementById('ytAuthSection');
+        const topConn = document.getElementById('ytConnectedSection');
+        const notConnectedMsg = document.getElementById('ytNotConnectedMsg');
+        const advConn = document.getElementById('ytConnectedSectionAdvanced');
+
+        if(data.connected) {
+          if (topAuth) topAuth.style.display = 'none';
+          if (topConn) topConn.style.display = 'block';
+          if (notConnectedMsg) notConnectedMsg.style.display = 'none';
+          if (advConn) advConn.style.display = 'block';
+        } else {
+          if (topAuth) topAuth.style.display = 'block';
+          if (topConn) topConn.style.display = 'none';
+          if (notConnectedMsg) notConnectedMsg.style.display = 'block';
+          if (advConn) advConn.style.display = 'none';
+        }
+      } catch (e) { console.error('Error checking YT auth'); }
+    }
+    checkYoutubeAuth();
+
+    // Toggle Audio mode logic
+    const audioModes = document.querySelectorAll('input[name="audioMode"]');
+    const musicThemeWrap = document.getElementById('musicThemeWrap');
+    audioModes.forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        musicThemeWrap.style.opacity = e.target.value === 'full' ? '1' : '0.4';
+        musicThemeWrap.style.pointerEvents = e.target.value === 'full' ? 'auto' : 'none';
+      });
+    });
+
+    async function submitGeneration(isAutoMode) {
+      let finalTopic = document.getElementById('topLevelTopic').value.trim();
+      const script = document.getElementById('script') ? document.getElementById('script').value : '';
+      
+      if (!finalTopic && !script) {
+        if (isAutoMode) {
+          const randomTopics = ["morning motivation for success", "stoic quotes about life", "entrepreneur grind mindset", "daily positive affirmations", "discipline over motivation"];
+          finalTopic = randomTopics[Math.floor(Math.random() * randomTopics.length)];
+          console.log("Auto Mode: No topic provided. Using random topic:", finalTopic);
+        } else {
+          alert("Please enter a topic or script first.");
+          return;
+        }
+      }
+
+      // Freeze buttons
+      autoBtn.disabled = true;
+      customBtn.disabled = true;
+      if (isAutoMode) {
+        autoBtnText.textContent = 'Auto Generating...';
+        autoSpinner.style.display = 'inline-block';
+      } else {
+        customBtnText.textContent = 'Custom Generating...';
+        customSpinner.style.display = 'inline-block';
+      }
+      resultBox.style.display = 'none';
+
+      // Advanced Form Elements (might be null if bypassed)
+      const fileInputObj = document.getElementById('imageUpload');
+
+      // Build payload
+      const formData = new FormData();
+      if (finalTopic) formData.append('topic', finalTopic);
+      if (script) formData.append('script', script);
+
+      // Auto Mode ignores form uploads and forces defaults
+      if (isAutoMode) {
+        formData.append('maxWords', 35);
+        formData.append('textColor', 'white');
+        formData.append('showQuote', true);
+        formData.append('addSubscribeButton', true);
+        formData.append('audioMode', 'full');
+        formData.append('pushToYouTube', true);
+      } else {
+        // Custom Mode respects form
+        if (useLocalImages && fileInputObj && fileInputObj.files.length > 0) {
+          const files = Array.from(fileInputObj.files).slice(0, 10);
+          files.forEach(f => formData.append('images', f));
+        } else {
+          const selQuery = document.getElementById('imageQuerySelect').value;
+          const custQuery = document.getElementById('imageQuery').value;
+          formData.append('imageQuery', selQuery === 'custom' ? custQuery : selQuery);
+        }
+        formData.append('maxWords', document.getElementById('maxWords').value);
+        formData.append('textColor', document.getElementById('textColor').value);
+        formData.append('showQuote', document.getElementById('showQuote').checked);
+        formData.append('addSubscribeButton', document.getElementById('addSubscribeBtn').checked);
+        
+        const audioRadio = document.querySelector('input[name="audioMode"]:checked');
+        const audioModeValue = audioRadio ? audioRadio.value : 'full';
+        formData.append('audioMode', audioModeValue);
+        formData.append('musicQuery', document.getElementById('musicQuery').value);
+        
+        const isPushToYouTube = document.getElementById('pushToYouTube') ? document.getElementById('pushToYouTube').checked : false;
+        formData.append('pushToYouTube', isPushToYouTube);
+        if (isPushToYouTube) {
+          const ytTitle = document.getElementById('youtubeTitle').value;
+          const ytTags = document.getElementById('youtubeTags').value;
+          if (ytTitle) formData.append('youtubeTitle', ytTitle);
+          if (ytTags) formData.append('youtubeTags', ytTags);
+        }
+        
+        const hookText = document.getElementById('hook').value;
+        if (hookText) formData.append('hook', hookText);
+      }
+
+      try {
+        const response = await fetch('/api/generate-video', {
+          method: 'POST',
+          body: formData, // Auto sets multipart/form-data boundary
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'API Error');
+
+        resultBox.className = 'success';
+        let html = '<h3>✨ Video is Ready!</h3>';
+        
+        // Output options (Cloud/Local Download + YouTube)
+        const outputActions = [];
+        
+        if (data.youtubeUrl) {
+          outputActions.push(`<a href="${data.youtubeUrl}" class="btn-link" target="_blank" style="background:#FF0000; display:inline-flex; align-items:center; gap:0.5rem;"><svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg> View on YouTube</a>`);
+        }
+        
+        if (data.videoUrl) {
+          outputActions.push(`<a href="${data.videoUrl}" class="btn-link" target="_blank">Download Video</a>`);
+        } else if (data.videoPath) {
+          html += `<p style="font-family:monospace; font-size:13px; color:var(--muted); margin-bottom: 1rem;">Saved to server: ${data.videoPath}</p>`;
+        }
+        
+        if (outputActions.length > 0) {
+            html += `<div style="display:flex; gap:1rem; flex-wrap:wrap; margin-top: 1rem;">${outputActions.join('')}</div>`;
+        }
+
+        resultBox.innerHTML = html;
+        resultBox.style.display = 'block';
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+      } catch (err) {
+        resultBox.className = 'error';
+        resultBox.innerHTML = `<h3>⚠️ Generation Failed</h3><p>${err.message}</p>`;
+        resultBox.style.display = 'block';
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      } finally {
+        autoBtn.disabled = false;
+        customBtn.disabled = false;
+        autoBtnText.textContent = '⚡ One-Click YouTube Push';
+        customBtnText.textContent = '⚙️ Generate with Custom Settings';
+        autoSpinner.style.display = 'none';
+        customSpinner.style.display = 'none';
+      }
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      submitGeneration(false); // Custom mode
+    });
+
+    autoBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      submitGeneration(true); // Auto mode
+    });
+    
+    // Dynamic Fields (moved below so elements exist)
+    function setupCustomParams(selectId, inputId, defaultShow) {
+      const sel = document.getElementById(selectId);
+      const inp = document.getElementById(inputId);
+      if(!sel || !inp) return;
+      sel.addEventListener('change', () => {
+        inp.style.display = (sel.value === 'custom' || (!sel.value && defaultShow)) ? 'block' : 'none';
+        if (inp.style.display === 'none') inp.value = '';
+      });
+    }
+    setupCustomParams('imageQuerySelect', 'imageQuery', false);
+
   </script>
 </body>
 </html>
