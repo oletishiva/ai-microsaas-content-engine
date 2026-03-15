@@ -57,18 +57,33 @@ RULES:
 - Output ONLY SCRIPT:, QUOTE:, HIGHLIGHT:, and TITLE: lines.`;
 
     try {
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",  // faster + higher rate limits on $5 tier vs gpt-4o
-            messages: [
-                { role: "system", content: systemPrompt },
-                {
-                    role: "user",
-                    content: `Topic: "${topic}". Write SCRIPT (voice), QUOTE (on-screen, up to 45 words), and HIGHLIGHT (1–2 phrases from quote, separated by |).`,
-                },
-            ],
-            max_tokens: 400,  // was 200 – too low for 4-section output (SCRIPT+QUOTE+HIGHLIGHT+TITLE)
-            temperature: 0.7,
-        });
+        // Retry up to 3 times – Railway shared IPs often timeout on first attempt
+        // but succeed on retry (hits a different routing path to OpenAI).
+        let completion;
+        const MAX_RETRIES = 3;
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                logger.info("ScriptGenerator", `OpenAI call attempt ${attempt}/${MAX_RETRIES}...`);
+                completion = await openai.chat.completions.create({
+                    model: "gpt-4o-mini",
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        {
+                            role: "user",
+                            content: `Topic: "${topic}". Write SCRIPT (voice), QUOTE (on-screen, up to 45 words), and HIGHLIGHT (1–2 phrases from quote, separated by |).`,
+                        },
+                    ],
+                    max_tokens: 400,
+                    temperature: 0.7,
+                });
+                break; // success – exit retry loop
+            } catch (retryErr) {
+                const isLast = attempt === MAX_RETRIES;
+                logger.warn("ScriptGenerator", `Attempt ${attempt} failed: ${retryErr.message}${isLast ? " – giving up" : " – retrying in 2s"}`);
+                if (isLast) throw retryErr;
+                await new Promise((r) => setTimeout(r, 2000));
+            }
+        }
 
         const raw = completion.choices[0].message.content.trim();
         if (!raw) throw new Error("OpenAI returned an empty script");
