@@ -53,10 +53,6 @@ const SCHEDULES = [
     // ── Bonus (needs YouTube quota increase) ──────────────────────────────
     { label: "Evening Wisdom",  topic: "evening wisdom inner peace gratitude",cron: "0 22 * * *", enabled: false },
     { label: "Gratitude Sleep", topic: "gratitude sleep bedtime affirmation", cron: "0 23 * * *", enabled: false },
-    // ── Test slots: delete after first successful YouTube upload confirmed ─
-    { label: "Test 10:35 PM",   topic: "daily morning motivation",            cron: "35 22 * * *", enabled: true  },
-    { label: "Test 10:40 PM",   topic: "success mindset winning habits",      cron: "40 22 * * *", enabled: true  },
-    { label: "Test 10:45 PM",   topic: "positive daily affirmation",          cron: "45 22 * * *", enabled: true  },
 ];
 
 /** Pick N random images from /images/ folder */
