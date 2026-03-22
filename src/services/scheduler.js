@@ -60,9 +60,11 @@ const SCHEDULES = [
     // ── Bonus (needs YouTube quota increase) ──────────────────────────────
     { label: "Evening Wisdom",  topic: "evening wisdom inner peace gratitude",cron: "0 22 * * *", voice: "fable",  enabled: false },
     { label: "Gratitude Sleep", topic: "gratitude sleep bedtime affirmation", cron: "0 23 * * *", voice: "shimmer",enabled: false },
-    // ── Test slot: verify Railway → YouTube auto-push at 10:20 PM IST ───────
-    // Remove after confirming first successful upload.
-    { label: "Test Upload",     topic: "daily morning motivation",            cron: "20 22 * * *", voice: "nova",  enabled: true  },
+    // ── Test slots: verify Railway → YouTube auto-push ───────────────────────
+    // Delete all three once the first successful YouTube upload is confirmed.
+    { label: "Test 10:35 PM",   topic: "daily morning motivation",            cron: "35 22 * * *", voice: "nova",  enabled: true  },
+    { label: "Test 10:40 PM",   topic: "success mindset winning habits",      cron: "40 22 * * *", voice: "nova",  enabled: true  },
+    { label: "Test 10:45 PM",   topic: "positive daily affirmation",          cron: "45 22 * * *", voice: "nova",  enabled: true  },
 ];
 
 /** Pick N random images from /images/ folder */
