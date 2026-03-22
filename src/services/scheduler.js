@@ -41,30 +41,22 @@ const IMAGES_DIR = path.join(__dirname, "../../images");
  * Test slot: 10:20 AM IST — fires once daily to verify Railway → YouTube push works.
  * Remove or set enabled:false after confirming it works.
  */
-/**
- * voice — OpenAI TTS voice for each slot. Different voices = variety across the day.
- *   onyx    deep male, authoritative  → Motivation, Success
- *   nova    warm female, energetic    → Affirmation
- *   echo    clear male, focused       → Productivity
- *   fable   expressive, storytelling  → Life Reflection
- *   shimmer soft female, calming      → Night Calm
- */
+// Audio: silent base + background music (music-only). No TTS for quote videos.
 const SCHEDULES = [
     // ── Core 6 (safe within default YouTube quota: 6 × 1600 = 9600 / 10000 units) ──
-    { label: "Motivation",      topic: "daily morning motivation",            cron: "0 6  * * *", voice: "onyx",   enabled: true  },
-    { label: "Affirmation",     topic: "positive daily affirmation",          cron: "0 9  * * *", voice: "nova",   enabled: true  },
-    { label: "Success Mindset", topic: "success mindset winning habits",      cron: "0 12 * * *", voice: "onyx",   enabled: true  },
-    { label: "Productivity",    topic: "productivity focus deep work",        cron: "0 15 * * *", voice: "echo",   enabled: true  },
-    { label: "Life Reflection", topic: "life lessons wisdom reflection",      cron: "0 18 * * *", voice: "fable",  enabled: true  },
-    { label: "Night Calm",      topic: "night calm mindfulness peace",        cron: "0 21 * * *", voice: "shimmer",enabled: true  },
+    { label: "Motivation",      topic: "daily morning motivation",            cron: "0 6  * * *", enabled: true  },
+    { label: "Affirmation",     topic: "positive daily affirmation",          cron: "0 9  * * *", enabled: true  },
+    { label: "Success Mindset", topic: "success mindset winning habits",      cron: "0 12 * * *", enabled: true  },
+    { label: "Productivity",    topic: "productivity focus deep work",        cron: "0 15 * * *", enabled: true  },
+    { label: "Life Reflection", topic: "life lessons wisdom reflection",      cron: "0 18 * * *", enabled: true  },
+    { label: "Night Calm",      topic: "night calm mindfulness peace",        cron: "0 21 * * *", enabled: true  },
     // ── Bonus (needs YouTube quota increase) ──────────────────────────────
-    { label: "Evening Wisdom",  topic: "evening wisdom inner peace gratitude",cron: "0 22 * * *", voice: "fable",  enabled: false },
-    { label: "Gratitude Sleep", topic: "gratitude sleep bedtime affirmation", cron: "0 23 * * *", voice: "shimmer",enabled: false },
-    // ── Test slots: verify Railway → YouTube auto-push ───────────────────────
-    // Delete all three once the first successful YouTube upload is confirmed.
-    { label: "Test 10:35 PM",   topic: "daily morning motivation",            cron: "35 22 * * *", voice: "nova",  enabled: true  },
-    { label: "Test 10:40 PM",   topic: "success mindset winning habits",      cron: "40 22 * * *", voice: "nova",  enabled: true  },
-    { label: "Test 10:45 PM",   topic: "positive daily affirmation",          cron: "45 22 * * *", voice: "nova",  enabled: true  },
+    { label: "Evening Wisdom",  topic: "evening wisdom inner peace gratitude",cron: "0 22 * * *", enabled: false },
+    { label: "Gratitude Sleep", topic: "gratitude sleep bedtime affirmation", cron: "0 23 * * *", enabled: false },
+    // ── Test slots: delete after first successful YouTube upload confirmed ─
+    { label: "Test 10:35 PM",   topic: "daily morning motivation",            cron: "35 22 * * *", enabled: true  },
+    { label: "Test 10:40 PM",   topic: "success mindset winning habits",      cron: "40 22 * * *", enabled: true  },
+    { label: "Test 10:45 PM",   topic: "positive daily affirmation",          cron: "45 22 * * *", enabled: true  },
 ];
 
 /** Pick N random images from /images/ folder */
@@ -91,10 +83,10 @@ function cleanup(...files) {
     }
 }
 
-async function runScheduledJob({ label, topic, voice = "nova" }) {
-    logger.info("Scheduler", `▶ Starting: ${label} — "${topic}" (voice: ${voice})`);
+async function runScheduledJob({ label, topic }) {
+    logger.info("Scheduler", `▶ Starting: ${label} — "${topic}"`);
     const ts = Date.now();
-    let voicePath = null;
+    let silentPath = null;
     let mixedPath = null;
     let videoPath = null;
 
@@ -121,18 +113,18 @@ async function runScheduledJob({ label, topic, voice = "nova" }) {
 
         // 5. Silent base audio — motivational quote videos are music + text to read.
         //    TTS is not needed here; background music carries the mood.
-        voicePath = path.join(OUTPUT_DIR, `sched_silent_${ts}.mp3`);
+        silentPath = path.join(OUTPUT_DIR, `sched_silent_${ts}.mp3`);
         execSync(
-            `ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t ${VIDEO_DURATION} -q:a 9 -acodec libmp3lame -y "${voicePath}"`,
+            `ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t ${VIDEO_DURATION} -q:a 9 -acodec libmp3lame -y "${silentPath}"`,
             { stdio: "pipe" }
         );
-        let audioPath = voicePath;
+        let audioPath = silentPath;
 
         // 6. Replace silent base with background music track (full volume, music-only)
         const musicPath = fetchBackgroundMusic();
         if (musicPath && apiKeys.ADD_MUSIC) {
             mixedPath = path.join(OUTPUT_DIR, `sched_mixed_${ts}.mp3`);
-            await mixVoiceWithMusic(voicePath, musicPath, mixedPath, { musicOnly: true });
+            await mixVoiceWithMusic(silentPath, musicPath, mixedPath, { musicOnly: true });
             audioPath = mixedPath;
             logger.info("Scheduler", "Background music added");
         }
@@ -191,7 +183,7 @@ async function runScheduledJob({ label, topic, voice = "nova" }) {
     } catch (err) {
         logger.error("Scheduler", `${label} job failed: ${err.message}`);
     } finally {
-        cleanup(voicePath, mixedPath);
+        cleanup(silentPath, mixedPath);
     }
 }
 
