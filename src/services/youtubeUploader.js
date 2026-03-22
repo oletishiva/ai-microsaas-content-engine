@@ -139,7 +139,7 @@ async function uploadToYouTube(
     description = "Created with AI Content Engine",
     opts = {}
 ) {
-    const { topic = "", tags: customTags, privacyStatus = "public", thumbnailPath, refreshToken } = opts;
+    const { topic = "", tags: customTags, privacyStatus = "public", thumbnailPath, refreshToken, categoryId = "27" } = opts;
     const tags = Array.isArray(customTags) && customTags.length > 0
         ? customTags.slice(0, 15).map((t) => String(t).slice(0, MAX_TAG_LENGTH))
         : buildViralTags(topic);
@@ -156,7 +156,7 @@ async function uploadToYouTube(
                 title,
                 description,
                 tags,
-                categoryId: "22", // "People & Blogs"
+                categoryId, // "27" = Education (default, best for self-improvement Shorts)
                 defaultLanguage: "en",
             },
             status: {

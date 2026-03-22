@@ -26,6 +26,7 @@ const { uploadToYouTube } = require("./youtubeUploader");
 const { uploadVideoToCloudinary } = require("./cloudinaryUploader");
 const { mixVoiceWithMusic } = require("../../utils/audioMixer");
 const { getImageTextColor } = require("../../utils/imageBrightness");
+const { generateVoiceOpenAI } = require("../../utils/openaiTts");
 const { OUTPUT_DIR } = require("../../config/paths");
 const { VIDEO_DURATION } = require("../../utils/subtitleHelper");
 const apiKeys = require("../../config/apiKeys");
@@ -41,20 +42,28 @@ const IMAGES_DIR = path.join(__dirname, "../../images");
  * Test slot: 10:20 AM IST — fires once daily to verify Railway → YouTube push works.
  * Remove or set enabled:false after confirming it works.
  */
+/**
+ * voice — OpenAI TTS voice for each slot. Different voices = variety across the day.
+ *   onyx    deep male, authoritative  → Motivation, Success
+ *   nova    warm female, energetic    → Affirmation
+ *   echo    clear male, focused       → Productivity
+ *   fable   expressive, storytelling  → Life Reflection
+ *   shimmer soft female, calming      → Night Calm
+ */
 const SCHEDULES = [
-    // ── Core 6 (safe within default YouTube quota) ────────────────────────
-    { label: "Motivation",        topic: "daily morning motivation",            cron: "0 6  * * *", enabled: true  },
-    { label: "Affirmation",       topic: "positive daily affirmation",          cron: "0 9  * * *", enabled: true  },
-    { label: "Success Mindset",   topic: "success mindset winning habits",      cron: "0 12 * * *", enabled: true  },
-    { label: "Productivity",      topic: "productivity focus deep work",        cron: "0 15 * * *", enabled: true  },
-    { label: "Life Reflection",   topic: "life lessons wisdom reflection",      cron: "0 18 * * *", enabled: true  },
-    { label: "Night Calm",        topic: "night calm mindfulness peace",        cron: "0 21 * * *", enabled: true  },
-    // ── Bonus (needs YouTube quota increase — comment out until approved) ──
-    { label: "Evening Wisdom",    topic: "evening wisdom inner peace gratitude",cron: "0 22 * * *", enabled: false },
-    { label: "Gratitude Sleep",   topic: "gratitude sleep bedtime affirmation", cron: "0 23 * * *", enabled: false },
-    // ── Test slot: verify Railway → YouTube auto-push works at 10:20 IST ──
-    // Remove this after confirming the first successful upload.
-    { label: "Test Upload",       topic: "daily morning motivation",            cron: "20 10 * * *", enabled: true  },
+    // ── Core 6 (safe within default YouTube quota: 6 × 1600 = 9600 / 10000 units) ──
+    { label: "Motivation",      topic: "daily morning motivation",            cron: "0 6  * * *", voice: "onyx",   enabled: true  },
+    { label: "Affirmation",     topic: "positive daily affirmation",          cron: "0 9  * * *", voice: "nova",   enabled: true  },
+    { label: "Success Mindset", topic: "success mindset winning habits",      cron: "0 12 * * *", voice: "onyx",   enabled: true  },
+    { label: "Productivity",    topic: "productivity focus deep work",        cron: "0 15 * * *", voice: "echo",   enabled: true  },
+    { label: "Life Reflection", topic: "life lessons wisdom reflection",      cron: "0 18 * * *", voice: "fable",  enabled: true  },
+    { label: "Night Calm",      topic: "night calm mindfulness peace",        cron: "0 21 * * *", voice: "shimmer",enabled: true  },
+    // ── Bonus (needs YouTube quota increase) ──────────────────────────────
+    { label: "Evening Wisdom",  topic: "evening wisdom inner peace gratitude",cron: "0 22 * * *", voice: "fable",  enabled: false },
+    { label: "Gratitude Sleep", topic: "gratitude sleep bedtime affirmation", cron: "0 23 * * *", voice: "shimmer",enabled: false },
+    // ── Test slot: verify Railway → YouTube auto-push at 10:20 IST ────────
+    // Remove after confirming first successful upload.
+    { label: "Test Upload",     topic: "daily morning motivation",            cron: "20 10 * * *", voice: "nova",  enabled: true  },
 ];
 
 /** Pick N random images from /images/ folder */
@@ -81,11 +90,10 @@ function cleanup(...files) {
     }
 }
 
-async function runScheduledJob({ label, topic }) {
-    logger.info("Scheduler", `▶ Starting: ${label} — "${topic}"`);
+async function runScheduledJob({ label, topic, voice = "nova" }) {
+    logger.info("Scheduler", `▶ Starting: ${label} — "${topic}" (voice: ${voice})`);
     const ts = Date.now();
-    const silentPath = path.join(OUTPUT_DIR, `sched_silent_${ts}.mp3`);
-    let audioPath = silentPath;
+    let voicePath = null;
     let mixedPath = null;
     let videoPath = null;
 
@@ -94,32 +102,48 @@ async function runScheduledJob({ label, topic }) {
         const { script, hook, quote, highlight, title } = await generateScript(topic, false);
         logger.info("Scheduler", `Script ready. Hook: "${hook}"`);
 
-        // 2. Pick 1 image from /images/ folder per scheduled video
-        const imagePaths = pickRandomImages(1);
+        // 2. Pick up to 4 images from /images/ — variety keeps videos dynamic.
+        //    Add more images to /images/ folder for better visual diversity.
+        const imagePaths = pickRandomImages(4);
         if (imagePaths.length === 0) {
-            logger.warn("Scheduler", `${label}: No images available — skipping.`);
+            logger.warn("Scheduler", `${label}: No images in /images/ folder — skipping.`);
             return;
         }
+        logger.info("Scheduler", `Using ${imagePaths.length} image(s)`);
 
         // 3. Auto-detect text color from first image brightness
         const textColor = await getImageTextColor(imagePaths[0]);
-        logger.info("Scheduler", `Image brightness → text color: ${textColor}`);
+        logger.info("Scheduler", `Text color: ${textColor}`);
 
         // 4. Validate FFmpeg pipeline
         await validatePipeline(imagePaths);
 
-        // 5. Silent audio (ElevenLabs is skipped on Railway)
-        execSync(
-            `ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t ${VIDEO_DURATION} -q:a 9 -acodec libmp3lame -y "${silentPath}"`,
-            { stdio: "pipe" }
-        );
+        // 5. Generate voice via OpenAI TTS (works on Railway, unlike ElevenLabs).
+        //    Falls back to silent audio if TTS fails so the job never fully breaks.
+        let audioPath;
+        voicePath = path.join(OUTPUT_DIR, `sched_voice_${ts}.mp3`);
+        try {
+            await generateVoiceOpenAI(script, voicePath, voice);
+            audioPath = voicePath;
+            logger.info("Scheduler", `Voice generated (${voice})`);
+        } catch (ttsErr) {
+            logger.warn("Scheduler", `OpenAI TTS failed (${ttsErr.message}) — falling back to music-only`);
+            const silentPath = path.join(OUTPUT_DIR, `sched_silent_${ts}.mp3`);
+            execSync(
+                `ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t ${VIDEO_DURATION} -q:a 9 -acodec libmp3lame -y "${silentPath}"`,
+                { stdio: "pipe" }
+            );
+            voicePath = silentPath;
+            audioPath = silentPath;
+        }
 
-        // 6. Mix with background music
+        // 6. Mix voice with background music (voice at full volume, music at 20%)
         const musicPath = fetchBackgroundMusic();
         if (musicPath && apiKeys.ADD_MUSIC) {
             mixedPath = path.join(OUTPUT_DIR, `sched_mixed_${ts}.mp3`);
-            await mixVoiceWithMusic(silentPath, musicPath, mixedPath, { musicOnly: true });
+            await mixVoiceWithMusic(audioPath, musicPath, mixedPath, { musicOnly: false });
             audioPath = mixedPath;
+            logger.info("Scheduler", "Voice + music mixed");
         }
 
         // 7. Render video
@@ -134,16 +158,23 @@ async function runScheduledJob({ label, topic }) {
         // 8. Upload to YouTube
         if (apiKeys.hasYouTubeConfig) {
             const slug = label.toLowerCase().replace(/\s+/g, "");
-            // Title: clean, no hashtags (YouTube penalises hashtag-stuffed titles).
-            // Max 70 chars so it shows fully in search results.
+            // Clean title — no hashtags (YouTube demotes hashtag-stuffed titles).
             const rawTitle = (title || hook || topic).replace(/[#@]/g, "").trim();
             const ytTitle = rawTitle.length > 70 ? rawTitle.slice(0, 67).trimEnd() + "..." : rawTitle;
-            // Hashtags go in description only — YouTube auto-links top 3 as title tags
-            const ytDesc = `${script}\n\n#quotes #motivation #${slug} #shorts #foryou #viral #motivationalquotes #growthmindset #dailymotivation`;
+            // Description: script + CTA + hashtags (top 3 auto-shown above title by YouTube)
+            const ytDesc = [
+                script,
+                "",
+                "Follow for daily motivation 🔔",
+                "",
+                `#quotes #motivation #${slug} #shorts #motivationalquotes #growthmindset`,
+                `#dailymotivation #selfimprovement #success #mindset #positivevibes #foryou #viral`,
+            ].join("\n");
             try {
                 const youtubeUrl = await uploadToYouTube(videoPath, ytTitle, ytDesc, {
                     topic,
                     privacyStatus: "public",
+                    categoryId: "27", // Education — better discovery for self-improvement content
                 });
                 logger.info("Scheduler", `✅ YouTube: ${youtubeUrl}`);
             } catch (ytErr) {
@@ -169,7 +200,7 @@ async function runScheduledJob({ label, topic }) {
     } catch (err) {
         logger.error("Scheduler", `${label} job failed: ${err.message}`);
     } finally {
-        cleanup(silentPath, mixedPath);
+        cleanup(voicePath, mixedPath);
     }
 }
 
