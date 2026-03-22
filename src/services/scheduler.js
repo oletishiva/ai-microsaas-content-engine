@@ -5,13 +5,13 @@
  * Enable with: AUTO_PUBLISH=true in .env or Railway Variables.
  * Optional timezone: SCHEDULE_TIMEZONE=Asia/Kolkata (default: UTC)
  *
- * Schedule (all times in SCHEDULE_TIMEZONE):
- *   06:00 – Motivation
- *   09:00 – Affirmation
- *   12:00 – Success Mindset
- *   15:00 – Productivity
- *   18:00 – Life Reflection
- *   21:00 – Night Calm
+ * Schedule (UTC — targets USA, UK, Germany, India simultaneously):
+ *   06:00 UTC – Motivation        (6 AM UK, 7 AM DE, 11:30 AM IN, 1 AM USA)
+ *   12:00 UTC – Affirmation       (7 AM EST, 12 PM UK, 1 PM DE, 5:30 PM IN)  ← USA morning
+ *   15:00 UTC – Success Mindset   (10 AM EST, 3 PM UK, 4 PM DE, 8:30 PM IN)  ← peak all markets
+ *   18:00 UTC – Productivity      (1 PM EST, 6 PM UK, 7 PM DE, 11:30 PM IN)  ← peak all markets
+ *   21:00 UTC – Life Reflection   (4 PM EST, 9 PM UK, 10 PM DE, 2:30 AM IN)  ← USA/EU evening
+ *   23:00 UTC – Night Calm        (6 PM EST, 11 PM UK, midnight DE, 4:30 AM IN) ← USA prime time
  */
 
 const cron = require("node-cron");
@@ -42,17 +42,18 @@ const IMAGES_DIR = path.join(__dirname, "../../images");
  * Remove or set enabled:false after confirming it works.
  */
 // Audio: silent base + background music (music-only). No TTS for quote videos.
+// Set SCHEDULE_TIMEZONE=UTC on Railway for these times to be correct.
 const SCHEDULES = [
-    // ── Core 6 (safe within default YouTube quota: 6 × 1600 = 9600 / 10000 units) ──
+    // ── Core 6 — UTC times hit USA + UK + Germany + India simultaneously ──
     { label: "Motivation",      topic: "daily morning motivation",            cron: "0 6  * * *", enabled: true  },
-    { label: "Affirmation",     topic: "positive daily affirmation",          cron: "0 9  * * *", enabled: true  },
-    { label: "Success Mindset", topic: "success mindset winning habits",      cron: "0 12 * * *", enabled: true  },
-    { label: "Productivity",    topic: "productivity focus deep work",        cron: "0 15 * * *", enabled: true  },
-    { label: "Life Reflection", topic: "life lessons wisdom reflection",      cron: "0 18 * * *", enabled: true  },
-    { label: "Night Calm",      topic: "night calm mindfulness peace",        cron: "0 21 * * *", enabled: true  },
+    { label: "Affirmation",     topic: "positive daily affirmation",          cron: "0 12 * * *", enabled: true  },
+    { label: "Success Mindset", topic: "success mindset winning habits",      cron: "0 15 * * *", enabled: true  },
+    { label: "Productivity",    topic: "productivity focus deep work",        cron: "0 18 * * *", enabled: true  },
+    { label: "Life Reflection", topic: "life lessons wisdom reflection",      cron: "0 21 * * *", enabled: true  },
+    { label: "Night Calm",      topic: "night calm mindfulness peace",        cron: "0 23 * * *", enabled: true  },
     // ── Bonus (needs YouTube quota increase) ──────────────────────────────
     { label: "Evening Wisdom",  topic: "evening wisdom inner peace gratitude",cron: "0 22 * * *", enabled: false },
-    { label: "Gratitude Sleep", topic: "gratitude sleep bedtime affirmation", cron: "0 23 * * *", enabled: false },
+    { label: "Gratitude Sleep", topic: "gratitude sleep bedtime affirmation", cron: "0 10 * * *", enabled: false },
 ];
 
 /** Pick N random images from /images/ folder */
