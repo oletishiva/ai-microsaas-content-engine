@@ -26,7 +26,6 @@ const { uploadToYouTube } = require("./youtubeUploader");
 const { uploadVideoToCloudinary } = require("./cloudinaryUploader");
 const { mixVoiceWithMusic } = require("../../utils/audioMixer");
 const { getImageTextColor } = require("../../utils/imageBrightness");
-const { generateVoiceOpenAI } = require("../../utils/openaiTts");
 const { OUTPUT_DIR } = require("../../config/paths");
 const { VIDEO_DURATION } = require("../../utils/subtitleHelper");
 const apiKeys = require("../../config/apiKeys");
@@ -61,9 +60,9 @@ const SCHEDULES = [
     // ── Bonus (needs YouTube quota increase) ──────────────────────────────
     { label: "Evening Wisdom",  topic: "evening wisdom inner peace gratitude",cron: "0 22 * * *", voice: "fable",  enabled: false },
     { label: "Gratitude Sleep", topic: "gratitude sleep bedtime affirmation", cron: "0 23 * * *", voice: "shimmer",enabled: false },
-    // ── Test slot: verify Railway → YouTube auto-push at 10:20 IST ────────
+    // ── Test slot: verify Railway → YouTube auto-push at 10:20 PM IST ───────
     // Remove after confirming first successful upload.
-    { label: "Test Upload",     topic: "daily morning motivation",            cron: "20 10 * * *", voice: "nova",  enabled: true  },
+    { label: "Test Upload",     topic: "daily morning motivation",            cron: "20 22 * * *", voice: "nova",  enabled: true  },
 ];
 
 /** Pick N random images from /images/ folder */
@@ -118,32 +117,22 @@ async function runScheduledJob({ label, topic, voice = "nova" }) {
         // 4. Validate FFmpeg pipeline
         await validatePipeline(imagePaths);
 
-        // 5. Generate voice via OpenAI TTS (works on Railway, unlike ElevenLabs).
-        //    Falls back to silent audio if TTS fails so the job never fully breaks.
-        let audioPath;
-        voicePath = path.join(OUTPUT_DIR, `sched_voice_${ts}.mp3`);
-        try {
-            await generateVoiceOpenAI(script, voicePath, voice);
-            audioPath = voicePath;
-            logger.info("Scheduler", `Voice generated (${voice})`);
-        } catch (ttsErr) {
-            logger.warn("Scheduler", `OpenAI TTS failed (${ttsErr.message}) — falling back to music-only`);
-            const silentPath = path.join(OUTPUT_DIR, `sched_silent_${ts}.mp3`);
-            execSync(
-                `ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t ${VIDEO_DURATION} -q:a 9 -acodec libmp3lame -y "${silentPath}"`,
-                { stdio: "pipe" }
-            );
-            voicePath = silentPath;
-            audioPath = silentPath;
-        }
+        // 5. Silent base audio — motivational quote videos are music + text to read.
+        //    TTS is not needed here; background music carries the mood.
+        voicePath = path.join(OUTPUT_DIR, `sched_silent_${ts}.mp3`);
+        execSync(
+            `ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t ${VIDEO_DURATION} -q:a 9 -acodec libmp3lame -y "${voicePath}"`,
+            { stdio: "pipe" }
+        );
+        let audioPath = voicePath;
 
-        // 6. Mix voice with background music (voice at full volume, music at 20%)
+        // 6. Replace silent base with background music track (full volume, music-only)
         const musicPath = fetchBackgroundMusic();
         if (musicPath && apiKeys.ADD_MUSIC) {
             mixedPath = path.join(OUTPUT_DIR, `sched_mixed_${ts}.mp3`);
-            await mixVoiceWithMusic(audioPath, musicPath, mixedPath, { musicOnly: false });
+            await mixVoiceWithMusic(voicePath, musicPath, mixedPath, { musicOnly: true });
             audioPath = mixedPath;
-            logger.info("Scheduler", "Voice + music mixed");
+            logger.info("Scheduler", "Background music added");
         }
 
         // 7. Render video
