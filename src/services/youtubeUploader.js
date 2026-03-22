@@ -53,16 +53,47 @@ function getAuthenticatedClient(refreshToken) {
     return oauth2Client;
 }
 
-/** Viral quote Shorts tags – matches reference style (#quotes #motivation etc.) */
+/**
+ * Viral tags for English motivational Shorts — optimised for global reach.
+ * Ordered by search volume / relevance. YouTube picks the most relevant subset.
+ * Keep under 500 total chars (YouTube limit).
+ */
 const VIRAL_SHORTS_TAGS = [
-    "quotes",
-    "motivation",
-    "quoteoftheday",
-    "deepquotes",
-    "lifelessons",
+    // Core Shorts discovery
     "shorts",
-    "foryou",
+    "ytshorts",
+    "shortvideo",
     "viral",
+    "trending",
+    "foryou",
+    "foryoupage",
+    // Motivation & mindset
+    "motivation",
+    "motivational",
+    "dailymotivation",
+    "morningmotivation",
+    "mindset",
+    "growthmindset",
+    "successmindset",
+    "positivevibes",
+    "positivity",
+    // Quotes niche
+    "quotes",
+    "quoteoftheday",
+    "inspirationalquotes",
+    "motivationalquotes",
+    "wisdomquotes",
+    "deepquotes",
+    "lifequotes",
+    "powerfulquotes",
+    // Self-growth
+    "selfimprovement",
+    "personalgrowth",
+    "selfcare",
+    "lifelessons",
+    "success",
+    "focus",
+    "discipline",
 ];
 
 /** YouTube: max 500 chars total for tags, each tag max 30 chars */

@@ -33,13 +33,28 @@ const logger = require("../../utils/logger");
 
 const IMAGES_DIR = path.join(__dirname, "../../images");
 
+/**
+ * 6 core daily slots — fits within YouTube's default quota (6 × 1600 = 9600 / 10000 units).
+ * 2 bonus slots marked with quota:false — enable only after requesting a quota increase
+ * from Google Cloud Console → YouTube Data API v3 → Quotas.
+ *
+ * Test slot: 10:20 AM IST — fires once daily to verify Railway → YouTube push works.
+ * Remove or set enabled:false after confirming it works.
+ */
 const SCHEDULES = [
-    { label: "Motivation",      topic: "daily morning motivation",       cron: "0 6  * * *" },
-    { label: "Affirmation",     topic: "positive daily affirmation",     cron: "0 9  * * *" },
-    { label: "Success Mindset", topic: "success mindset winning habits", cron: "0 12 * * *" },
-    { label: "Productivity",    topic: "productivity focus deep work",   cron: "0 15 * * *" },
-    { label: "Life Reflection", topic: "life lessons wisdom reflection", cron: "0 18 * * *" },
-    { label: "Night Calm",      topic: "night calm mindfulness peace",   cron: "0 21 * * *" },
+    // ── Core 6 (safe within default YouTube quota) ────────────────────────
+    { label: "Motivation",        topic: "daily morning motivation",            cron: "0 6  * * *", enabled: true  },
+    { label: "Affirmation",       topic: "positive daily affirmation",          cron: "0 9  * * *", enabled: true  },
+    { label: "Success Mindset",   topic: "success mindset winning habits",      cron: "0 12 * * *", enabled: true  },
+    { label: "Productivity",      topic: "productivity focus deep work",        cron: "0 15 * * *", enabled: true  },
+    { label: "Life Reflection",   topic: "life lessons wisdom reflection",      cron: "0 18 * * *", enabled: true  },
+    { label: "Night Calm",        topic: "night calm mindfulness peace",        cron: "0 21 * * *", enabled: true  },
+    // ── Bonus (needs YouTube quota increase — comment out until approved) ──
+    { label: "Evening Wisdom",    topic: "evening wisdom inner peace gratitude",cron: "0 22 * * *", enabled: false },
+    { label: "Gratitude Sleep",   topic: "gratitude sleep bedtime affirmation", cron: "0 23 * * *", enabled: false },
+    // ── Test slot: verify Railway → YouTube auto-push works at 10:20 IST ──
+    // Remove this after confirming the first successful upload.
+    { label: "Test Upload",       topic: "daily morning motivation",            cron: "20 10 * * *", enabled: true  },
 ];
 
 /** Pick N random images from /images/ folder */
@@ -119,8 +134,12 @@ async function runScheduledJob({ label, topic }) {
         // 8. Upload to YouTube
         if (apiKeys.hasYouTubeConfig) {
             const slug = label.toLowerCase().replace(/\s+/g, "");
-            const ytTitle = `${title || hook} #${slug} #quotes #motivation #shorts`;
-            const ytDesc = `${script}\n\n#quotes #motivation #${slug} #shorts #foryou #viral`;
+            // Title: clean, no hashtags (YouTube penalises hashtag-stuffed titles).
+            // Max 70 chars so it shows fully in search results.
+            const rawTitle = (title || hook || topic).replace(/[#@]/g, "").trim();
+            const ytTitle = rawTitle.length > 70 ? rawTitle.slice(0, 67).trimEnd() + "..." : rawTitle;
+            // Hashtags go in description only — YouTube auto-links top 3 as title tags
+            const ytDesc = `${script}\n\n#quotes #motivation #${slug} #shorts #foryou #viral #motivationalquotes #growthmindset #dailymotivation`;
             try {
                 const youtubeUrl = await uploadToYouTube(videoPath, ytTitle, ytDesc, {
                     topic,
@@ -168,6 +187,10 @@ function startScheduler() {
     logger.info("Scheduler", `Auto-publish ON — timezone: ${tz}`);
 
     for (const job of SCHEDULES) {
+        if (!job.enabled) {
+            logger.info("Scheduler", `  Skipped:   ${job.label.padEnd(16)} → disabled (needs YouTube quota increase)`);
+            continue;
+        }
         cron.schedule(job.cron, () => runScheduledJob(job), { timezone: tz });
         logger.info("Scheduler", `  Scheduled: ${job.label.padEnd(16)} → ${job.cron.trim()} (${tz})`);
     }
