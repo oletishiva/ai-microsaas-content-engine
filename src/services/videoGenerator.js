@@ -251,18 +251,20 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         const ts = Date.now();
         const overlayPaths = [];
         // First 3s: hook. Then: quote. Readable font size.
-        const hookFont = isRailway ? 80 : 72;
-        const quoteFont = isRailway ? 45 : 46;  // Railway: 10% smaller (was 50) to avoid overflow
+        // Hook: 62px — impactful but not cramped; 13 chars/line gives 2-line punchy hooks.
+        // Quote: 36px — comfortable read, more text fits, less "wall of text" feel.
+        const hookFont = 62;
+        const quoteFont = 36;
         if (hookText) {
             const hookPath = path.join(OUTPUT_DIR, `overlay_hook_${ts}.png`);
-            await renderTextToImage(hookText, hookPath, { fontSize: hookFont, videoWidth: W, maxCharsPerLine: 11, textColor: overlayOptions.textColor });
+            await renderTextToImage(hookText, hookPath, { fontSize: hookFont, videoWidth: W, maxCharsPerLine: 13, textColor: overlayOptions.textColor });
             overlayPaths.push({ path: hookPath, start: 0, end: HOOK_DURATION });
             tempFiles.push(hookPath);
         }
         if (script) {
             const quotePath = path.join(OUTPUT_DIR, `overlay_quote_${ts}.png`);
             const highlight = overlayOptions.highlight || [];
-            await renderTextToImage(script, quotePath, { fontSize: quoteFont, videoWidth: W, maxCharsPerLine: 24, highlight, textColor: overlayOptions.textColor });
+            await renderTextToImage(script, quotePath, { fontSize: quoteFont, videoWidth: W, maxCharsPerLine: 26, highlight, textColor: overlayOptions.textColor });
             overlayPaths.push({ path: quotePath, start: HOOK_DURATION, end: videoDuration });
             tempFiles.push(quotePath);
         }

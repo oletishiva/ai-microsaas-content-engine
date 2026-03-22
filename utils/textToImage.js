@@ -134,7 +134,7 @@ async function renderTextToImage(text, outputPath, options = {}) {
     // IMPORTANT: rectsSvg goes BEFORE text so the yellow highlight sits BEHIND the text
     const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}" overflow="hidden">
-  <defs><clipPath id="textClip"><rect x="${pad}" y="0" width="${textWidth}" height="${totalHeight}"/></clipPath></defs>
+  <defs><clipPath id="textClip"><rect x="0" y="0" width="${width}" height="${totalHeight}"/></clipPath></defs>
   <g clip-path="url(#textClip)">
     ${rectsSvg ? rectsSvg + "\n    " : ""}
     <text x="${textCenterX}" y="${startY}" text-anchor="middle"

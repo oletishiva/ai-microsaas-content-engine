@@ -44,6 +44,7 @@ try {
 // ── 2. Import route modules ───────────────────────────────────────────────
 const generateVideoRouter = require("./routes/generateVideo");
 const authRouter = require("./routes/auth");
+const { startScheduler } = require("./services/scheduler");
 
 // ── 3. Create Express app ─────────────────────────────────────────────────
 const app = express();
@@ -217,6 +218,7 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
     logger.info("App", `Server started on port ${PORT}`);
+    startScheduler();
     logger.info("App", `POST /api/generate-video | GET /health`);
     console.log(`
 ╔══════════════════════════════════════════╗

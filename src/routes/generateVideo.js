@@ -215,6 +215,7 @@ router.post("/generate-video", upload.array("images", 10), async (req, res) => {
         const videoPath = await generateVideo(imagePaths, audioPath, scriptForOverlay, hook, outputFilename, {
             highlight,
             addSubscribeButton,
+            textColor,
         });
         logger.info("Pipeline", "Video generated", { videoPath });
 
