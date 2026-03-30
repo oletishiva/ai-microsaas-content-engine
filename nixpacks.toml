@@ -1,3 +1,6 @@
-# Railway / Nixpacks – ensures FFmpeg is available for video generation
+# Railway / Nixpacks – ensures FFmpeg + Telugu fonts are available
 [phases.setup]
-nixPkgs = ["ffmpeg"]
+nixPkgs = ["ffmpeg", "noto-fonts", "fontconfig"]
+
+[phases.build]
+cmds = ["fc-cache -fv"]

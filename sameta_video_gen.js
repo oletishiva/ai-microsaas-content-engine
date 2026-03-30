@@ -172,7 +172,7 @@ async function generateImage(prompt, imagePath) {
 async function createVideo(imagePath, sameta, meaning, videoPath) {
     console.log("🔄 Step 3/3 — Compositing layout + rendering video...");
 
-    const FONT = "Noto Sans Telugu, Telugu MN, sans-serif";
+    const FONT = "Noto Sans Telugu, Noto Sans, sans-serif";
     const compositePath = imagePath.replace(/\.png$/, "_composite.png");
 
     // ── Text overlay on the AI image (which already has cream top + scene bottom) ──
