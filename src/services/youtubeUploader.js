@@ -28,6 +28,7 @@ const {
     YOUTUBE_REDIRECT_URI,
     YOUTUBE_REFRESH_TOKEN,
 } = require("../../config/apiKeys");
+const { getTrendingTags } = require("../../utils/trendingTags");
 
 /**
  * getAuthenticatedClient
@@ -101,18 +102,21 @@ const MAX_TAG_LENGTH = 30;
 const MAX_TAGS_TOTAL_CHARS = 500;
 
 /**
- * Build tags from topic + viral list. Deduplicates and enforces YouTube limits.
+ * Build tags from topic + today's trending tags + viral base list.
+ * Trending tags fetched from YouTube API (cached 23h). Deduplicates and enforces YouTube limits.
  * @param {string} topic - Video topic for keyword extraction
+ * @param {string[]} trending - Today's trending tags (pre-fetched)
  * @returns {string[]} - Tag array for snippet.tags
  */
-function buildViralTags(topic = "") {
+function buildViralTags(topic = "", trending = []) {
     const topicWords = String(topic)
         .toLowerCase()
         .replace(/[#@]/g, "")
         .split(/\s+/)
         .filter((w) => w.length >= 2 && w.length <= MAX_TAG_LENGTH)
         .slice(0, 5);
-    const combined = [...new Set([...topicWords, ...VIRAL_SHORTS_TAGS])];
+    // Priority: topic keywords → today's trending → evergreen viral base
+    const combined = [...new Set([...topicWords, ...trending, ...VIRAL_SHORTS_TAGS])];
     const tags = [];
     let totalChars = 0;
     for (const t of combined) {
@@ -140,9 +144,11 @@ async function uploadToYouTube(
     opts = {}
 ) {
     const { topic = "", tags: customTags, privacyStatus = "public", thumbnailPath, refreshToken, categoryId = "27" } = opts;
+    // Fetch today's trending tags (cached — costs 0 extra quota after first call)
+    const trending = Array.isArray(customTags) && customTags.length > 0 ? [] : await getTrendingTags(10).catch(() => []);
     const tags = Array.isArray(customTags) && customTags.length > 0
         ? customTags.slice(0, 15).map((t) => String(t).slice(0, MAX_TAG_LENGTH))
-        : buildViralTags(topic);
+        : buildViralTags(topic, trending);
 
     console.log(`[YouTubeUploader] Uploading: ${path.basename(videoPath)} (${privacyStatus})`);
 
