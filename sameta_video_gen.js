@@ -172,70 +172,65 @@ async function generateImage(prompt, imagePath) {
 async function createVideo(imagePath, sameta, meaning, videoPath) {
     console.log("🔄 Step 3/3 — Compositing layout + rendering video...");
 
-    const FONT_NAME = "NotoSansTelugu";
     const FONT_PATH = path.resolve(__dirname, "fonts", "NotoSansTelugu.ttf");
-    const fontUrl = `file://${FONT_PATH.replace(/\\/g, "/")}`;
-    const compositePath = imagePath.replace(/\.png$/, "_composite.png");
+    const jpegCompositePath = imagePath.replace(/\.png$/, "_composite.jpg");
 
-    // ── Text overlay on the AI image (which already has cream top + scene bottom) ──
     const sametaLines  = wrapText(sameta,  16);
     const meaningLines = wrapText(meaning, 22);
 
-    const labelY        = 140;
-    const lineY         = 192;
-    const sametaY       = 265;
-    const sametaLH      = 90;
-    const meaningStartY = sametaY + sametaLines.length * sametaLH + 36;
-    const meaningLH     = 64;
-
-    const svgOverlay = `
-<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <style>
-      @font-face {
-        font-family: '${FONT_NAME}';
-        src: url('${fontUrl}');
-        font-weight: 100 900;
-      }
-    </style>
-  </defs>
-
-  <!-- "సామెత" label -->
-  <text x="${W / 2}" y="${labelY}"
-    font-family="${FONT_NAME}" font-size="42" fill="${MAROON}"
-    text-anchor="middle" font-weight="700" letter-spacing="4">${escapeXml("సామెత")}</text>
-
-  <!-- Decorative line -->
-  <line x1="${W/2 - 120}" y1="${lineY}" x2="${W/2 + 120}" y2="${lineY}"
-    stroke="${MAROON}" stroke-width="2" opacity="0.7"/>
-
-  <!-- Sameta text (large, dark maroon) -->
-  ${sametaLines.map((line, i) => `
-  <text x="${W / 2}" y="${sametaY + i * sametaLH}"
-    font-family="${FONT_NAME}" font-size="62" fill="${MAROON}"
-    text-anchor="middle" font-weight="700">${escapeXml(line)}</text>`).join("")}
-
-  <!-- Meaning text (dark gray, larger + bold) -->
-  ${meaningLines.map((line, i) => `
-  <text x="${W / 2}" y="${meaningStartY + i * meaningLH}"
-    font-family="${FONT_NAME}" font-size="46" fill="${DARK_GRAY}"
-    text-anchor="middle" font-weight="700">${escapeXml(line)}</text>`).join("")}
-</svg>`;
-
-    // ── Resize AI image to full canvas, overlay text ─────────────────────────
-    // Flatten to remove alpha channel — prevents FFmpeg from using memory-heavy yuv444p on Railway
-    await sharp(imagePath)
+    // ── Resize + flatten base image ───────────────────────────────────────────
+    const baseBuffer = await sharp(imagePath)
         .resize(W, H, { fit: "cover", position: "center" })
         .flatten({ background: "#FFFFFF" })
-        .composite([{ input: Buffer.from(svgOverlay), top: 0, left: 0 }])
+        .toBuffer();
+
+    // ── Helper: render one text string via Pango (bypasses librsvg entirely) ──
+    async function pangoText(text, fontSizePt, color, bold, topY) {
+        const weight = bold ? "bold" : "normal";
+        const markup = `<span font_family="Noto Sans Telugu" font_size="${fontSizePt}pt" font_weight="${weight}" foreground="${color}">${escapeXml(text)}</span>`;
+        const buf = await sharp({
+            text: { text: markup, fontfile: FONT_PATH, width: W, rgba: true, dpi: 96, align: "centre" },
+        }).png().toBuffer();
+        const { height } = await sharp(buf).metadata();
+        return { input: buf, top: topY, left: 0, width: W, height };
+    }
+
+    // ── Build composites ──────────────────────────────────────────────────────
+    const composites = [];
+
+    // "సామెత" label
+    composites.push(await pangoText("సామెత", 38, MAROON, true, 80));
+
+    // Decorative line (thin SVG — no font needed, just geometry)
+    const lineSvg = `<svg width="240" height="4"><line x1="0" y1="2" x2="240" y2="2" stroke="${MAROON}" stroke-width="2" opacity="0.7"/></svg>`;
+    composites.push({ input: Buffer.from(lineSvg), top: 182, left: (W - 240) / 2 });
+
+    // Sameta lines
+    let currentY = 210;
+    for (const line of sametaLines) {
+        const el = await pangoText(line, 58, MAROON, true, currentY);
+        composites.push(el);
+        currentY += (el.height || 80) + 10;
+    }
+
+    // Meaning lines
+    currentY += 30;
+    for (const line of meaningLines) {
+        const el = await pangoText(line, 40, DARK_GRAY, true, currentY);
+        composites.push(el);
+        currentY += (el.height || 60) + 8;
+    }
+
+    // ── Composite all text onto base image ────────────────────────────────────
+    await sharp(baseBuffer)
+        .composite(composites)
         .jpeg({ quality: 90 })
-        .toFile(compositePath.replace(/\.png$/, ".jpg"));
+        .toFile(jpegCompositePath);
 
     // ── FFmpeg: image → 15s video + music + fade ────────────────────────────
     const musicPath = pickMusic();
     console.log(`   Music: ${path.basename(musicPath)}`);
 
-    const jpegCompositePath = compositePath.replace(/\.png$/, ".jpg");
     const DURATION = 15;
     const cmd = [
         "ffmpeg -y",
