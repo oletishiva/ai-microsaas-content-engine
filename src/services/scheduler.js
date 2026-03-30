@@ -142,7 +142,9 @@ async function runScheduledJob({ label, topic }) {
             // Cascade: OpenAI title → first sentence of quote → hook → topic
             const quoteFirstSentence = (quote || "").split(/[.!?]/)[0]?.trim() || "";
             const rawTitle = (title || quoteFirstSentence || hook || topic).replace(/[#@]/g, "").trim();
-            const ytTitle = rawTitle.length > 70 ? rawTitle.slice(0, 67).trimEnd() + "..." : rawTitle;
+            // Append #shorts #motivation to title — YouTube highlights hashtags in title and boosts discovery
+            const titleBase = rawTitle.length > 55 ? rawTitle.slice(0, 52).trimEnd() + "..." : rawTitle;
+            const ytTitle = `${titleBase} #shorts #motivation`;
             // Description: hashtags FIRST (shown as subtitle under title in search results),
             // then the quote/script, then CTA. YouTube shows the first ~100 chars in search.
             const ytDesc = [

@@ -254,7 +254,7 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         // Hook: 62px — impactful but not cramped; 13 chars/line gives 2-line punchy hooks.
         // Quote: 36px — comfortable read, more text fits, less "wall of text" feel.
         const hookFont = 62;
-        const quoteFont = 36;
+        const quoteFont = 38;
         if (hookText) {
             const hookPath = path.join(OUTPUT_DIR, `overlay_hook_${ts}.png`);
             await renderTextToImage(hookText, hookPath, { fontSize: hookFont, videoWidth: W, maxCharsPerLine: 13, textColor: overlayOptions.textColor });
