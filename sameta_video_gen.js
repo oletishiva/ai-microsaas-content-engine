@@ -200,10 +200,20 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     // ── Composites: cream background first, then text layers on top ──────────
     const composites = [];
 
-    // Solid cream/parchment overlay — top 38%, ensures text always readable
-    const creamBuf = await sharp({
-        create: { width: W, height: CREAM_H, channels: 4, background: { r: 255, g: 248, b: 240, alpha: 1 } },
-    }).png().toBuffer();
+    // Gradient cream overlay — fully opaque at top, fades to transparent at bottom
+    // so the scene blends naturally instead of showing a hard edge (two-image look)
+    const FADE_START = Math.floor(CREAM_H * 0.72); // solid until 72% of cream area
+    const gradientSvg = `<svg width="${W}" height="${CREAM_H}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#FFF8F0" stop-opacity="1"/>
+          <stop offset="${Math.round(FADE_START / CREAM_H * 100)}%" stop-color="#FFF8F0" stop-opacity="1"/>
+          <stop offset="100%" stop-color="#FFF8F0" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <rect width="${W}" height="${CREAM_H}" fill="url(#cg)"/>
+    </svg>`;
+    const creamBuf = await sharp(Buffer.from(gradientSvg)).png().toBuffer();
     composites.push({ input: creamBuf, top: 0, left: 0 });
 
     // ── H1: "సామెత" — large, bold, centered maroon title ────────────────────
