@@ -33,8 +33,7 @@ const { execSync } = require("child_process");
 const W = 1080, H = 1920;
 
 // Colors matching reference images
-const MAROON    = "#5C1A1A"; // "సామెత" label + Sameta text
-const DARK_GRAY = "#2C2C2C"; // meaning text
+const MAROON = "#5C1A1A"; // "సామెత" label + Sameta text
 
 // ── Built-in Telugu Sameta list for --random mode ─────────────────────────────
 const SAMETA_LIST = [
@@ -175,8 +174,9 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     const FONT_PATH = path.resolve(__dirname, "fonts", "NotoSansTelugu.ttf");
     const jpegCompositePath = imagePath.replace(/\.png$/, "_composite.jpg");
 
-    const sametaLines  = wrapText(sameta,  16);
-    const meaningLines = wrapText(meaning, 22);
+    // Top 38% = solid cream text area, bottom 62% = scene image
+    const CREAM_H = Math.floor(H * 0.45); // 864px @ 1920
+    const TEXT_W  = W - 120;              // 960px usable text width with padding
 
     // ── Resize + flatten base image ───────────────────────────────────────────
     const baseBuffer = await sharp(imagePath)
@@ -184,44 +184,60 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
         .flatten({ background: "#FFFFFF" })
         .toBuffer();
 
-    // ── Helper: render one text string via Pango (bypasses librsvg entirely) ──
-    async function pangoText(text, fontSizePt, color, bold, topY) {
-        const weight = bold ? "bold" : "normal";
+    // ── Helper: render centered Pango text, returns composite descriptor ──────
+    // sharp text images are auto-sized to text width (NOT fixed at `width`),
+    // so we manually center by computing left = (W - rendered_width) / 2
+    async function pangoText(text, fontSizePt, color, weight, topY) {
         const markup = `<span font_family="Noto Sans Telugu" font_size="${fontSizePt}pt" font_weight="${weight}" foreground="${color}">${escapeXml(text)}</span>`;
         const buf = await sharp({
-            text: { text: markup, fontfile: FONT_PATH, width: W, rgba: true, dpi: 96, align: "centre" },
+            text: { text: markup, fontfile: FONT_PATH, width: TEXT_W, rgba: true, dpi: 96, align: "centre" },
         }).png().toBuffer();
-        const { height } = await sharp(buf).metadata();
-        return { input: buf, top: topY, left: 0, width: W, height };
+        const { width: tw, height: th } = await sharp(buf).metadata();
+        const left = Math.max(0, Math.floor((W - (tw || TEXT_W)) / 2));
+        return { input: buf, top: topY, left, _h: th || 0 };
     }
 
-    // ── Build composites ──────────────────────────────────────────────────────
+    // ── Composites: cream background first, then text layers on top ──────────
     const composites = [];
 
-    // "సామెత" label
-    composites.push(await pangoText("సామెత", 38, MAROON, true, 80));
+    // Solid cream/parchment overlay — top 38%, ensures text always readable
+    const creamBuf = await sharp({
+        create: { width: W, height: CREAM_H, channels: 4, background: { r: 255, g: 248, b: 240, alpha: 1 } },
+    }).png().toBuffer();
+    composites.push({ input: creamBuf, top: 0, left: 0 });
 
-    // Decorative line (thin SVG — no font needed, just geometry)
-    const lineSvg = `<svg width="240" height="4"><line x1="0" y1="2" x2="240" y2="2" stroke="${MAROON}" stroke-width="2" opacity="0.7"/></svg>`;
-    composites.push({ input: Buffer.from(lineSvg), top: 182, left: (W - 240) / 2 });
+    // ── H1: "సామెత" — large, bold, centered maroon title ────────────────────
+    const label = await pangoText("సామెత", 58, MAROON, "bold", 45);
+    composites.push(label);
+    let y = label.top + label._h + 18;
 
-    // Sameta lines
-    let currentY = 210;
-    for (const line of sametaLines) {
-        const el = await pangoText(line, 58, MAROON, true, currentY);
+    // Thin divider line
+    const LINE_W = 220;
+    const lineBuf = await sharp({
+        create: { width: LINE_W, height: 4, channels: 4, background: { r: 92, g: 26, b: 26, alpha: 0.65 } },
+    }).png().toBuffer();
+    composites.push({ input: lineBuf, top: y, left: Math.floor((W - LINE_W) / 2) });
+    y += 22;
+
+    // ── H2: Proverb — very large, bold, near-black, centered ─────────────────
+    for (const line of wrapText(sameta, 16)) {
+        const el = await pangoText(line, 62, "#1C0A0A", "bold", y);
         composites.push(el);
-        currentY += (el.height || 80) + 10;
+        y += el._h + 6;
+    }
+    y += 22;
+
+    // ── H3: Meaning — medium, regular, dark gray, centered ───────────────────
+    const meaningLines = wrapText(meaning, 24);
+    for (let i = 0; i < meaningLines.length; i++) {
+        // Prefix first line with "భావం: " to match reference style
+        const line = i === 0 ? `భావం: ${meaningLines[i]}` : meaningLines[i];
+        const el = await pangoText(line, 33, "#444444", "normal", y);
+        composites.push(el);
+        y += el._h + 5;
     }
 
-    // Meaning lines
-    currentY += 30;
-    for (const line of meaningLines) {
-        const el = await pangoText(line, 40, DARK_GRAY, true, currentY);
-        composites.push(el);
-        currentY += (el.height || 60) + 8;
-    }
-
-    // ── Composite all text onto base image ────────────────────────────────────
+    // ── Composite all layers onto base image ──────────────────────────────────
     await sharp(baseBuffer)
         .composite(composites)
         .jpeg({ quality: 90 })
