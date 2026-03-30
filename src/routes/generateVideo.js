@@ -235,8 +235,9 @@ router.post("/generate-video", upload.array("images", 10), async (req, res) => {
                     || "Motivation";
                 // Keep to 8 words max and strip trailing ellipsis/punctuation
                 const punchyTitle = rawSource.split(/\s+/).slice(0, 8).join(" ").replace(/[.!?,]+$/, "").trim() || "Motivation";
-                // Title = clean quote sentence (no hashtags — hashtags in title look spammy)
-                const ytTitle = customYouTubeTitle || customTitle || punchyTitle;
+                // Append #shorts #motivation — YouTube highlights hashtags in title for Shorts discovery
+                const titleBase = customYouTubeTitle || customTitle || punchyTitle;
+                const ytTitle = `${titleBase} #shorts #motivation`;
                 // Description: hashtags FIRST so they appear as subtitle in YouTube search results
                 const ytDesc = [
                     `#motivation #quotes #shorts #motivationalquotes #quoteoftheday`,
