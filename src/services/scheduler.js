@@ -142,8 +142,10 @@ async function runScheduledJob({ label, topic }) {
         // 8. Upload to YouTube
         if (apiKeys.hasYouTubeConfig) {
             const slug = label.toLowerCase().replace(/\s+/g, "");
-            // Clean title — no hashtags (YouTube demotes hashtag-stuffed titles).
-            const rawTitle = (title || hook || topic).replace(/[#@]/g, "").trim();
+            // Title = the actual quote sentence (what viral channels use — people search for it).
+            // Cascade: OpenAI title → first sentence of quote → hook → topic
+            const quoteFirstSentence = (quote || "").split(/[.!?]/)[0]?.trim() || "";
+            const rawTitle = (title || quoteFirstSentence || hook || topic).replace(/[#@]/g, "").trim();
             const ytTitle = rawTitle.length > 70 ? rawTitle.slice(0, 67).trimEnd() + "..." : rawTitle;
             // Description: script + CTA + hashtags (top 3 auto-shown above title by YouTube)
             const ytDesc = [

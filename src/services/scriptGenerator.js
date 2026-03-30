@@ -50,13 +50,14 @@ QUOTE: [45 words max – wisdom for on-screen. Single paragraph only.]
 
 HIGHLIGHT: [1–2 key phrases from the quote, separated by | – these get yellow highlight]
 
-TITLE: [5–8 word punchy phrase for YouTube title, e.g. "Don't let them weigh you down"]
+TITLE: [Copy the single most powerful sentence from QUOTE word-for-word. Add ONE emotion emoji at the end. Under 60 chars total. e.g. "Your silence speaks louder than your words 🔥", "Stop letting people rent space in your head 💭", "One day you'll look back and be grateful 🙏"]
 
 RULES:
-- HOOK must be 3–5 words, ALL CAPS, no punctuation, no ellipsis. Standalone phrase.
-- QUOTE must be emotional, memorable wisdom. NOT advertising.
-- HIGHLIGHT: choose 1–2 powerful phrases that appear in the QUOTE (exact match).
-- TITLE: catchy phrase from the quote, like viral Shorts titles.
+- HOOK: 3–5 words ALL CAPS, no punctuation, no ellipsis. Must stop the scroll.
+- QUOTE: emotional, memorable wisdom. NOT advertising. Single paragraph.
+- HIGHLIGHT: 1–2 powerful phrases from QUOTE (exact match for yellow highlight).
+- TITLE: must be the actual quote sentence — this is what people search and click on.
+  Use second-person "you/your" or universal truths. One emoji. Under 60 chars.
 - Output ONLY HOOK:, SCRIPT:, QUOTE:, HIGHLIGHT:, and TITLE: lines.`;
 
     try {
