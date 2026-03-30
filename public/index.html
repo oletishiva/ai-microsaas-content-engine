@@ -392,8 +392,8 @@
     
     <div id="ytConnectedSection" style="display: none; max-width: 600px; margin: 0 auto 2rem auto;">
       <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.8rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16,185,129,0.2); border-radius: 8px; color: var(--success); font-size: 0.9rem; font-weight: 600;">
-        ✅ Connected to YouTube! 
-        <a href="/auth/youtube/logout" style="color: var(--muted); font-size: 0.8rem; margin-left: 1rem; text-decoration: underline;">Disconnect</a>
+        ✅ Connected: <span id="ytChannelName">YouTube</span>
+        <button onclick="disconnectYouTube()" style="background: none; border: none; color: var(--muted); font-size: 0.8rem; margin-left: 1rem; text-decoration: underline; cursor: pointer;">Disconnect</button>
       </div>
     </div>
 
@@ -505,16 +505,20 @@
           <label>Audio Output <span class="req">*</span></label>
           <div style="display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.015); padding: 1rem; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
             <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text); cursor: pointer; margin: 0; font-size: 0.9rem;">
-              <input type="radio" name="audioMode" value="full" checked style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;">
-              **Full Audio** (Voiceover + Background Music)
+              <input type="radio" name="audioMode" value="music-only" checked style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;">
+              🎵 <strong>Music Only</strong> — people read the quote (best for motivation Shorts)
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text); cursor: pointer; margin: 0; font-size: 0.9rem;">
+              <input type="radio" name="audioMode" value="full" style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;">
+              🎙️ <strong>Voice + Music</strong> — AI voiceover with background music
             </label>
             <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text); cursor: pointer; margin: 0; font-size: 0.9rem;">
               <input type="radio" name="audioMode" value="voice-only" style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;">
-              **Voice Only** (Clear Voiceover)
+              🔊 <strong>Voice Only</strong> — clear AI voiceover, no music
             </label>
             <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text); cursor: pointer; margin: 0; font-size: 0.9rem;">
               <input type="radio" name="audioMode" value="silent" style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;">
-              **No Audio / Silent** (Best for adding TikTok/Reels trending sounds later)
+              🔇 <strong>Silent</strong> — add your own trending sound on TikTok/Reels
             </label>
           </div>
         </div>
@@ -665,6 +669,8 @@
         if(data.connected) {
           if (topAuth) topAuth.style.display = 'none';
           if (topConn) topConn.style.display = 'block';
+          const nameEl = document.getElementById('ytChannelName');
+          if (nameEl && data.channelTitle) nameEl.textContent = data.channelTitle;
           if (notConnectedMsg) notConnectedMsg.style.display = 'none';
           if (advConn) advConn.style.display = 'block';
         } else {
@@ -677,13 +683,19 @@
     }
     checkYoutubeAuth();
 
+    async function disconnectYouTube() {
+      await fetch('/auth/youtube/disconnect', { method: 'POST' });
+      checkYoutubeAuth();
+    }
+
     // Toggle Audio mode logic
     const audioModes = document.querySelectorAll('input[name="audioMode"]');
     const musicThemeWrap = document.getElementById('musicThemeWrap');
     audioModes.forEach(radio => {
       radio.addEventListener('change', (e) => {
-        musicThemeWrap.style.opacity = e.target.value === 'full' ? '1' : '0.4';
-        musicThemeWrap.style.pointerEvents = e.target.value === 'full' ? 'auto' : 'none';
+        const showMusic = e.target.value === 'full' || e.target.value === 'music-only';
+        musicThemeWrap.style.opacity = showMusic ? '1' : '0.4';
+        musicThemeWrap.style.pointerEvents = showMusic ? 'auto' : 'none';
       });
     });
 
@@ -722,13 +734,13 @@
       if (finalTopic) formData.append('topic', finalTopic);
       if (script) formData.append('script', script);
 
-      // Auto Mode ignores form uploads and forces defaults
+      // Auto Mode ignores form uploads and forces defaults (matches scheduler behaviour)
       if (isAutoMode) {
         formData.append('maxWords', 35);
-        formData.append('textColor', 'white');
+        formData.append('textColor', 'auto');
         formData.append('showQuote', true);
-        formData.append('addSubscribeButton', true);
-        formData.append('audioMode', 'full');
+        formData.append('addSubscribeButton', false);
+        formData.append('audioMode', 'music-only');
         formData.append('pushToYouTube', true);
       } else {
         // Custom Mode respects form

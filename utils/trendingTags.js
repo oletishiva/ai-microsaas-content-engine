@@ -31,28 +31,18 @@ const BLOCKLIST = new Set([
 ]);
 
 /**
- * Build an authenticated YouTube client from env credentials.
- * Returns null if credentials are not configured.
+ * Build a YouTube client using API key (for public read-only endpoints like mostPopular).
+ * Requires YOUTUBE_API_KEY in .env — a simple browser/server key from Google Cloud Console,
+ * no OAuth needed. If not set, returns null and trending tags are skipped.
+ *
+ * To get one:
+ *   Google Cloud Console → APIs & Services → Credentials → Create Credentials → API key
+ *   Restrict to "YouTube Data API v3"
  */
 function buildYouTubeClient() {
-    const {
-        YOUTUBE_CLIENT_ID,
-        YOUTUBE_CLIENT_SECRET,
-        YOUTUBE_REDIRECT_URI,
-        YOUTUBE_REFRESH_TOKEN,
-    } = require("../config/apiKeys");
-
-    if (!YOUTUBE_CLIENT_ID || !YOUTUBE_CLIENT_SECRET || !YOUTUBE_REFRESH_TOKEN) {
-        return null;
-    }
-
-    const oauth2Client = new google.auth.OAuth2(
-        YOUTUBE_CLIENT_ID,
-        YOUTUBE_CLIENT_SECRET,
-        YOUTUBE_REDIRECT_URI
-    );
-    oauth2Client.setCredentials({ refresh_token: YOUTUBE_REFRESH_TOKEN });
-    return google.youtube({ version: "v3", auth: oauth2Client });
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    if (!apiKey) return null;
+    return google.youtube({ version: "v3", auth: apiKey });
 }
 
 /**
@@ -124,7 +114,7 @@ async function getTrendingTags(limit = 15) {
 
     const youtube = buildYouTubeClient();
     if (!youtube) {
-        logger.warn("TrendingTags", "YouTube credentials not configured — skipping trending tags");
+        logger.info("TrendingTags", "YOUTUBE_API_KEY not set — using base viral tags. Add a browser API key in Railway to enable trending tags.");
         return [];
     }
 
