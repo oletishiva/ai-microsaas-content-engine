@@ -56,8 +56,8 @@ const SCHEDULES = [
     { label: "Gratitude Sleep", topic: "gratitude sleep bedtime affirmation", cron: "0 10 * * *", enabled: false },
 ];
 
-/** Pick N random images from /images/ folder */
-function pickRandomImages(n = 4) {
+/** Pick 1 random image from /images/ folder for each scheduled Short */
+function pickRandomImages() {
     if (!fs.existsSync(IMAGES_DIR)) {
         logger.warn("Scheduler", `Images folder not found: ${IMAGES_DIR}`);
         return [];
@@ -69,8 +69,8 @@ function pickRandomImages(n = 4) {
         logger.warn("Scheduler", "No images found in /images/ folder");
         return [];
     }
-    const shuffled = [...files].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, Math.min(n, files.length));
+    const pick = files[Math.floor(Math.random() * files.length)];
+    return [pick];
 }
 
 /** Clean up temp files silently */
@@ -92,14 +92,13 @@ async function runScheduledJob({ label, topic }) {
         const { script, hook, quote, highlight, title } = await generateScript(topic, false);
         logger.info("Scheduler", `Script ready. Hook: "${hook}"`);
 
-        // 2. Pick up to 4 images from /images/ — variety keeps videos dynamic.
-        //    Add more images to /images/ folder for better visual diversity.
-        const imagePaths = pickRandomImages(4);
+        // 2. Pick 1 random image from /images/ — each Short gets a different background.
+        const imagePaths = pickRandomImages();
         if (imagePaths.length === 0) {
             logger.warn("Scheduler", `${label}: No images in /images/ folder — skipping.`);
             return;
         }
-        logger.info("Scheduler", `Using ${imagePaths.length} image(s)`);
+        logger.info("Scheduler", `Using image: ${path.basename(imagePaths[0])}`);
 
         // 3. Auto-detect text color from first image brightness
         const textColor = await getImageTextColor(imagePaths[0]);
