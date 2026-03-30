@@ -369,8 +369,49 @@
     </div>
   </div>
 
+  <!-- ══ TELUGU SAMETA SECTION ══════════════════════════════════════════════ -->
+  <div style="max-width:600px; margin: 0 auto 2.5rem auto; padding: 0 1rem;">
+    <div style="background: linear-gradient(135deg, rgba(139,69,19,0.15), rgba(205,133,63,0.1)); border: 1px solid rgba(205,133,63,0.35); border-radius: 16px; padding: 1.75rem;">
+      <div style="font-size:1.1rem; font-weight:800; margin-bottom:0.4rem; color:#e8c97a;">
+        🪔 Telugu Sameta Video Generator
+      </div>
+      <div style="font-size:0.85rem; color:var(--muted); margin-bottom:1.25rem;">
+        AI generates a watercolor village scene + Telugu text overlay. One click = publish-ready Short.
+      </div>
+
+      <!-- Mode toggle -->
+      <div style="display:flex; gap:0.5rem; margin-bottom:1.25rem;">
+        <button id="sametaModeRandom" onclick="setSametaMode('random')"
+          style="flex:1; padding:0.65rem; border-radius:8px; border:1px solid rgba(205,133,63,0.5); background:rgba(205,133,63,0.2); color:#e8c97a; font-weight:700; cursor:pointer; font-size:0.9rem;">
+          🎲 Random Sameta
+        </button>
+        <button id="sametaModeCustom" onclick="setSametaMode('custom')"
+          style="flex:1; padding:0.65rem; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03); color:var(--muted); font-weight:600; cursor:pointer; font-size:0.9rem;">
+          ✏️ Custom Input
+        </button>
+      </div>
+
+      <!-- Custom input fields (hidden by default) -->
+      <div id="sametaCustomFields" style="display:none; margin-bottom:1.25rem;">
+        <input id="sametaText" type="text" placeholder="సామెత — e.g. చేసిన మేలు మరువకు"
+          style="width:100%; margin-bottom:0.6rem; padding:0.85rem 1rem; background:rgba(255,255,255,0.04); border:1px solid rgba(205,133,63,0.3); border-radius:10px; color:var(--text); font-size:16px; font-family:inherit;">
+        <textarea id="sametaMeaning" placeholder="అర్థం — meaning in Telugu"
+          style="width:100%; padding:0.85rem 1rem; background:rgba(255,255,255,0.04); border:1px solid rgba(205,133,63,0.3); border-radius:10px; color:var(--text); font-size:16px; font-family:inherit; min-height:80px; resize:vertical;"></textarea>
+      </div>
+
+      <button id="sametaGenerateBtn" onclick="generateSameta()"
+        style="width:100%; padding:1.1rem; background:linear-gradient(135deg,#8B4513,#CD853F); color:white; border:none; border-radius:12px; font-size:1.05rem; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:0.5rem;">
+        <span id="sametaBtnSpinner" class="spinner" style="display:none; border-color:rgba(255,255,255,0.3); border-top-color:white;"></span>
+        <span id="sametaBtnText">🎬 Generate Sameta Video</span>
+      </button>
+
+      <div id="sametaResult" style="display:none; margin-top:1.25rem; padding:1rem; border-radius:10px; text-align:center;"></div>
+    </div>
+  </div>
+  <!-- ══ END TELUGU SAMETA SECTION ════════════════════════════════════════════ -->
+
   <div class="container">
-    
+
     <!-- TOP LEVEL: THE MAGIC BAR -->
     <div style="text-align: center; margin-bottom: 2rem;">
       <h2 style="margin-bottom: 1rem; color: var(--text);">What is your video about?</h2>
@@ -843,6 +884,59 @@
       });
     }
     setupCustomParams('imageQuerySelect', 'imageQuery', false);
+
+    // ── Telugu Sameta ──────────────────────────────────────────────────────
+    let sametaMode = 'random';
+
+    function setSametaMode(mode) {
+      sametaMode = mode;
+      document.getElementById('sametaCustomFields').style.display = mode === 'custom' ? 'block' : 'none';
+      document.getElementById('sametaModeRandom').style.background = mode === 'random' ? 'rgba(205,133,63,0.2)' : 'rgba(255,255,255,0.03)';
+      document.getElementById('sametaModeRandom').style.color      = mode === 'random' ? '#e8c97a' : 'var(--muted)';
+      document.getElementById('sametaModeCustom').style.background = mode === 'custom' ? 'rgba(205,133,63,0.2)' : 'rgba(255,255,255,0.03)';
+      document.getElementById('sametaModeCustom').style.color      = mode === 'custom' ? '#e8c97a' : 'var(--muted)';
+    }
+
+    async function generateSameta() {
+      const btn     = document.getElementById('sametaGenerateBtn');
+      const spinner = document.getElementById('sametaBtnSpinner');
+      const btnText = document.getElementById('sametaBtnText');
+      const result  = document.getElementById('sametaResult');
+
+      btn.disabled = true;
+      spinner.style.display = 'inline-block';
+      btnText.textContent = 'Generating... (~30s)';
+      result.style.display = 'none';
+
+      const body = sametaMode === 'random'
+        ? { mode: 'random' }
+        : { sameta: document.getElementById('sametaText').value.trim(), meaning: document.getElementById('sametaMeaning').value.trim() };
+
+      if (sametaMode === 'custom' && (!body.sameta || !body.meaning)) {
+        alert('Please enter both Sameta and Meaning.');
+        btn.disabled = false; spinner.style.display = 'none'; btnText.textContent = '🎬 Generate Sameta Video';
+        return;
+      }
+
+      try {
+        const res  = await fetch('/api/generate-sameta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+
+        result.style.cssText = 'display:block; background:rgba(139,69,19,0.1); border:1px solid rgba(205,133,63,0.3); border-radius:10px; padding:1rem; text-align:center; margin-top:1.25rem;';
+        result.innerHTML = `
+          <div style="color:#e8c97a; font-weight:700; margin-bottom:0.5rem;">✅ Video Ready!</div>
+          <div style="color:var(--muted); font-size:0.85rem; margin-bottom:1rem;">${data.sameta}</div>
+          <a href="${data.videoUrl}" target="_blank" style="display:inline-block; padding:0.7rem 1.5rem; background:linear-gradient(135deg,#8B4513,#CD853F); color:white; text-decoration:none; border-radius:8px; font-weight:700;">⬇️ Download Video</a>`;
+      } catch (err) {
+        result.style.cssText = 'display:block; background:var(--error-bg); border:1px solid rgba(239,68,68,0.3); border-radius:10px; padding:1rem; text-align:center; margin-top:1.25rem;';
+        result.innerHTML = `<div style="color:var(--error);">❌ ${err.message}</div>`;
+      } finally {
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        btnText.textContent = '🎬 Generate Sameta Video';
+      }
+    }
 
   </script>
 </body>

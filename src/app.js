@@ -43,8 +43,9 @@ try {
 
 // ── 2. Import route modules ───────────────────────────────────────────────
 const generateVideoRouter = require("./routes/generateVideo");
-const authRouter = require("./routes/auth");
-const { startScheduler } = require("./services/scheduler");
+const authRouter          = require("./routes/auth");
+const sametaRouter        = require("./routes/sameta");
+const { startScheduler }  = require("./services/scheduler");
 
 // ── 3. Create Express app ─────────────────────────────────────────────────
 const app = express();
@@ -205,6 +206,9 @@ app.use("/auth", authRouter);
 
 // Main pipeline route
 app.use("/api", generateVideoRouter);
+
+// Telugu Sameta video route
+app.use("/api", sametaRouter);
 
 // ── 6. Global error handler ───────────────────────────────────────────────
 // Catches any unhandled errors thrown in route handlers
