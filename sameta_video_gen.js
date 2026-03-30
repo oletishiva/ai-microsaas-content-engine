@@ -118,7 +118,8 @@ Format: {"sameta": "Telugu proverb here", "meaning": "Telugu meaning here"}
 - Meaning should be 1-2 sentences explaining the proverb's lesson`,
         messages: [{ role: "user", content: "Give me one random Telugu Sameta with its meaning in Telugu." }],
     });
-    const json = JSON.parse(response.content[0].text.trim());
+    const raw = response.content[0].text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    const json = JSON.parse(raw);
     console.log(`✅ Random Sameta: ${json.sameta}`);
     return json;
 }
@@ -132,20 +133,19 @@ async function generateImagePrompt(sameta, meaning) {
         max_tokens: 400,
         system: `You are an expert at creating DALL-E 3 prompts for Telugu proverb short videos.
 
-The image must have this EXACT vertical split layout (portrait 9:16):
-- TOP 40%: Plain aged cream/parchment paper texture — completely empty, clean, no illustrations,
-  just subtle paper grain texture with very faint watercolor wash edges.
-  This space is reserved for text overlay.
-- BOTTOM 60%: A detailed watercolor illustration scene that represents the proverb's meaning.
-  Traditional Telugu village setting, warm earthy tones (ochre, sienna, sage green),
-  soft dramatic lighting, aged storybook art style.
+Create a SINGLE unified portrait image (9:16) — absolutely NOT two panels, NOT split side by side, NOT divided vertically.
 
-The two sections must blend naturally — the watercolor scene should fade/bleed
-slightly into the cream paper at the boundary. No text anywhere in the image.
+The image is ONE continuous scene structured top-to-bottom like this:
+- The very top of the image is a clean, empty aged cream/parchment paper texture with subtle grain — NO characters, NO objects, NO illustrations in this top area. Just smooth warm cream background that gently transitions downward.
+- Moving down, the cream paper texture gradually gives way to a richly detailed watercolor illustration scene that depicts the proverb's meaning. The scene emerges naturally from the cream background, as if painted on the lower portion of a single parchment sheet.
+- The watercolor scene: traditional Telugu village setting, warm earthy tones (ochre, sienna, raw umber, sage green), soft dramatic lighting, aged storybook art style. Rich detail in characters and environment.
+- The transition from cream to scene should be soft and organic — a natural watercolor wash blend, NOT a hard line, NOT a border, NOT a frame.
+
+CRITICAL: One single image. No panels. No borders. No dividing lines. No text anywhere.
 Return only the image prompt, nothing else.`,
         messages: [{
             role: "user",
-            content: `Telugu proverb: "${sameta}"\nMeaning: "${meaning}"\nCreate the DALL-E 3 prompt following the exact split layout.`,
+            content: `Telugu proverb: "${sameta}"\nMeaning: "${meaning}"\nCreate the DALL-E 3 prompt for a single unified portrait image.`,
         }],
     });
     const prompt = response.content[0].text.trim();
@@ -161,8 +161,8 @@ async function generateImage(prompt, imagePath) {
         model:   "dall-e-3",
         prompt,
         n:       1,
-        size:    "1024x1024",  // square — we crop to portrait in step 3
-        quality: "standard",
+        size:    "1024x1792",  // native 9:16 portrait — no crop needed
+        quality: "hd",
     });
     await downloadFile(response.data[0].url, imagePath);
     console.log(`✅ Image downloaded: ${path.basename(imagePath)}`);
@@ -176,15 +176,15 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     const compositePath = imagePath.replace(/\.png$/, "_composite.png");
 
     // ── Text overlay on the AI image (which already has cream top + scene bottom) ──
-    const sametaLines  = wrapText(sameta,  18);
-    const meaningLines = wrapText(meaning, 26);
+    const sametaLines  = wrapText(sameta,  16);
+    const meaningLines = wrapText(meaning, 22);
 
-    const labelY        = 140;  // ~7% from top (was 80)
+    const labelY        = 140;
     const lineY         = 192;
     const sametaY       = 265;
     const sametaLH      = 90;
-    const meaningStartY = sametaY + sametaLines.length * sametaLH + 28;
-    const meaningLH     = 52;
+    const meaningStartY = sametaY + sametaLines.length * sametaLH + 36;
+    const meaningLH     = 64;
 
     const svgOverlay = `
 <svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
@@ -203,16 +203,16 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     font-family="${FONT}" font-size="62" fill="${MAROON}"
     text-anchor="middle" font-weight="bold">${escapeXml(line)}</text>`).join("")}
 
-  <!-- Meaning text (dark gray) -->
+  <!-- Meaning text (dark gray, larger + bold) -->
   ${meaningLines.map((line, i) => `
   <text x="${W / 2}" y="${meaningStartY + i * meaningLH}"
-    font-family="${FONT}" font-size="34" fill="${DARK_GRAY}"
-    text-anchor="middle">${escapeXml(line)}</text>`).join("")}
+    font-family="${FONT}" font-size="46" fill="${DARK_GRAY}"
+    text-anchor="middle" font-weight="bold">${escapeXml(line)}</text>`).join("")}
 </svg>`;
 
     // ── Resize AI image to full canvas, overlay text ─────────────────────────
     await sharp(imagePath)
-        .resize(W, H, { fit: "cover", position: "top" })
+        .resize(W, H, { fit: "cover", position: "center" })
         .composite([{ input: Buffer.from(svgOverlay), top: 0, left: 0 }])
         .png()
         .toFile(compositePath);
@@ -257,36 +257,36 @@ async function generateSametaVideo({ sameta, meaning, outputDir = __dirname } = 
 
 // ── CLI entry point ───────────────────────────────────────────────────────────
 if (require.main === module) {
-    const args = process.argv.slice(2);
-
-    let sameta, meaning;
-
-    if (args[0] === "--random" || args.length === 0) {
-        // Claude picks a random Sameta from its knowledge of 1000s
-        const pick = await pickRandomSameta();
-        sameta  = pick.sameta;
-        meaning = pick.meaning;
-    } else if (args.length >= 2) {
-        sameta  = args[0];
-        meaning = args[1];
-        console.log("✏️  Custom input mode");
-    } else {
-        console.error("Usage:\n  node sameta_video_gen.js                  (random)\n  node sameta_video_gen.js \"సామెత\" \"అర్థం\"  (custom)");
-        process.exit(1);
-    }
-
-    console.log("\n═══════════════════════════════════════");
-    console.log("  SAMETA VIDEO GENERATOR");
-    console.log("═══════════════════════════════════════");
-    console.log(`  Sameta : ${sameta}`);
-    console.log(`  Meaning: ${meaning}`);
-    console.log("═══════════════════════════════════════\n");
-
-    const ts        = Date.now();
-    const imagePath = path.resolve(__dirname, `sameta_image.png`);
-    const videoPath = path.resolve(__dirname, `sameta_output_${ts}.mp4`);
-
     (async () => {
+        const args = process.argv.slice(2);
+
+        let sameta, meaning;
+
+        if (args[0] === "--random" || args.length === 0) {
+            // Claude picks a random Sameta from its knowledge of 1000s
+            const pick = await pickRandomSameta();
+            sameta  = pick.sameta;
+            meaning = pick.meaning;
+        } else if (args.length >= 2) {
+            sameta  = args[0];
+            meaning = args[1];
+            console.log("✏️  Custom input mode");
+        } else {
+            console.error("Usage:\n  node sameta_video_gen.js                  (random)\n  node sameta_video_gen.js \"సామెత\" \"అర్థం\"  (custom)");
+            process.exit(1);
+        }
+
+        console.log("\n═══════════════════════════════════════");
+        console.log("  SAMETA VIDEO GENERATOR");
+        console.log("═══════════════════════════════════════");
+        console.log(`  Sameta : ${sameta}`);
+        console.log(`  Meaning: ${meaning}`);
+        console.log("═══════════════════════════════════════\n");
+
+        const ts        = Date.now();
+        const imagePath = path.resolve(__dirname, `sameta_image.png`);
+        const videoPath = path.resolve(__dirname, `sameta_output_${ts}.mp4`);
+
         try {
             // Reuse existing image if present (saves API tokens on re-runs)
             if (fs.existsSync(imagePath)) {
