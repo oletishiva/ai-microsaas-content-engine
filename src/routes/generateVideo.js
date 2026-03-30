@@ -235,8 +235,18 @@ router.post("/generate-video", upload.array("images", 10), async (req, res) => {
                     || "Motivation";
                 // Keep to 8 words max and strip trailing ellipsis/punctuation
                 const punchyTitle = rawSource.split(/\s+/).slice(0, 8).join(" ").replace(/[.!?,]+$/, "").trim() || "Motivation";
-                const ytTitle = customYouTubeTitle || customTitle || `${punchyTitle} #quotes #motivation #quoteoftheday #deepquotes #shorts #foryou`;
-                const ytDesc = `${punchyTitle}\n\n#quotes #motivation #quoteoftheday #deepquotes #lifelessons #shorts #foryou #viral`;
+                // Title = clean quote sentence (no hashtags — hashtags in title look spammy)
+                const ytTitle = customYouTubeTitle || customTitle || punchyTitle;
+                // Description: hashtags FIRST so they appear as subtitle in YouTube search results
+                const ytDesc = [
+                    `#motivation #quotes #shorts #motivationalquotes #quoteoftheday`,
+                    "",
+                    quote || script || punchyTitle,
+                    "",
+                    "Follow for daily wisdom 🔔",
+                    "",
+                    `#dailymotivation #selfimprovement #success #mindset #growthmindset #positivevibes #foryou #viral #deepquotes #lifelessons`,
+                ].join("\n");
                 let thumbnailPath = null;
                 if (imagePaths.length > 0 && hook) {
                     thumbnailPath = path.join(OUTPUT_DIR, `thumb_${timestamp}.jpg`);

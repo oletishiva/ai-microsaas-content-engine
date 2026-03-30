@@ -147,14 +147,16 @@ async function runScheduledJob({ label, topic }) {
             const quoteFirstSentence = (quote || "").split(/[.!?]/)[0]?.trim() || "";
             const rawTitle = (title || quoteFirstSentence || hook || topic).replace(/[#@]/g, "").trim();
             const ytTitle = rawTitle.length > 70 ? rawTitle.slice(0, 67).trimEnd() + "..." : rawTitle;
-            // Description: script + CTA + hashtags (top 3 auto-shown above title by YouTube)
+            // Description: hashtags FIRST (shown as subtitle under title in search results),
+            // then the quote/script, then CTA. YouTube shows the first ~100 chars in search.
             const ytDesc = [
-                script,
+                `#motivation #quotes #${slug} #shorts #motivationalquotes`,
                 "",
-                "Follow for daily motivation 🔔",
+                quote || script,
                 "",
-                `#quotes #motivation #${slug} #shorts #motivationalquotes #growthmindset`,
-                `#dailymotivation #selfimprovement #success #mindset #positivevibes #foryou #viral`,
+                "Follow for daily wisdom 🔔",
+                "",
+                `#dailymotivation #selfimprovement #success #mindset #growthmindset #positivevibes #foryou #viral`,
             ].join("\n");
             try {
                 const youtubeUrl = await uploadToYouTube(videoPath, ytTitle, ytDesc, {
