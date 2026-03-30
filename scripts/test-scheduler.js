@@ -40,13 +40,13 @@ async function testSchedulerJob() {
     console.log(`  Title  : "${title}"`);
     console.log(`  Script : ${script.slice(0, 70)}...`);
 
-    // 2. Pick up to 4 images
-    console.log("\nStep 2/7 — Picking images from /images/...");
+    // 2. Pick 1 random image (matches scheduler behaviour)
+    console.log("\nStep 2/7 — Picking 1 random image from /images/...");
     const files = fs.readdirSync(IMAGES_DIR).filter((f) => /\.(jpg|jpeg|png|webp)$/i.test(f));
     if (files.length === 0) throw new Error("No images in /images/ folder");
-    const shuffled = [...files].sort(() => Math.random() - 0.5);
-    const imagePaths = shuffled.slice(0, Math.min(4, files.length)).map((f) => path.join(IMAGES_DIR, f));
-    console.log(`  Using  : ${imagePaths.map((p) => path.basename(p)).join(", ")}`);
+    const pick = files[Math.floor(Math.random() * files.length)];
+    const imagePaths = [path.join(IMAGES_DIR, pick)];
+    console.log(`  Using  : ${pick}`);
 
     // 3. Auto text color
     console.log("\nStep 3/7 — Detecting image brightness...");
