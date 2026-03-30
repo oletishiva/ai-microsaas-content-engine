@@ -151,6 +151,8 @@ async function uploadToYouTube(
         : buildViralTags(topic, trending);
 
     console.log(`[YouTubeUploader] Uploading: ${path.basename(videoPath)} (${privacyStatus})`);
+    console.log(`[YouTubeUploader] Title: ${title}`);
+    console.log(`[YouTubeUploader] Tags (${tags.length}): ${tags.join(", ")}`);
 
     const auth = getAuthenticatedClient(refreshToken);
     const youtube = google.youtube({ version: "v3", auth });
