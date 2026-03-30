@@ -59,8 +59,17 @@ router.post("/generate-sameta", async (req, res) => {
 
         // Upload to YouTube if requested and credentials available
         let youtubeUrl = null;
-        const sessionToken = req.session?.youtubeRefreshToken;
-        const canUploadToYouTube = pushToYouTube && (apiKeys.hasYouTubeConfig || (apiKeys.hasYouTubeOAuthConfig && sessionToken));
+        const sessionToken = req.session?.youtubeRefreshToken || null;
+
+        if (pushToYouTube) {
+            if (sessionToken) {
+                logger.info("Sameta", "YouTube: using logged-in user's OAuth session token");
+            } else if (apiKeys.hasYouTubeConfig) {
+                logger.warn("Sameta", "YouTube: no session token found (session may have expired after redeploy) — using env YOUTUBE_REFRESH_TOKEN (default/cron channel). Reconnect YouTube in the UI to use your account.");
+            }
+        }
+
+        const canUploadToYouTube = pushToYouTube && (sessionToken || apiKeys.hasYouTubeConfig);
         if (canUploadToYouTube) {
             logger.info("Sameta", "Uploading to YouTube...");
             try {
@@ -96,6 +105,7 @@ router.post("/generate-sameta", async (req, res) => {
             sameta,
             meaning,
             videoUrl: videoUrl || videoPath,
+            usedDefaultChannel: (youtubeUrl && !sessionToken) || undefined,
             youtubeUrl,
         });
     } catch (err) {
