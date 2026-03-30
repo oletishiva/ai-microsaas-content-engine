@@ -211,30 +211,33 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
 </svg>`;
 
     // ── Resize AI image to full canvas, overlay text ─────────────────────────
+    // Flatten to remove alpha channel — prevents FFmpeg from using memory-heavy yuv444p on Railway
     await sharp(imagePath)
         .resize(W, H, { fit: "cover", position: "center" })
+        .flatten({ background: "#FFFFFF" })
         .composite([{ input: Buffer.from(svgOverlay), top: 0, left: 0 }])
-        .png()
-        .toFile(compositePath);
+        .jpeg({ quality: 90 })
+        .toFile(compositePath.replace(/\.png$/, ".jpg"));
 
     // ── FFmpeg: image → 15s video + music + fade ────────────────────────────
     const musicPath = pickMusic();
     console.log(`   Music: ${path.basename(musicPath)}`);
 
+    const jpegCompositePath = compositePath.replace(/\.png$/, ".jpg");
     const DURATION = 15;
     const cmd = [
         "ffmpeg -y",
-        `-loop 1 -i "${compositePath}"`,
+        `-loop 1 -i "${jpegCompositePath}"`,
         `-i "${musicPath}"`,
         `-vf "fade=t=in:st=0:d=1,fade=t=out:st=${DURATION - 1}:d=1"`,
         `-t ${DURATION}`,
-        `-c:v libx264 -preset fast -crf 23`,
+        `-c:v libx264 -preset ultrafast -crf 26 -pix_fmt yuv420p -threads 2`,
         `-c:a aac -b:a 128k -shortest`,
         `"${videoPath}"`,
     ].join(" ");
 
     execSync(cmd, { stdio: "pipe" });
-    try { fs.unlinkSync(compositePath); } catch (_) {}
+    try { fs.unlinkSync(jpegCompositePath); } catch (_) {}
 
     console.log(`✅ Video created: ${videoPath}`);
 }
