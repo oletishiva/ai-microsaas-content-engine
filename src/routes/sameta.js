@@ -26,6 +26,11 @@ const { uploadVideoToCloudinary } = require("../services/cloudinaryUploader");
 const { uploadToYouTube } = require("../services/youtubeUploader");
 const apiKeys = require("../../config/apiKeys");
 
+const TOKEN_FILE = path.join(__dirname, "../../../output/.youtube_user_token");
+function loadTokenFromFile() {
+    try { return fs.readFileSync(TOKEN_FILE, "utf8").trim() || null; } catch (_) { return null; }
+}
+
 /**
  * POST /api/generate-sameta
  */
@@ -59,7 +64,7 @@ router.post("/generate-sameta", async (req, res) => {
 
         // Upload to YouTube if requested and credentials available
         let youtubeUrl = null;
-        const sessionToken = req.session?.youtubeRefreshToken || null;
+        const sessionToken = req.session?.youtubeRefreshToken || loadTokenFromFile() || null;
 
         if (pushToYouTube) {
             if (sessionToken) {

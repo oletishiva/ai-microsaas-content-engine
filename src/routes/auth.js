@@ -7,11 +7,26 @@
 
 const express = require("express");
 const router = express.Router();
+const fs = require("fs");
+const path = require("path");
 const { google } = require("googleapis");
 const {
     YOUTUBE_CLIENT_ID,
     YOUTUBE_CLIENT_SECRET,
 } = require("../../config/apiKeys");
+
+// File-based token fallback — survives process restarts within same Railway deployment
+const TOKEN_FILE = path.join(__dirname, "../../../output/.youtube_user_token");
+
+function saveTokenToFile(token) {
+    try { fs.writeFileSync(TOKEN_FILE, token, "utf8"); } catch (_) {}
+}
+function loadTokenFromFile() {
+    try { return fs.readFileSync(TOKEN_FILE, "utf8").trim() || null; } catch (_) { return null; }
+}
+function clearTokenFile() {
+    try { fs.unlinkSync(TOKEN_FILE); } catch (_) {}
+}
 
 function getBaseUrl(req) {
     // Use request host so it works from any URL (mobile, custom domain, Railway subdomain)
@@ -86,6 +101,7 @@ router.get("/youtube/callback", async (req, res) => {
         }
 
         req.session.youtubeRefreshToken = refreshToken;
+        saveTokenToFile(refreshToken); // persist across process restarts
         req.session.save((err) => {
             if (err) {
                 return res.redirect("/?error=Session+save+failed");
@@ -106,9 +122,13 @@ router.get("/youtube/status", async (req, res) => {
     if (!YOUTUBE_CLIENT_ID || !YOUTUBE_CLIENT_SECRET) {
         return res.json({ connected: false, hasOAuth: false });
     }
-    const token = req.session?.youtubeRefreshToken;
+    const token = req.session?.youtubeRefreshToken || loadTokenFromFile();
     if (!token) {
         return res.json({ connected: false, hasOAuth: true });
+    }
+    // Restore into session if it came from file
+    if (!req.session.youtubeRefreshToken && token) {
+        req.session.youtubeRefreshToken = token;
     }
     try {
         const baseUrl = getBaseUrl(req);
@@ -144,6 +164,7 @@ router.get("/youtube/redirect-uri", (req, res) => {
  */
 router.post("/youtube/disconnect", (req, res) => {
     req.session.youtubeRefreshToken = undefined;
+    clearTokenFile();
     req.session.save((err) => {
         res.json({ success: true });
     });

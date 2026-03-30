@@ -220,7 +220,9 @@ router.post("/generate-video", upload.array("images", 10), async (req, res) => {
         logger.info("Pipeline", "Video generated", { videoPath });
 
         // STEP 6: Upload to YouTube (optional – env token or session token from Connect YouTube + Push Toggle)
-        const sessionToken = req.session?.youtubeRefreshToken;
+        const TOKEN_FILE = path.join(__dirname, "../../../output/.youtube_user_token");
+        const fileToken = (() => { try { return fs.readFileSync(TOKEN_FILE, "utf8").trim() || null; } catch (_) { return null; } })();
+        const sessionToken = req.session?.youtubeRefreshToken || fileToken;
         const canUploadToYouTube = pushToYouTube && (apiKeys.hasYouTubeConfig || (apiKeys.hasYouTubeOAuthConfig && sessionToken));
         let youtubeUrl = null;
         if (canUploadToYouTube) {
