@@ -127,10 +127,14 @@ async function runScheduledJob({ label, topic }) {
         }
 
         // 7. Render video
+        // No subscribe button overlay — YouTube's native button is on the right rail of Shorts.
+        // A second button looks spammy and clutters the video.
+        // Instead append a clean text CTA to the quote itself.
+        const quoteText = (quote || script) + "\n\nFollow for daily wisdom 🔔";
         const outputFilename = `sched_${label.toLowerCase().replace(/\s+/g, "_")}_${ts}.mp4`;
-        videoPath = await generateVideo(imagePaths, audioPath, quote || script, hook, outputFilename, {
+        videoPath = await generateVideo(imagePaths, audioPath, quoteText, hook, outputFilename, {
             highlight,
-            addSubscribeButton: true,
+            addSubscribeButton: false,
             textColor,
         });
         logger.info("Scheduler", `Video rendered: ${outputFilename}`);

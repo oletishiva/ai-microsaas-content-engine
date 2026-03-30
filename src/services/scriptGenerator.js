@@ -40,7 +40,9 @@ async function generateScript(topic, e2eTestMode = false, opts = {}) {
 
     const systemPrompt = `You create viral motivational quotes for short-form videos (YouTube Shorts, Reels, TikTok).
 
-Return FOUR parts in this exact format:
+Return FIVE parts in this exact format:
+
+HOOK: [3–5 words ALL CAPS — the very first thing viewers see. Must stop the scroll instantly. e.g. "YOUR LIFE STARTS NOW", "STOP WASTING YOUR TIME", "THIS CHANGES EVERYTHING", "NOBODY TELLS YOU THIS"]
 
 SCRIPT: [35 words max – full narration for voice]
 
@@ -51,10 +53,11 @@ HIGHLIGHT: [1–2 key phrases from the quote, separated by | – these get yello
 TITLE: [5–8 word punchy phrase for YouTube title, e.g. "Don't let them weigh you down"]
 
 RULES:
+- HOOK must be 3–5 words, ALL CAPS, no punctuation, no ellipsis. Standalone phrase.
 - QUOTE must be emotional, memorable wisdom. NOT advertising.
 - HIGHLIGHT: choose 1–2 powerful phrases that appear in the QUOTE (exact match).
 - TITLE: catchy phrase from the quote, like viral Shorts titles.
-- Output ONLY SCRIPT:, QUOTE:, HIGHLIGHT:, and TITLE: lines.`;
+- Output ONLY HOOK:, SCRIPT:, QUOTE:, HIGHLIGHT:, and TITLE: lines.`;
 
     try {
         // Retry up to 3 times – Railway shared IPs often timeout on first attempt
@@ -88,17 +91,21 @@ RULES:
         const raw = completion.choices[0].message.content.trim();
         if (!raw) throw new Error("OpenAI returned an empty script");
 
+        let hook = "";
         let script = "";
         let quote = "";
         let highlight = [];
         let title = "";
 
-        const scriptMatch = raw.match(/SCRIPT:\s*([\s\S]+?)(?=QUOTE:|HIGHLIGHT:|TITLE:|$)/i);
-        const quoteMatch = raw.match(/QUOTE:\s*([\s\S]+?)(?=HIGHLIGHT:|TITLE:|SCRIPT:|$)/i);
-        const highlightMatch = raw.match(/HIGHLIGHT:\s*([\s\S]+?)(?=TITLE:|SCRIPT:|QUOTE:|$)/i);
-        const titleMatch = raw.match(/TITLE:\s*([\s\S]+?)(?=SCRIPT:|QUOTE:|HIGHLIGHT:|$)/i);
+        const hookMatch    = raw.match(/HOOK:\s*([\s\S]+?)(?=SCRIPT:|QUOTE:|HIGHLIGHT:|TITLE:|$)/i);
+        const scriptMatch  = raw.match(/SCRIPT:\s*([\s\S]+?)(?=HOOK:|QUOTE:|HIGHLIGHT:|TITLE:|$)/i);
+        const quoteMatch   = raw.match(/QUOTE:\s*([\s\S]+?)(?=HOOK:|HIGHLIGHT:|TITLE:|SCRIPT:|$)/i);
+        const highlightMatch = raw.match(/HIGHLIGHT:\s*([\s\S]+?)(?=HOOK:|TITLE:|SCRIPT:|QUOTE:|$)/i);
+        const titleMatch   = raw.match(/TITLE:\s*([\s\S]+?)(?=HOOK:|SCRIPT:|QUOTE:|HIGHLIGHT:|$)/i);
+
+        if (hookMatch)   hook = hookMatch[1].trim().replace(/[.!?,]+$/, "").toUpperCase();
         if (scriptMatch) script = scriptMatch[1].trim();
-        if (quoteMatch) quote = quoteMatch[1].trim();
+        if (quoteMatch)  quote = quoteMatch[1].trim();
         if (highlightMatch) {
             highlight = highlightMatch[1].split(/\|/).map((s) => s.trim()).filter(Boolean);
         }
@@ -124,14 +131,14 @@ RULES:
         if (quoteWords.length > QUOTE_MAX_WORDS) quote = quoteWords.slice(0, QUOTE_MAX_WORDS).join(" ");
         if (quote.length > QUOTE_MAX_CHARS) quote = quote.slice(0, QUOTE_MAX_CHARS).trim();
 
-        const firstSentence = script.split(/[.!?]/)[0]?.trim() || script;
-        const hookWords = firstSentence.split(/\s+/).filter(Boolean);
-        const hook = firstSentence.length > 25
-            ? hookWords.slice(0, 4).join(" ") + (hookWords.length > 4 ? "..." : "")
-            : firstSentence;
+        // Fallback: if OpenAI didn't return a HOOK, derive one from the first sentence (3 words max, no ellipsis)
+        if (!hook) {
+            const firstSentence = script.split(/[.!?]/)[0]?.trim() || script;
+            hook = firstSentence.split(/\s+/).slice(0, 5).join(" ").toUpperCase();
+        }
 
-        logger.info("ScriptGenerator", `Script: ${script.split(/\s+/).length} words, quote: ${quote.split(/\s+/).length} words, highlight: [${highlight.join(", ")}]`);
-        return { script, hook: hook.toUpperCase(), quote, highlight, title };
+        logger.info("ScriptGenerator", `Hook: "${hook}" | Script: ${script.split(/\s+/).length} words | Quote: ${quote.split(/\s+/).length} words`);
+        return { script, hook, quote, highlight, title };
     } catch (err) {
         const msg = err.response?.data?.error?.message || err.message;
         logger.error("ScriptGenerator", "OpenAI API error", err);
