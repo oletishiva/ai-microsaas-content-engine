@@ -172,7 +172,9 @@ async function generateImage(prompt, imagePath) {
 async function createVideo(imagePath, sameta, meaning, videoPath) {
     console.log("🔄 Step 3/3 — Compositing layout + rendering video...");
 
-    const FONT = "Noto Sans Telugu, Noto Sans, sans-serif";
+    const FONT_NAME = "NotoSansTelugu";
+    const FONT_PATH = path.resolve(__dirname, "fonts", "NotoSansTelugu.ttf");
+    const fontBase64 = fs.readFileSync(FONT_PATH).toString("base64");
     const compositePath = imagePath.replace(/\.png$/, "_composite.png");
 
     // ── Text overlay on the AI image (which already has cream top + scene bottom) ──
@@ -188,10 +190,20 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
 
     const svgOverlay = `
 <svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @font-face {
+        font-family: '${FONT_NAME}';
+        src: url('data:font/truetype;base64,${fontBase64}');
+        font-weight: 100 900;
+      }
+    </style>
+  </defs>
+
   <!-- "సామెత" label -->
   <text x="${W / 2}" y="${labelY}"
-    font-family="${FONT}" font-size="42" fill="${MAROON}"
-    text-anchor="middle" font-weight="bold" letter-spacing="4">${escapeXml("సామెత")}</text>
+    font-family="${FONT_NAME}" font-size="42" fill="${MAROON}"
+    text-anchor="middle" font-weight="700" letter-spacing="4">${escapeXml("సామెత")}</text>
 
   <!-- Decorative line -->
   <line x1="${W/2 - 120}" y1="${lineY}" x2="${W/2 + 120}" y2="${lineY}"
@@ -200,14 +212,14 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
   <!-- Sameta text (large, dark maroon) -->
   ${sametaLines.map((line, i) => `
   <text x="${W / 2}" y="${sametaY + i * sametaLH}"
-    font-family="${FONT}" font-size="62" fill="${MAROON}"
-    text-anchor="middle" font-weight="bold">${escapeXml(line)}</text>`).join("")}
+    font-family="${FONT_NAME}" font-size="62" fill="${MAROON}"
+    text-anchor="middle" font-weight="700">${escapeXml(line)}</text>`).join("")}
 
   <!-- Meaning text (dark gray, larger + bold) -->
   ${meaningLines.map((line, i) => `
   <text x="${W / 2}" y="${meaningStartY + i * meaningLH}"
-    font-family="${FONT}" font-size="46" fill="${DARK_GRAY}"
-    text-anchor="middle" font-weight="bold">${escapeXml(line)}</text>`).join("")}
+    font-family="${FONT_NAME}" font-size="46" fill="${DARK_GRAY}"
+    text-anchor="middle" font-weight="700">${escapeXml(line)}</text>`).join("")}
 </svg>`;
 
     // ── Resize AI image to full canvas, overlay text ─────────────────────────
