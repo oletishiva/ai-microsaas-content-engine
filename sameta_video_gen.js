@@ -174,7 +174,7 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
 
     const FONT_NAME = "NotoSansTelugu";
     const FONT_PATH = path.resolve(__dirname, "fonts", "NotoSansTelugu.ttf");
-    const fontBase64 = fs.readFileSync(FONT_PATH).toString("base64");
+    const fontUrl = `file://${FONT_PATH.replace(/\\/g, "/")}`;
     const compositePath = imagePath.replace(/\.png$/, "_composite.png");
 
     // ── Text overlay on the AI image (which already has cream top + scene bottom) ──
@@ -194,7 +194,7 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     <style>
       @font-face {
         font-family: '${FONT_NAME}';
-        src: url('data:font/truetype;base64,${fontBase64}');
+        src: url('${fontUrl}');
         font-weight: 100 900;
       }
     </style>
