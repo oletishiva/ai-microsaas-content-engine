@@ -117,6 +117,28 @@ app.get("/health", (req, res) => {
     res.json({ status: "ok" });
 });
 
+// Download proxy — fetches video from Cloudinary server-side and serves it with
+// Content-Disposition: attachment so iOS/Android browsers save instead of play.
+// Usage: GET /api/download?url=<encoded-cloudinary-url>&filename=video.mp4
+app.get("/api/download", async (req, res) => {
+    const axios = require("axios");
+    const { url, filename = "sameta_video.mp4" } = req.query;
+    if (!url || !url.startsWith("https://res.cloudinary.com/")) {
+        return res.status(400).json({ error: "Invalid url" });
+    }
+    try {
+        const upstream = await axios.get(url, { responseType: "stream" });
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.setHeader("Content-Type", upstream.headers["content-type"] || "video/mp4");
+        if (upstream.headers["content-length"]) {
+            res.setHeader("Content-Length", upstream.headers["content-length"]);
+        }
+        upstream.data.pipe(res);
+    } catch (err) {
+        res.status(500).json({ error: "Download failed: " + err.message });
+    }
+});
+
 // Debug: check for hidden chars in ELEVENLABS_API_KEY (10=newline, 13=cr, 32=space). Remove after fixing.
 app.get("/debug-eleven", (req, res) => {
     const key = process.env.ELEVENLABS_API_KEY || "";
