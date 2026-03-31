@@ -706,6 +706,16 @@
         }
     });
 
+    // Force download on Cloudinary URLs by inserting fl_attachment transformation.
+    // Without this, browsers play the video inline instead of saving it.
+    function toDownloadUrl(url) {
+      if (!url) return url;
+      if (url.includes('res.cloudinary.com') && !url.includes('fl_attachment')) {
+        return url.replace('/upload/', '/upload/fl_attachment/');
+      }
+      return url;
+    }
+
     async function checkYoutubeAuth() {
       try {
         const res = await fetch('/auth/youtube/status');
@@ -843,7 +853,7 @@
         }
         
         if (data.videoUrl) {
-          outputActions.push(`<a href="${data.videoUrl}" class="btn-link" target="_blank">Download Video</a>`);
+          outputActions.push(`<a href="${toDownloadUrl(data.videoUrl)}" class="btn-link" download target="_blank">⬇️ Download Video</a>`);
         } else if (data.videoPath) {
           html += `<p style="font-family:monospace; font-size:13px; color:var(--muted); margin-bottom: 1rem;">Saved to server: ${data.videoPath}</p>`;
         }
@@ -942,7 +952,7 @@
         result.innerHTML = `
           <div style="color:#e8c97a; font-weight:700; margin-bottom:0.5rem;">✅ Video Ready!</div>
           <div style="color:var(--muted); font-size:0.85rem; margin-bottom:1rem;">${data.sameta}</div>
-          <a href="${data.videoUrl}" target="_blank" style="display:inline-block; padding:0.7rem 1.5rem; background:linear-gradient(135deg,#8B4513,#CD853F); color:white; text-decoration:none; border-radius:8px; font-weight:700;">⬇️ Download Video</a>${ytBtn}${sessionWarn}`;
+          <a href="${toDownloadUrl(data.videoUrl)}" download target="_blank" style="display:inline-block; padding:0.7rem 1.5rem; background:linear-gradient(135deg,#8B4513,#CD853F); color:white; text-decoration:none; border-radius:8px; font-weight:700;">⬇️ Download Video</a>${ytBtn}${sessionWarn}`;
       } catch (err) {
         result.style.cssText = 'display:block; background:var(--error-bg); border:1px solid rgba(239,68,68,0.3); border-radius:10px; padding:1rem; text-align:center; margin-top:1.25rem;';
         result.innerHTML = `<div style="color:var(--error);">❌ ${err.message}</div>`;
