@@ -161,7 +161,7 @@ async function generateImage(prompt, imagePath) {
         prompt,
         n:       1,
         size:    "1024x1792",  // native 9:16 portrait — no crop needed
-        quality: "hd",
+        quality: "standard",  // faster (~10s vs 45s for hd); quality fine for short video
     });
     await downloadFile(response.data[0].url, imagePath);
     console.log(`✅ Image downloaded: ${path.basename(imagePath)}`);
