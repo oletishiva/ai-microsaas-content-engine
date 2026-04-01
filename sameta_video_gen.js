@@ -107,14 +107,15 @@ async function pickRandomSameta() {
     console.log("🎲 Asking Claude to pick a random Telugu Sameta...");
     const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
     const response = await client.messages.create({
-        model: "claude-sonnet-4-5",
-        max_tokens: 200,
+        model: "claude-sonnet-4-6",
+        max_tokens: 300,
         system: `You are an expert in Telugu literature and proverbs (సామెతలు).
 Return a random Telugu Sameta and its meaning as JSON only.
 Format: {"sameta": "Telugu proverb here", "meaning": "Telugu meaning here"}
-- Pick a genuinely random one each time — avoid repeating common ones
+- Pick a genuinely random, interesting one each time — avoid repeating overly common ones
+- Prefer lesser-known gems, regional wisdom, and vivid imagery proverbs
 - Both sameta and meaning must be in Telugu script
-- Meaning should be 1-2 sentences explaining the proverb's lesson`,
+- Meaning should be 2-3 concise sentences: explain the literal scene, then the life lesson`,
         messages: [{ role: "user", content: "Give me one random Telugu Sameta with its meaning in Telugu." }],
     });
     const raw = response.content[0].text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
@@ -128,27 +129,36 @@ async function generateImagePrompt(sameta, meaning) {
     console.log("🔄 Step 1/3 — Claude generating image prompt...");
     const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
     const response = await client.messages.create({
-        model: "claude-sonnet-4-5",
-        max_tokens: 400,
-        system: `You are an expert at creating DALL-E 3 prompts for Telugu proverb short videos.
+        model: "claude-sonnet-4-6",
+        max_tokens: 500,
+        system: `You are a master DALL-E 3 prompt engineer specializing in Telugu cultural watercolor art.
 
 Create a SINGLE unified portrait image (9:16) — absolutely NOT two panels, NOT split side by side, NOT divided vertically.
 
-The image is ONE continuous scene structured top-to-bottom like this:
-- The very top of the image is a clean, empty aged cream/parchment paper texture with subtle grain — NO characters, NO objects, NO illustrations in this top area. Just smooth warm cream background that gently transitions downward.
-- Moving down, the cream paper texture gradually gives way to a richly detailed watercolor illustration scene that depicts the proverb's meaning. The scene emerges naturally from the cream background, as if painted on the lower portion of a single parchment sheet.
-- The watercolor scene: traditional Telugu village setting, warm earthy tones (ochre, sienna, raw umber, sage green), soft dramatic lighting, aged storybook art style. Rich detail in characters and environment.
-- The transition from cream to scene should be soft and organic — a natural watercolor wash blend, NOT a hard line, NOT a border, NOT a frame.
+The image is ONE continuous scene top-to-bottom:
 
-CRITICAL: One single image. No panels. No borders. No dividing lines. No text anywhere.
-Return only the image prompt, nothing else.`,
+TOP 45% — Pristine aged parchment / cream paper texture. Completely empty — NO figures, NO objects, NO illustrations here. Just warm creamy paper (#FFF8F0) with very subtle natural grain and a faint aged-paper vignette at the edges. This space is reserved for text overlays.
+
+BOTTOM 55% — An exquisitely detailed traditional Telugu watercolor illustration that vividly depicts the literal scene described in the proverb. Follow these art style rules exactly:
+- Style: authentic hand-painted South Indian watercolor, reminiscent of Raja Ravi Varma meets folk art
+- Characters: traditional Andhra Pradesh villagers in authentic period clothing — men in dhotis/angavastrams, women in Pochampally sarees with jasmine in hair
+- Setting: rich Telugu village environment — red-tiled thatched homes, neem/mango/banyan trees, paddy fields with water buffaloes, stone wells, earthen pots, oil lamps
+- Lighting: warm golden hour sunlight, rich ochre/sienna/umber/sage tones, soft dramatic shadows
+- Mood: emotionally resonant, story-illustrating, cinematic composition
+- Detail level: highly detailed, museum-quality watercolor technique, visible brushstrokes, color bleeding at edges
+- The scene must directly illustrate the proverb's story or moral — not abstract, but a specific narrative moment
+
+TRANSITION: The cream paper area flows organically into the watercolor scene via a soft watercolor wash — no hard line, no border, no frame. The scene bleeds upward naturally like paint on wet paper.
+
+CRITICAL: One single continuous image. No text. No borders. No panels. No split.
+Return only the DALL-E 3 image prompt, nothing else.`,
         messages: [{
             role: "user",
-            content: `Telugu proverb: "${sameta}"\nMeaning: "${meaning}"\nCreate the DALL-E 3 prompt for a single unified portrait image.`,
+            content: `Telugu proverb: "${sameta}"\nMeaning: "${meaning}"\n\nCreate a vivid, culturally authentic DALL-E 3 prompt for this proverb's scene.`,
         }],
     });
     const prompt = response.content[0].text.trim();
-    console.log(`✅ Claude prompt: "${prompt.slice(0, 80)}..."`);
+    console.log(`✅ Claude prompt: "${prompt.slice(0, 100)}..."`);
     return prompt;
 }
 
@@ -161,7 +171,7 @@ async function generateImage(prompt, imagePath) {
         prompt,
         n:       1,
         size:    "1024x1792",  // native 9:16 portrait — no crop needed
-        quality: "standard",  // faster (~10s vs 45s for hd); quality fine for short video
+        quality: "hd",        // higher detail, richer watercolor; ~40s but worth it for cultural art
     });
     await downloadFile(response.data[0].url, imagePath);
     console.log(`✅ Image downloaded: ${path.basename(imagePath)}`);
@@ -203,16 +213,35 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
 
     // Gradient cream overlay — fully opaque at top, fades to transparent at bottom
     // so the scene blends naturally instead of showing a hard edge (two-image look)
-    const FADE_START = Math.floor(CREAM_H * 0.72); // solid until 72% of cream area
+    const FADE_START = Math.floor(CREAM_H * 0.70); // solid until 70% of cream area
     const gradientSvg = `<svg width="${W}" height="${CREAM_H}" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stop-color="#FFF8F0" stop-opacity="1"/>
-          <stop offset="${Math.round(FADE_START / CREAM_H * 100)}%" stop-color="#FFF8F0" stop-opacity="1"/>
-          <stop offset="100%" stop-color="#FFF8F0" stop-opacity="0"/>
+          <stop offset="0%"   stop-color="#FEF5E4" stop-opacity="1"/>
+          <stop offset="${Math.round(FADE_START / CREAM_H * 100)}%" stop-color="#FEF5E4" stop-opacity="1"/>
+          <stop offset="100%" stop-color="#FEF5E4" stop-opacity="0"/>
         </linearGradient>
+        <!-- Subtle paper grain via feTurbulence -->
+        <filter id="grain" x="0%" y="0%" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" result="noise"/>
+          <feColorMatrix type="saturate" values="0" in="noise" result="grayNoise"/>
+          <feBlend in="SourceGraphic" in2="grayNoise" mode="multiply" result="blended"/>
+          <feComposite in="blended" in2="SourceGraphic" operator="in"/>
+        </filter>
       </defs>
+      <!-- Base cream gradient -->
       <rect width="${W}" height="${CREAM_H}" fill="url(#cg)"/>
+      <!-- Grain texture layer — very subtle, opacity 0.12 -->
+      <rect width="${W}" height="${CREAM_H}" fill="url(#cg)" filter="url(#grain)" opacity="0.12"/>
+      <!-- Subtle warm vignette at edges for aged-paper feel -->
+      <rect width="${W}" height="${CREAM_H}" fill="none"
+            stroke="#C8A882" stroke-width="0" opacity="0"/>
+      <!-- Edge darkening — very faint -->
+      <radialGradient id="vgn" cx="50%" cy="30%" r="70%">
+        <stop offset="0%"   stop-color="#FEF5E4" stop-opacity="0"/>
+        <stop offset="100%" stop-color="#C8A060" stop-opacity="0.08"/>
+      </radialGradient>
+      <rect width="${W}" height="${CREAM_H}" fill="url(#vgn)"/>
     </svg>`;
     const creamBuf = await sharp(Buffer.from(gradientSvg)).png().toBuffer();
     composites.push({ input: creamBuf, top: 0, left: 0 });
