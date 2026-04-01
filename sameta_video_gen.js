@@ -290,12 +290,13 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     const DURATION = 15;
     const cmd = [
         "ffmpeg -y",
-        `-loop 1 -i "${jpegCompositePath}"`,
+        `-loop 1 -framerate 30 -i "${jpegCompositePath}"`,
         `-i "${musicPath}"`,
-        `-vf "fade=t=in:st=0:d=1,fade=t=out:st=${DURATION - 1}:d=1"`,
+        `-vf "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,fade=t=in:st=0:d=1,fade=t=out:st=${DURATION - 1}:d=1"`,
         `-t ${DURATION}`,
-        `-c:v libx264 -preset ultrafast -crf 26 -pix_fmt yuv420p -threads 2`,
-        `-c:a aac -b:a 128k -shortest`,
+        `-c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -r 30 -threads 2`,
+        `-c:a aac -b:a 128k -ar 44100 -shortest`,
+        `-movflags +faststart`,
         `"${videoPath}"`,
     ].join(" ");
 
