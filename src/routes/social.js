@@ -69,7 +69,7 @@ router.get("/meta/debug", (req, res) => {
     const appId = process.env.META_APP_ID;
     const hasSecret = !!process.env.META_APP_SECRET;
     const redirectUri = `${getBaseUrl(req)}/auth/meta/callback`;
-    const scopes = "instagram_content_publish,instagram_basic,pages_manage_posts,pages_read_engagement,pages_show_list,business_management";
+    const scopes = "instagram_content_publish,instagram_basic,pages_manage_posts,pages_read_engagement,pages_show_list";
     const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&response_type=code`;
     res.json({ appId, appIdLength: appId?.length, hasSecret, redirectUri, authUrl });
 });
@@ -91,7 +91,6 @@ router.get("/meta", (req, res) => {
         "pages_manage_posts",
         "pages_read_engagement",
         "pages_show_list",
-        "business_management",
     ].join(",");
 
     const authUrl = `https://www.facebook.com/v21.0/dialog/oauth` +
