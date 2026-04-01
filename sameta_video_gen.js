@@ -174,9 +174,10 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     const FONT_PATH = path.resolve(__dirname, "fonts", "NotoSansTelugu.ttf");
     const jpegCompositePath = imagePath.replace(/\.png$/, "_composite.jpg");
 
-    // Top 38% = solid cream text area, bottom 62% = scene image
-    const CREAM_H = Math.floor(H * 0.45); // 864px @ 1920
-    const TEXT_W  = W - 120;              // 960px usable text width with padding
+    // Push text down so YouTube/Instagram top UI chrome doesn't cover the title
+    const TOP_OFFSET = Math.floor(H * 0.05); // 5% = 96px @ 1920
+    const CREAM_H    = Math.floor(H * 0.50); // 50% = 960px — extended to fit shifted text
+    const TEXT_W     = W - 120;              // 960px usable text width with padding
 
     // ── Resize + flatten base image ───────────────────────────────────────────
     const baseBuffer = await sharp(imagePath)
@@ -217,7 +218,7 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     composites.push({ input: creamBuf, top: 0, left: 0 });
 
     // ── H1: "సామెత" — large, bold, centered maroon title ────────────────────
-    const label = await pangoText("సామెత", 58, MAROON, "bold", 45);
+    const label = await pangoText("సామెత", 58, MAROON, "bold", 45 + TOP_OFFSET);
     composites.push(label);
     let y = label.top + label._h + 18;
 
