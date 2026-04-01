@@ -718,6 +718,35 @@
       return url;
     }
 
+    // Save video to Camera Roll (iOS) via Web Share API, or blob download on desktop.
+    async function saveVideo(videoUrl, filename, btnEl) {
+      const origText = btnEl ? btnEl.textContent : '';
+      if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Saving…'; }
+      try {
+        const proxyUrl = toDownloadUrl(videoUrl, filename);
+        const res = await fetch(proxyUrl);
+        if (!res.ok) throw new Error('Download failed (' + res.status + ')');
+        const blob = await res.blob();
+        const file = new File([blob], filename, { type: 'video/mp4' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          // iOS/Android: shows native share sheet → "Save to Camera Roll"
+          await navigator.share({ files: [file], title: filename });
+        } else {
+          // Desktop: trigger blob download
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        }
+      } catch (e) {
+        if (e.name !== 'AbortError') alert('Save failed: ' + e.message);
+      } finally {
+        if (btnEl) { btnEl.disabled = false; btnEl.textContent = origText; }
+      }
+    }
+
     async function checkYoutubeAuth() {
       try {
         const res = await fetch('/auth/youtube/status');
@@ -855,7 +884,7 @@
         }
         
         if (data.videoUrl) {
-          outputActions.push(`<a href="${toDownloadUrl(data.videoUrl, 'video.mp4')}" class="btn-link" download="video.mp4">⬇️ Download Video</a>`);
+          outputActions.push(`<button class="btn-link" onclick="saveVideo('${data.videoUrl}', 'video.mp4', this)" style="cursor:pointer;">⬇️ Save to Photos / Download</button>`);
         } else if (data.videoPath) {
           html += `<p style="font-family:monospace; font-size:13px; color:var(--muted); margin-bottom: 1rem;">Saved to server: ${data.videoPath}</p>`;
         }
@@ -954,7 +983,7 @@
         result.innerHTML = `
           <div style="color:#e8c97a; font-weight:700; margin-bottom:0.5rem;">✅ Video Ready!</div>
           <div style="color:var(--muted); font-size:0.85rem; margin-bottom:1rem;">${data.sameta}</div>
-          <a href="${toDownloadUrl(data.videoUrl, 'sameta_video.mp4')}" download="sameta_video.mp4" style="display:inline-block; padding:0.7rem 1.5rem; background:linear-gradient(135deg,#8B4513,#CD853F); color:white; text-decoration:none; border-radius:8px; font-weight:700;">⬇️ Download Video</a>${ytBtn}${sessionWarn}`;
+          <button onclick="saveVideo('${data.videoUrl}', 'sameta_video.mp4', this)" style="display:inline-block; padding:0.7rem 1.5rem; background:linear-gradient(135deg,#8B4513,#CD853F); color:white; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:1rem;">⬇️ Save to Photos / Download</button>${ytBtn}${sessionWarn}`;
       } catch (err) {
         result.style.cssText = 'display:block; background:var(--error-bg); border:1px solid rgba(239,68,68,0.3); border-radius:10px; padding:1rem; text-align:center; margin-top:1.25rem;';
         result.innerHTML = `<div style="color:var(--error);">❌ ${err.message}</div>`;
