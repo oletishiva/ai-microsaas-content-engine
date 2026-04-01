@@ -115,7 +115,7 @@ Format: {"sameta": "Telugu proverb here", "meaning": "Telugu meaning here"}
 - Pick a genuinely random, interesting one each time — avoid repeating overly common ones
 - Prefer lesser-known gems, regional wisdom, and vivid imagery proverbs
 - Both sameta and meaning must be in Telugu script
-- Meaning should be 2-3 concise sentences: explain the literal scene, then the life lesson`,
+- Meaning must be MAX 15 words in Telugu — one short punchy sentence only. No long explanations.`,
         messages: [{ role: "user", content: "Give me one random Telugu Sameta with its meaning in Telugu." }],
     });
     const raw = response.content[0].text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
@@ -186,7 +186,7 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
 
     // Push text down so YouTube/Instagram top UI chrome doesn't cover the title
     const TOP_OFFSET = Math.floor(H * 0.05); // 5% = 96px @ 1920
-    const CREAM_H    = Math.floor(H * 0.50); // 50% = 960px — extended to fit shifted text
+    const CREAM_H    = Math.floor(H * 0.60); // 60% = 1152px — enough for all text layers
     const TEXT_W     = W - 120;              // 960px usable text width with padding
 
     // ── Resize + flatten base image ───────────────────────────────────────────
@@ -268,11 +268,12 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     y += 22;
 
     // ── H3: Meaning — medium, regular, dark gray, centered ───────────────────
-    const meaningLines = wrapText(meaning, 24);
-    for (let i = 0; i < meaningLines.length; i++) {
-        // Prefix first line with "భావం: " to match reference style
-        const line = i === 0 ? `భావం: ${meaningLines[i]}` : meaningLines[i];
-        const el = await pangoText(line, 33, "#444444", "normal", y);
+    // Truncate to max 2 lines (keeps text inside cream area, competitor style)
+    const meaningTruncated = meaning.length > 80 ? meaning.slice(0, 78) + "..." : meaning;
+    const meaningLines = wrapText(`భావం: ${meaningTruncated}`, 22);
+    const maxLines = 3; // never overflow cream area
+    for (let i = 0; i < Math.min(meaningLines.length, maxLines); i++) {
+        const el = await pangoText(meaningLines[i], 34, "#2C1810", "normal", y);
         composites.push(el);
         y += el._h + 5;
     }
