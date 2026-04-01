@@ -118,4 +118,9 @@ module.exports = {
     !!process.env.CLOUDINARY_CLOUD_NAME &&
     !!process.env.CLOUDINARY_API_KEY &&
     !!process.env.CLOUDINARY_API_SECRET,
+
+  // Meta (Instagram + Facebook) — one App ID/Secret covers both platforms
+  META_APP_ID:     process.env.META_APP_ID,
+  META_APP_SECRET: process.env.META_APP_SECRET,
+  hasMetaConfig:   !!process.env.META_APP_ID && !!process.env.META_APP_SECRET,
 };

@@ -45,6 +45,7 @@ try {
 const generateVideoRouter = require("./routes/generateVideo");
 const authRouter          = require("./routes/auth");
 const sametaRouter        = require("./routes/sameta");
+const socialRouter        = require("./routes/social");
 const { startScheduler }  = require("./services/scheduler");
 
 // ── 3. Create Express app ─────────────────────────────────────────────────
@@ -223,8 +224,12 @@ app.get("/test-openai", async (req, res) => {
     }
 });
 
-// Auth routes (Connect YouTube)
+// Auth routes (Connect YouTube + Meta/Instagram/Facebook)
 app.use("/auth", authRouter);
+
+// Social OAuth + unified /api/publish endpoint
+app.use("/auth", socialRouter);
+app.use("/api",  socialRouter);
 
 // Main pipeline route
 app.use("/api", generateVideoRouter);
