@@ -101,6 +101,16 @@ app.get("/", (req, res) => {
     }
 });
 
+// Setup page – channel manager (password-protected via ADMIN_SECRET)
+app.get("/setup", (_, res) => {
+    res.sendFile(path.join(publicDir, "setup.html"));
+});
+
+// Mahabharat generator page
+app.get("/mahabharat", (_, res) => {
+    res.sendFile(path.join(publicDir, "mahabharat.html"));
+});
+
 // API info (for devs / debugging)
 app.get("/api", (req, res) => {
     const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
