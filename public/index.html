@@ -834,7 +834,7 @@ async function generateSameta() {
   if (customVisible && sametaMeaning) payload.meaning = sametaMeaning;
 
   try {
-    const r = await fetch('/api/generate-sameta-video', {
+    const r = await fetch('/api/generate-sameta', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
