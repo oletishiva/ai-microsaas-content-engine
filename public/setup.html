@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Channel Setup — AI Content Engine</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0D0D0F;
+      color: #F0EDE8;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .card {
+      background: #141418;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 560px;
+    }
+    h1 { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .subtitle { font-size: 0.85rem; color: #6B6870; margin-bottom: 2rem; }
+
+    /* ── Login form ── */
+    #loginSection label { font-size: 0.8rem; color: #9896A0; display: block; margin-bottom: 0.4rem; }
+    #loginSection input {
+      width: 100%;
+      padding: 0.65rem 0.9rem;
+      background: #1C1C22;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #F0EDE8;
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+      outline: none;
+    }
+    #loginSection input:focus { border-color: #C9A84C; }
+    .err { color: #EF4444; font-size: 0.82rem; margin-bottom: 0.75rem; display: none; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.2s;
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-gold  { background: #C9A84C; color: #0D0D0F; }
+    .btn-red   { background: rgba(239,68,68,0.15); color: #EF4444; border: 1px solid rgba(239,68,68,0.3); }
+    .btn-ghost { background: rgba(255,255,255,0.06); color: #F0EDE8; border: 1px solid rgba(255,255,255,0.1); }
+    .btn-full  { width: 100%; justify-content: center; }
+    .btn-sm    { padding: 0.4rem 0.9rem; font-size: 0.78rem; }
+
+    /* ── Channel cards ── */
+    #mainSection { display: none; }
+    .channel-card {
+      background: #1C1C22;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .channel-card:last-child { margin-bottom: 0; }
+    .ch-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; }
+    .ch-name { font-weight: 700; font-size: 1rem; }
+    .ch-var  { font-size: 0.72rem; color: #6B6870; margin-top: 0.1rem; }
+    .badge {
+      padding: 0.25rem 0.65rem;
+      border-radius: 99px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .badge-ok  { background: rgba(62,207,142,0.15); color: #3ECF8E; }
+    .badge-off { background: rgba(255,255,255,0.06); color: #6B6870; }
+    .ch-body   { font-size: 0.82rem; color: #9896A0; margin-bottom: 1rem; }
+    .ch-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+    /* ── Token reveal box ── */
+    .token-box {
+      display: none;
+      margin-top: 1rem;
+      background: #0D0D0F;
+      border: 1px solid rgba(201,168,76,0.35);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+    .token-box .token-label { font-size: 0.75rem; color: #C9A84C; font-weight: 600; margin-bottom: 0.5rem; }
+    .token-box .token-val {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.72rem;
+      color: #F0EDE8;
+      word-break: break-all;
+      background: #141418;
+      border-radius: 6px;
+      padding: 0.6rem 0.8rem;
+      margin-bottom: 0.75rem;
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+    .token-box .instructions {
+      font-size: 0.78rem;
+      color: #9896A0;
+      line-height: 1.55;
+    }
+    .token-box .instructions b { color: #F0EDE8; }
+    .token-box .copy-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+
+    .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 1.5rem 0; }
+    .note { font-size: 0.78rem; color: #6B6870; line-height: 1.5; }
+    .note a { color: #C9A84C; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1>⚙️ Channel Setup</h1>
+  <p class="subtitle">Connect YouTube channels and get refresh tokens for Railway Variables</p>
+
+  <!-- Login -->
+  <div id="loginSection">
+    <label for="secretInput">Admin Secret (ADMIN_SECRET from Railway Variables)</label>
+    <input type="password" id="secretInput" placeholder="Enter your ADMIN_SECRET" autocomplete="current-password">
+    <p class="err" id="loginErr">Incorrect secret. Check ADMIN_SECRET in Railway Variables.</p>
+    <button class="btn btn-gold btn-full" onclick="login()">Unlock Setup</button>
+  </div>
+
+  <!-- Main (shown after login) -->
+  <div id="mainSection">
+
+    <!-- Sameta Channel -->
+    <div class="channel-card" id="card-sameta">
+      <div class="ch-header">
+        <div>
+          <div class="ch-name">🎬 Sameta Channel</div>
+          <div class="ch-var">Railway Variable: <code>YOUTUBE_REFRESH_TOKEN</code></div>
+        </div>
+        <span class="badge badge-off" id="badge-sameta">Not connected</span>
+      </div>
+      <div class="ch-body" id="info-sameta">Connect the YouTube channel where Sameta videos are posted.</div>
+      <div class="ch-actions">
+        <button class="btn btn-gold btn-sm" id="btn-connect-sameta" onclick="connectChannel('sameta')">▶ Connect / Reconnect</button>
+        <button class="btn btn-red btn-sm" id="btn-disconnect-sameta" style="display:none" onclick="disconnectChannel('sameta')">✕ Disconnect</button>
+      </div>
+      <div class="token-box" id="token-sameta">
+        <div class="token-label">📋 Refresh Token — copy this into Railway Variables</div>
+        <div class="token-val" id="tokenval-sameta"></div>
+        <div class="instructions">
+          1. Go to <b>Railway → Your Project → Variables</b><br>
+          2. Set <b>YOUTUBE_REFRESH_TOKEN</b> = the value above<br>
+          3. Redeploy (or it'll auto-pick it up on next start)<br>
+          <small>The token is also saved to file for immediate use without restarting.</small>
+        </div>
+        <div class="copy-row">
+          <button class="btn btn-ghost btn-sm" onclick="copyToken('sameta')">📋 Copy Token</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mahabharat Channel -->
+    <div class="channel-card" id="card-mahabharat">
+      <div class="ch-header">
+        <div>
+          <div class="ch-name">⚔️ Mahabharat Channel</div>
+          <div class="ch-var">Railway Variable: <code>MAHABHARAT_YOUTUBE_REFRESH_TOKEN</code></div>
+        </div>
+        <span class="badge badge-off" id="badge-mahabharat">Not connected</span>
+      </div>
+      <div class="ch-body" id="info-mahabharat">Connect a separate YouTube channel for Mahabharat Shorts. If not set, falls back to Sameta channel.</div>
+      <div class="ch-actions">
+        <button class="btn btn-gold btn-sm" id="btn-connect-mahabharat" onclick="connectChannel('mahabharat')">▶ Connect / Reconnect</button>
+        <button class="btn btn-red btn-sm" id="btn-disconnect-mahabharat" style="display:none" onclick="disconnectChannel('mahabharat')">✕ Disconnect</button>
+      </div>
+      <div class="token-box" id="token-mahabharat">
+        <div class="token-label">📋 Refresh Token — copy this into Railway Variables</div>
+        <div class="token-val" id="tokenval-mahabharat"></div>
+        <div class="instructions">
+          1. Go to <b>Railway → Your Project → Variables</b><br>
+          2. Set <b>MAHABHARAT_YOUTUBE_REFRESH_TOKEN</b> = the value above<br>
+          3. Redeploy (or it'll auto-pick it up on next start)<br>
+          <small>The token is also saved to file for immediate use without restarting.</small>
+        </div>
+        <div class="copy-row">
+          <button class="btn btn-ghost btn-sm" onclick="copyToken('mahabharat')">📋 Copy Token</button>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+    <p class="note">
+      Tokens are stored in Railway's filesystem (<code>output/</code>) and auto-loaded on startup.
+      They survive process restarts but are wiped on <b>redeploy</b> — that's why you should also save to Railway Variables.<br><br>
+      Need to revoke access? Visit <a href="https://myaccount.google.com/permissions" target="_blank">myaccount.google.com/permissions</a> then reconnect here.
+    </p>
+  </div>
+</div>
+
+<script>
+  let adminSecret = "";
+
+  // ── Check for ?connected= param (redirect back from OAuth) ────────────────
+  window.addEventListener("DOMContentLoaded", () => {
+    const params    = new URLSearchParams(location.search);
+    const connected = params.get("connected");
+    const token     = params.get("token");
+    const error     = params.get("error");
+    const saved     = sessionStorage.getItem("setup_secret");
+
+    if (saved) {
+      adminSecret = saved;
+      document.getElementById("loginSection").style.display = "none";
+      document.getElementById("mainSection").style.display  = "block";
+      loadStatuses().then(() => {
+        if (connected && token) showToken(connected, token);
+        if (error) alert("OAuth error: " + decodeURIComponent(error));
+      });
+    }
+  });
+
+  // ── Login ─────────────────────────────────────────────────────────────────
+  async function login() {
+    const secret = document.getElementById("secretInput").value.trim();
+    if (!secret) return;
+    const r = await fetch(`/auth/setup/check?secret=${encodeURIComponent(secret)}`);
+    const d = await r.json();
+    if (!d.ok) {
+      document.getElementById("loginErr").style.display = "block";
+      return;
+    }
+    adminSecret = secret;
+    sessionStorage.setItem("setup_secret", secret);
+    document.getElementById("loginErr").style.display  = "none";
+    document.getElementById("loginSection").style.display = "none";
+    document.getElementById("mainSection").style.display  = "block";
+    await loadStatuses();
+    // Show pre-existing tokens if any returned
+    if (d.sametaToken) showToken("sameta", d.sametaToken);
+    if (d.mbToken)     showToken("mahabharat", d.mbToken);
+  }
+
+  // Handle Enter key in password field
+  document.getElementById("secretInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") login();
+  });
+
+  // ── Load channel statuses ─────────────────────────────────────────────────
+  async function loadStatuses() {
+    await Promise.all([checkChannel("sameta"), checkChannel("mahabharat")]);
+  }
+
+  async function checkChannel(channel) {
+    try {
+      const r = await fetch(`/auth/youtube/status?channel=${channel}`);
+      const d = await r.json();
+      const badge = document.getElementById(`badge-${channel}`);
+      const info  = document.getElementById(`info-${channel}`);
+      const btnDc = document.getElementById(`btn-disconnect-${channel}`);
+      if (d.connected) {
+        badge.className      = "badge badge-ok";
+        badge.textContent    = "✓ " + d.channelTitle;
+        info.textContent     = `Connected as: ${d.channelTitle}`;
+        btnDc.style.display  = "inline-flex";
+      } else {
+        badge.className      = "badge badge-off";
+        badge.textContent    = "Not connected";
+        btnDc.style.display  = "none";
+      }
+    } catch (_) {}
+  }
+
+  // ── Connect ───────────────────────────────────────────────────────────────
+  function connectChannel(channel) {
+    // Save secret to sessionStorage so we can restore UI after redirect
+    sessionStorage.setItem("setup_secret", adminSecret);
+    // Redirect to OAuth — callback will redirect to /setup?connected=channel&token=...
+    location.href = `/auth/youtube?channel=${channel}`;
+  }
+
+  // ── Disconnect ────────────────────────────────────────────────────────────
+  async function disconnectChannel(channel) {
+    if (!confirm(`Disconnect ${channel} channel?`)) return;
+    await fetch(`/auth/youtube/disconnect?channel=${channel}`, { method: "POST" });
+    document.getElementById(`token-${channel}`).style.display = "none";
+    await checkChannel(channel);
+  }
+
+  // ── Show token ────────────────────────────────────────────────────────────
+  function showToken(channel, token) {
+    const box = document.getElementById(`token-${channel}`);
+    document.getElementById(`tokenval-${channel}`).textContent = token;
+    box.style.display = "block";
+    box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  // ── Copy token ────────────────────────────────────────────────────────────
+  async function copyToken(channel) {
+    const val = document.getElementById(`tokenval-${channel}`).textContent;
+    try {
+      await navigator.clipboard.writeText(val);
+      const btn = event.target;
+      btn.textContent = "✅ Copied!";
+      setTimeout(() => { btn.textContent = "📋 Copy Token"; }, 2000);
+    } catch (_) {
+      prompt("Copy this token:", val);
+    }
+  }
+</script>
+</body>
+</html>

@@ -16,16 +16,30 @@ const {
 } = require("../../config/apiKeys");
 
 // File-based token fallback — survives process restarts within same Railway deployment
-const TOKEN_FILE = path.join(__dirname, "../../../output/.youtube_user_token");
+const TOKEN_FILE         = path.join(__dirname, "../../../output/.youtube_user_token");
+const TOKEN_FILE_SAMETA  = path.join(__dirname, "../../../output/.youtube_sameta_token");
+const TOKEN_FILE_MB      = path.join(__dirname, "../../../output/.youtube_mahabharat_token");
 
-function saveTokenToFile(token) {
-    try { fs.writeFileSync(TOKEN_FILE, token, "utf8"); } catch (_) {}
+function tokenFileFor(channel) {
+    if (channel === "sameta")      return TOKEN_FILE_SAMETA;
+    if (channel === "mahabharat")  return TOKEN_FILE_MB;
+    return TOKEN_FILE; // default / legacy
 }
-function loadTokenFromFile() {
-    try { return fs.readFileSync(TOKEN_FILE, "utf8").trim() || null; } catch (_) { return null; }
+function saveTokenToFile(token, channel) {
+    try { fs.writeFileSync(tokenFileFor(channel), token, "utf8"); } catch (_) {}
+    // Also keep legacy file in sync for default channel
+    if (!channel || channel === "sameta") {
+        try { fs.writeFileSync(TOKEN_FILE, token, "utf8"); } catch (_) {}
+    }
 }
-function clearTokenFile() {
-    try { fs.unlinkSync(TOKEN_FILE); } catch (_) {}
+function loadTokenFromFile(channel) {
+    try { return fs.readFileSync(tokenFileFor(channel), "utf8").trim() || null; } catch (_) { return null; }
+}
+function clearTokenFile(channel) {
+    try { fs.unlinkSync(tokenFileFor(channel)); } catch (_) {}
+    if (!channel || channel === "sameta") {
+        try { fs.unlinkSync(TOKEN_FILE); } catch (_) {}
+    }
 }
 
 function getBaseUrl(req) {
@@ -51,14 +65,16 @@ function getOAuthClient(redirectUri) {
 }
 
 /**
- * GET /auth/youtube
+ * GET /auth/youtube?channel=sameta|mahabharat
  * Redirects to Google OAuth consent. User picks their channel.
+ * channel param is stored in state so callback knows where to redirect.
  */
 router.get("/youtube", (req, res) => {
     if (!YOUTUBE_CLIENT_ID || !YOUTUBE_CLIENT_SECRET) {
         return res.redirect("/?error=YouTube+credentials+not+configured");
     }
-    const baseUrl = getBaseUrl(req);
+    const channel  = req.query.channel || "default";
+    const baseUrl  = getBaseUrl(req);
     const redirectUri = `${baseUrl}/auth/youtube/callback`;
     const oauth2Client = getOAuthClient(redirectUri);
     const authUrl = oauth2Client.generateAuthUrl({
@@ -67,19 +83,23 @@ router.get("/youtube", (req, res) => {
             "https://www.googleapis.com/auth/youtube.upload",
             "https://www.googleapis.com/auth/youtube.readonly",
         ],
-        prompt: "select_account consent",
+        prompt:  "select_account consent",
+        state:   channel,   // passed back in callback so we know which channel
     });
     res.redirect(authUrl);
 });
 
 /**
  * GET /auth/youtube/callback
- * Receives code from Google, exchanges for tokens, stores refresh_token in session.
+ * Receives code from Google, exchanges for tokens, stores refresh_token.
+ * If channel=sameta|mahabharat (from state param), stores per-channel + redirects to /setup.
+ * Otherwise (default Connect button from main UI), stores in session + redirects to /.
  */
 router.get("/youtube/callback", async (req, res) => {
-    const { code, error } = req.query;
+    const { code, error, state: channel } = req.query;
     if (error) {
-        return res.redirect(`/?error=${encodeURIComponent(error)}`);
+        const back = channel && channel !== "default" ? "/setup" : "/";
+        return res.redirect(`${back}?error=${encodeURIComponent(error)}`);
     }
     if (!code) {
         return res.redirect("/?error=No+code+received");
@@ -97,53 +117,63 @@ router.get("/youtube/callback", async (req, res) => {
         const refreshToken = tokens.refresh_token;
 
         if (!refreshToken) {
-            return res.redirect("/?error=No+refresh+token+%E2%80%93+try+revoking+access+at+myaccount.google.com%2Fpermissions");
+            const back = channel && channel !== "default" ? "/setup" : "/";
+            return res.redirect(`${back}?error=No+refresh+token+%E2%80%93+revoke+access+at+myaccount.google.com%2Fpermissions+and+retry`);
         }
 
+        // Per-channel flow (from /setup page) — store token + redirect back to setup with token shown
+        if (channel && channel !== "default") {
+            saveTokenToFile(refreshToken, channel);
+            if (channel === "mahabharat") req.session.mbRefreshToken = refreshToken;
+            else req.session.youtubeRefreshToken = refreshToken;
+            return req.session.save(() => {
+                res.redirect(`/setup?connected=${encodeURIComponent(channel)}&token=${encodeURIComponent(refreshToken)}`);
+            });
+        }
+
+        // Default flow (main UI Connect button)
         req.session.youtubeRefreshToken = refreshToken;
-        saveTokenToFile(refreshToken); // persist across process restarts
+        saveTokenToFile(refreshToken);
         req.session.save((err) => {
-            if (err) {
-                return res.redirect("/?error=Session+save+failed");
-            }
+            if (err) return res.redirect("/?error=Session+save+failed");
             res.redirect("/?youtube=connected");
         });
     } catch (err) {
         console.error("[Auth] YouTube callback error:", err.message);
-        res.redirect(`/?error=${encodeURIComponent(err.message)}`);
+        const back = channel && channel !== "default" ? "/setup" : "/";
+        res.redirect(`${back}?error=${encodeURIComponent(err.message)}`);
     }
 });
 
 /**
- * GET /auth/youtube/status
+ * GET /auth/youtube/status?channel=sameta|mahabharat
  * Returns { connected: boolean, channelTitle?: string }
  */
 router.get("/youtube/status", async (req, res) => {
     if (!YOUTUBE_CLIENT_ID || !YOUTUBE_CLIENT_SECRET) {
         return res.json({ connected: false, hasOAuth: false });
     }
-    const token = req.session?.youtubeRefreshToken || loadTokenFromFile();
+    const channel = req.query.channel || "default";
+    const sessionKey = channel === "mahabharat" ? "mbRefreshToken" : "youtubeRefreshToken";
+
+    // Prefer env var for mahabharat channel (set via Railway Variables)
+    const envToken = channel === "mahabharat" ? process.env.MAHABHARAT_YOUTUBE_REFRESH_TOKEN : null;
+    const token = envToken || req.session?.[sessionKey] || loadTokenFromFile(channel);
     if (!token) {
         return res.json({ connected: false, hasOAuth: true });
     }
-    // Restore into session if it came from file
-    if (!req.session.youtubeRefreshToken && token) {
-        req.session.youtubeRefreshToken = token;
-    }
+    if (!req.session[sessionKey] && token) req.session[sessionKey] = token;
     try {
         const baseUrl = getBaseUrl(req);
         const redirectUri = `${baseUrl}/auth/youtube/callback`;
         const oauth2Client = getOAuthClient(redirectUri);
         oauth2Client.setCredentials({ refresh_token: token });
         const youtube = google.youtube({ version: "v3", auth: oauth2Client });
-        const channels = await youtube.channels.list({
-            part: "snippet",
-            mine: true,
-        });
+        const channels = await youtube.channels.list({ part: "snippet", mine: true });
         const channelTitle = channels.data.items?.[0]?.snippet?.title || "Your channel";
         res.json({ connected: true, channelTitle, hasOAuth: true });
     } catch (err) {
-        req.session.youtubeRefreshToken = undefined;
+        req.session[sessionKey] = undefined;
         res.json({ connected: false, hasOAuth: true });
     }
 });
@@ -159,14 +189,31 @@ router.get("/youtube/redirect-uri", (req, res) => {
 });
 
 /**
- * POST /auth/youtube/disconnect
- * Clears stored refresh token from session.
+ * POST /auth/youtube/disconnect?channel=sameta|mahabharat
+ * Clears stored refresh token from session + file.
  */
 router.post("/youtube/disconnect", (req, res) => {
-    req.session.youtubeRefreshToken = undefined;
-    clearTokenFile();
-    req.session.save((err) => {
-        res.json({ success: true });
+    const channel    = req.query.channel || req.body?.channel || "default";
+    const sessionKey = channel === "mahabharat" ? "mbRefreshToken" : "youtubeRefreshToken";
+    req.session[sessionKey] = undefined;
+    clearTokenFile(channel);
+    req.session.save(() => res.json({ success: true }));
+});
+
+/**
+ * GET /auth/setup/check
+ * Validates ADMIN_SECRET and returns stored token env-var names for the setup page.
+ */
+router.get("/setup/check", (req, res) => {
+    const secret = req.query.secret || "";
+    const adminSecret = process.env.ADMIN_SECRET || "";
+    if (!adminSecret || secret !== adminSecret) {
+        return res.status(401).json({ ok: false, error: "Invalid secret" });
+    }
+    res.json({
+        ok: true,
+        sametaToken:  loadTokenFromFile("sameta")  || process.env.YOUTUBE_REFRESH_TOKEN            || null,
+        mbToken:      loadTokenFromFile("mahabharat") || process.env.MAHABHARAT_YOUTUBE_REFRESH_TOKEN || null,
     });
 });
 
