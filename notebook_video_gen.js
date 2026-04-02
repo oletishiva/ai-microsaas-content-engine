@@ -117,9 +117,12 @@ async function compositeFrame(quote, channelName) {
     // Helper: render Caveat text
     async function caveatText(text, sizePt, color, maxW, align = "centre") {
         const w      = maxW || W - 160;
-        const markup = `<span font_family="Caveat" font_size="${sizePt}pt" font_weight="bold" foreground="${color}">${escapeXml(text)}</span>`;
+        // Use `font` property (Pango font description) + fontfile together.
+        // Avoid font_family in Pango markup — fontconfig doesn't reliably pick
+        // up the registered fontfile when the family is specified inside markup.
+        const markup = `<span font_size="${sizePt}pt" foreground="${color}">${escapeXml(text)}</span>`;
         const buf    = await sharp({
-            text: { text: markup, fontfile: FONT_PATH, width: w, rgba: true, dpi: 96, align },
+            text: { text: markup, font: "Caveat Bold", fontfile: FONT_PATH, width: w, rgba: true, dpi: 96, align },
         }).png().toBuffer();
         const { width: rw, height: rh } = await sharp(buf).metadata();
         return { buf, w: rw || w, h: rh || 0 };
@@ -186,9 +189,6 @@ async function generateNotebookVideo({ quote, channelName = "Motivational quotes
 
     // FFmpeg: static image → 30s video + music
     const musicPath = pickMusic();
-    const audioArgs = musicPath
-        ? `-i "${musicPath}" -c:a aac -b:a 128k -ar 44100 -ac 2 -shortest`
-        : `-f lavfi -i anullsrc=r=44100:cl=stereo -c:a aac -b:a 128k -ar 44100 -ac 2`;
 
     const cmd = [
         "ffmpeg -y",
