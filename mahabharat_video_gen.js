@@ -183,63 +183,67 @@ async function compositeVideo(imagePath, script, epNumber, videoPath) {
         return { buf, w: rw || w, h: rh || 0 };
     }
 
-    // Dark rounded pill behind text — keeps text readable on any image
-    async function pillBuf(pillW, pillH) {
+    // Dark rounded pill — opacity 0.92 so text is always readable
+    async function pillBuf(pillW, pillH, borderColor) {
+        const border = borderColor
+            ? `<rect x="1" y="1" width="${pillW - 2}" height="${pillH - 2}" rx="21" fill="none" stroke="${borderColor}" stroke-width="1.5"/>`
+            : "";
         const svg = `<svg width="${pillW}" height="${pillH}" xmlns="http://www.w3.org/2000/svg">
-          <rect width="${pillW}" height="${pillH}" rx="22" fill="#0D0D0F" fill-opacity="0.82"/>
+          <rect width="${pillW}" height="${pillH}" rx="22" fill="#0D0D0F" fill-opacity="0.92"/>
+          ${border}
         </svg>`;
         return sharp(Buffer.from(svg)).png().toBuffer();
     }
 
-    // Build pill + text composites, vertically anchored at anchorY (center of pill)
-    async function textPill(text, sizePt, color, weight, anchorY) {
-        const padX = 52, padY = 24;
-        const { buf, w: tw, h: th } = await renderText(text, sizePt, color, weight);
-        const pW    = Math.min(tw + padX * 2, W - 60);
+    // Text pill anchored at topY (top edge of pill, not center)
+    async function textPill(text, sizePt, color, weight, topY, borderColor) {
+        const padX = 52, padY = 26;
+        const { buf, h: th } = await renderText(text, sizePt, color, weight);
+        const pW    = W - 60;
         const pH    = th + padY * 2;
         const pLeft = Math.floor((W - pW) / 2);
-        const pTop  = Math.max(10, anchorY - Math.floor(pH / 2));
         return {
-            items:  [
-                { input: await pillBuf(pW, pH), top: pTop, left: pLeft },
-                { input: buf, top: pTop + padY, left: pLeft + padX },
+            items: [
+                { input: await pillBuf(pW, pH, borderColor), top: topY, left: pLeft },
+                { input: buf, top: topY + padY, left: pLeft + padX },
             ],
-            bottom: pTop + pH,
+            bottom: topY + pH,
         };
     }
 
-    // Small gold-bordered label pill (e.g. "📖 కథ")
-    async function labelPill(text, anchorY) {
-        const padX = 32, padY = 14;
-        const { buf, w: tw, h: th } = await renderText(text, 22, GOLD, "bold", W - 140);
-        const pW    = Math.min(tw + padX * 2, W - 100);
+    // Gold-bordered label pill — plain text, no emoji (emoji breaks NotoSansTelugu)
+    async function labelPill(text, topY) {
+        const padX = 36, padY = 16;
+        const { buf, h: th } = await renderText(text, 24, GOLD, "bold");
+        const pW    = W - 100;
         const pH    = th + padY * 2;
         const pLeft = Math.floor((W - pW) / 2);
-        const pTop  = Math.max(10, anchorY - Math.floor(pH / 2));
         const svg   = `<svg width="${pW}" height="${pH}" xmlns="http://www.w3.org/2000/svg">
-          <rect width="${pW}" height="${pH}" rx="14" fill="#0D0D0F" fill-opacity="0.88"/>
-          <rect x="1" y="1" width="${pW - 2}" height="${pH - 2}" rx="13" fill="none" stroke="#C9A84C" stroke-width="1.5"/>
+          <rect width="${pW}" height="${pH}" rx="16" fill="#0D0D0F" fill-opacity="0.92"/>
+          <rect x="1" y="1" width="${pW - 2}" height="${pH - 2}" rx="15" fill="none" stroke="#C9A84C" stroke-width="1.5"/>
         </svg>`;
         return {
-            items:  [
-                { input: await sharp(Buffer.from(svg)).png().toBuffer(), top: pTop, left: pLeft },
-                { input: buf, top: pTop + padY, left: pLeft + padX },
+            items: [
+                { input: await sharp(Buffer.from(svg)).png().toBuffer(), top: topY, left: pLeft },
+                { input: buf, top: topY + padY, left: pLeft + padX },
             ],
-            bottom: pTop + pH,
+            bottom: topY + pH,
         };
     }
 
-    // Trim to N words for screen readability
-    function trim(text, maxWords) {
-        const words = (text || "").split(/\s+/);
-        return words.length <= maxWords ? text : words.slice(0, maxWords).join(" ") + "...";
+    // First complete sentence (ends with . ! ? ।) — more meaningful than word count
+    function firstSentence(text, maxWords = 28) {
+        const match = (text || "").match(/^.+?[.!?।]/);
+        const sentence = match ? match[0] : text || "";
+        const words = sentence.split(/\s+/);
+        return words.length <= maxWords ? sentence : words.slice(0, maxWords).join(" ") + "...";
     }
 
     // ── Persistent elements (appear on every frame) ───────────────────────────
 
     // EP pill badge — top-left
     const epSvg = `<svg width="112" height="42" xmlns="http://www.w3.org/2000/svg">
-      <rect width="112" height="42" rx="10" fill="#0D0D0F" fill-opacity="0.85"/>
+      <rect width="112" height="42" rx="10" fill="#0D0D0F" fill-opacity="0.88"/>
       <rect x="1" y="1" width="110" height="40" rx="9" fill="none" stroke="#C9A84C" stroke-width="1.5"/>
     </svg>`;
     const { buf: epTxtBuf } = await renderText(`EP ${String(epNumber).padStart(2, "0")}`, 20, GOLD, "bold", 100);
@@ -248,21 +252,37 @@ async function compositeVideo(imagePath, script, epNumber, videoPath) {
         { input: epTxtBuf, top: 47, left: 47 },
     ];
 
-    // Character · Category — small centered text just below EP badge area
+    // Character · Category — small centered line, always visible
     const { buf: charBuf } = await renderText(
-        `${script.character}  ·  ${script.category}`, 20, "#CCCCCC", "normal"
+        `${script.character}  -  ${script.category}`, 20, "#CCCCCC", "normal"
     );
     const CHAR_LINE = [{ input: charBuf, top: 96, left: Math.floor((W - (W - 100)) / 2) }];
 
     // ── Text content ──────────────────────────────────────────────────────────
     const hookText   = script.hook  || "";
-    const storyText  = trim(script.story  || "", 22);
-    const lessonText = trim(script.lesson || "", 18);
+    const storyText  = firstSentence(script.story  || "", 28);
+    const lessonText = firstSentence(script.lesson || "", 22);
     const ctaText    = script.cta   || "";
 
-    // Anchor text pills at Y=1480 (lower-center, comfortable reading area)
-    const TEXT_Y      = 1480;
-    const LABEL_Y     = TEXT_Y - 110;
+    // ── Frame layout ──────────────────────────────────────────────────────────
+    // Hook  → text at BOTTOM  (Y: 1440) — scroll-stopper
+    // Story → label + text at TOP (Y: 200) — reader's eye starts top-left naturally
+    // Lesson→ label + text at TOP (Y: 200) — same pattern, different content
+    // CTA   → text at BOTTOM  (Y: 1500) — final action
+
+    // Frame 1: Hook at bottom
+    const hook1 = await textPill(hookText, 46, WHITE, "bold", 1440, null);
+
+    // Frame 2: Story — label "కథ" at top, story text just below
+    const storyLabel = await labelPill("కథ", 200);
+    const story2     = await textPill(storyText, 36, WHITE, "normal", storyLabel.bottom + 20);
+
+    // Frame 3: Lesson — label "నేటి పాఠం" at top, lesson in gold just below
+    const lessonLabel = await labelPill("నేటి పాఠం", 200);
+    const lesson2     = await textPill(lessonText, 36, GOLD, "bold", lessonLabel.bottom + 20, GOLD);
+
+    // Frame 4: CTA at bottom
+    const cta1 = await textPill(ctaText, 38, WHITE, "bold", 1500, null);
 
     // ── Build each frame ──────────────────────────────────────────────────────
     async function buildFrame(items) {
@@ -272,18 +292,11 @@ async function compositeVideo(imagePath, script, epNumber, videoPath) {
             .toBuffer();
     }
 
-    const hook1   = await textPill(hookText,   46, WHITE, "bold",   TEXT_Y);
-    const story1  = await labelPill("📖 కథ",                        LABEL_Y);
-    const story2  = await textPill(storyText,  36, WHITE, "normal", TEXT_Y + 20);
-    const lesson1 = await labelPill("💡 నేటి పాఠం",                 LABEL_Y);
-    const lesson2 = await textPill(lessonText, 36, GOLD,  "bold",   TEXT_Y + 20);
-    const cta1    = await textPill(ctaText,    38, WHITE, "bold",   TEXT_Y);
-
     const FRAMES = [
-        { buf: await buildFrame(hook1.items),                              dur: 5  },
-        { buf: await buildFrame([...story1.items,  ...story2.items]),      dur: 10 },
-        { buf: await buildFrame([...lesson1.items, ...lesson2.items]),     dur: 10 },
-        { buf: await buildFrame(cta1.items),                               dur: 5  },
+        { buf: await buildFrame(hook1.items),                                    dur: 5  },
+        { buf: await buildFrame([...storyLabel.items,  ...story2.items]),        dur: 10 },
+        { buf: await buildFrame([...lessonLabel.items, ...lesson2.items]),       dur: 10 },
+        { buf: await buildFrame(cta1.items),                                     dur: 5  },
     ];
 
     // Write temp JPEG files
