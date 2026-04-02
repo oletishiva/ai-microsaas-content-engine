@@ -71,12 +71,13 @@ async function ensureBackground() {
     console.log("🎨 Generating notebook background (one-time setup)...");
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    const prompt = `A beautiful clean aesthetic photo for a motivational quotes social media channel.
-A open cream/ivory notebook or journal lying flat, slightly angled, on soft white cotton bedsheets.
-Warm natural window light from the side. Minimalist, cozy, aesthetic.
+    const prompt = `A beautiful clean aesthetic flat-lay photo for a motivational quotes social media channel.
+An open cream/ivory notebook or journal lying flat on a light wooden desk or marble table surface.
+Soft warm natural light from the side. Minimalist, cozy, aesthetic.
 The notebook pages are blank and cream-colored — ready for text.
-Portrait orientation 9:16. Photorealistic, soft bokeh background, warm tones.
-No text, no people, no hands. Clean and simple.`;
+Maybe a small cup of coffee or a dried flower beside it for warmth.
+Portrait orientation 9:16. Photorealistic, soft bokeh background, warm neutral tones.
+No text, no people, no hands, no bed, no sheets. Clean desk flat-lay style.`;
 
     const response = await openai.images.generate({
         model:   "dall-e-3",
