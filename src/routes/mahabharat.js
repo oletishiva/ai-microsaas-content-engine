@@ -225,4 +225,19 @@ function downloadToFile(url, dest) {
     });
 }
 
+// ── POST /api/trigger-mahabharat-cron ────────────────────────────────────────
+// Manually fires the scheduled job — same as the 10 AM / 6 PM cron.
+// Protected by ADMIN_SECRET query param.
+router.post("/trigger-mahabharat-cron", async (req, res) => {
+    const secret = req.query.secret || req.body?.secret || "";
+    const adminSecret = process.env.ADMIN_SECRET || "";
+    if (!adminSecret || secret !== adminSecret) {
+        return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+    res.json({ success: true, message: "Mahabharat cron job triggered — check Railway logs for progress." });
+    // Run after responding so the HTTP request doesn't time out
+    const { runMahabharatJob } = require("../services/mahabharatScheduler");
+    runMahabharatJob().catch(err => logger.error("Mahabharat", "Manual trigger failed:", err.message));
+});
+
 module.exports = router;
