@@ -168,9 +168,9 @@ function startMahabharatScheduler() {
     // 10:00 AM IST and 6:00 PM IST
     // node-cron with timezone:Asia/Kolkata handles DST automatically
     const TZ = "Asia/Kolkata";
-    cron.schedule("0 10  * * *", runMahabharatJob, { timezone: TZ });
-    cron.schedule("15 15 * * *", runMahabharatJob, { timezone: TZ });
-    logger.info("MahabharatCron", `Scheduled: 10:00 AM IST + 3:15 PM IST (${TZ}) [TEMP — revert to 6 PM after test]`);
+    cron.schedule("0 10 * * *", runMahabharatJob, { timezone: TZ });
+    cron.schedule("0 18 * * *", runMahabharatJob, { timezone: TZ });
+    logger.info("MahabharatCron", `Scheduled: 10:00 AM IST + 6:00 PM IST (${TZ})`);
 }
 
 module.exports = { startMahabharatScheduler, runMahabharatJob };

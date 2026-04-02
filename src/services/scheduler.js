@@ -26,14 +26,8 @@ const { generateNotebookVideo } = require("../../notebook_video_gen");
 const SCHEDULES = [
     // ── Core 6 — UTC times hit USA + UK + Germany + India simultaneously ──
     { label: "Motivation",      topic: "daily morning motivation",            cron: "0 6  * * *", enabled: true  },
-    { label: "Affirmation",     topic: "positive daily affirmation",          cron: "0 12 * * *", enabled: true  },
     { label: "Success Mindset", topic: "success mindset winning habits",      cron: "0 15 * * *", enabled: true  },
-    { label: "Productivity",    topic: "productivity focus deep work",        cron: "0 18 * * *", enabled: true  },
     { label: "Life Reflection", topic: "life lessons wisdom reflection",      cron: "0 21 * * *", enabled: true  },
-    { label: "Night Calm",      topic: "night calm mindfulness peace",        cron: "0 23 * * *", enabled: true  },
-    // ── Bonus (needs YouTube quota increase) ──────────────────────────────
-    { label: "Evening Wisdom",  topic: "evening wisdom inner peace gratitude",cron: "0 22 * * *", enabled: false },
-    { label: "Gratitude Sleep", topic: "gratitude sleep bedtime affirmation", cron: "0 10 * * *", enabled: false },
 ];
 
 
