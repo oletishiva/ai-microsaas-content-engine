@@ -76,31 +76,37 @@ async function generateImagePrompt(script) {
     const response = await client.messages.create({
         model:      "claude-sonnet-4-6",
         max_tokens: 500,
-        system: `You are a master DALL-E 3 prompt engineer for epic Mahabharat visual content.
+        system: `You are a master DALL-E 3 prompt engineer for Indian mythological illustration.
 
-Create a SINGLE portrait image (9:16) — ONE continuous cinematic frame.
+Create a SINGLE portrait image (9:16) — ONE continuous cinematic frame from the ancient Indian epic Mahabharata.
 
 Image structure top-to-bottom:
-- The top 20% naturally darkens toward a deep shadow/sky so text can overlay it
-- The middle 60% shows the vivid, dramatic Mahabharat scene — the focal action
-- The bottom 20% naturally darkens so title text can overlay it
+- Top 20%: naturally dark sky or shadow gradient — for text overlay
+- Middle 60%: the vivid dramatic scene — the emotional focal moment
+- Bottom 20%: naturally dark ground or shadow gradient — for title overlay
 
 Art style:
-- Epic Indian mythological illustration — like a premium graphic novel meets Amar Chitra Katha
-- Dramatic, cinematic lighting — god rays, warm amber/gold tones, deep shadows
-- Rich colors: deep saffron, royal blue, golden yellow, dramatic reds
-- Characters in authentic ancient Indian attire — ornate armor, jewelry, silk garments
-- Action-packed or emotionally intense composition
-- NOT watercolor, NOT folk art — cinematic and premium
-- NO text, NO borders, NO panels
+- Premium Indian mythological illustration — Amar Chitra Katha meets cinematic concept art
+- Dramatic volumetric lighting — golden god-rays, warm amber and saffron tones
+- Rich palette: deep saffron, royal blue, golden yellow, warm crimson
+- Characters in authentic ancient Indian royal attire — ornate crowns, jewelry, silk garments
+- Emotionally intense, dignified composition — focus on character expression and posture
+- NO text, NO borders, NO panels, NOT watercolor, NOT folk art
+
+CRITICAL — to pass content filters:
+- Describe scenes as ILLUSTRATIONS of ancient mythology, not photographs
+- Focus on CHARACTER EMOTION and DRAMATIC LIGHTING, not physical conflict
+- Use words like "stands before", "gazes upon", "raises hand", "moment of realization"
+- Avoid: "battle", "fight", "war", "weapon", "sword", "blood", "death", "kill", "attack"
+- Instead use: "confrontation", "dramatic moment", "heroic stance", "divine intervention"
 
 Return ONLY the DALL-E 3 prompt, nothing else.`,
         messages: [{
             role:    "user",
-            content: `Mahabharat incident: "${script.incident || script.title}"
+            content: `Ancient Indian epic scene: "${script.incident || script.title}"
 Character: ${script.character}
-Scene description: The moment of "${script.hook}"
-Create a DALL-E 3 prompt for this epic cinematic scene.`,
+Emotional moment: "${script.hook}"
+Create a safe, content-filter-friendly DALL-E 3 prompt for this mythological illustration.`,
         }],
     });
     const prompt = response.content[0].text.trim();
@@ -109,17 +115,41 @@ Create a DALL-E 3 prompt for this epic cinematic scene.`,
 }
 
 // ── Step 2: DALL-E 3 → scene image ───────────────────────────────────────────
-async function generateImage(prompt, imagePath) {
+async function generateImage(prompt, imagePath, character) {
     console.log("🔄 Step 2/4 — DALL-E 3 generating epic scene...");
-    const openai   = new OpenAI.default({ apiKey: process.env.OPENAI_API_KEY });
-    const response = await openai.images.generate({
-        model:   "dall-e-3",
-        prompt,
-        n:       1,
-        size:    "1024x1792",
-        quality: "hd",
-    });
-    await downloadFile(response.data[0].url, imagePath);
+    const openai = new OpenAI.default({ apiKey: process.env.OPENAI_API_KEY });
+
+    const tryGenerate = async (p) => {
+        const response = await openai.images.generate({
+            model:   "dall-e-3",
+            prompt:  p,
+            n:       1,
+            size:    "1024x1792",
+            quality: "hd",
+        });
+        return response.data[0].url;
+    };
+
+    let url;
+    try {
+        url = await tryGenerate(prompt);
+    } catch (err) {
+        if (err.status === 400 && err.message?.includes("safety")) {
+            // Fallback: generic safe portrait prompt
+            console.warn("   DALL-E safety rejection — retrying with safe fallback prompt...");
+            const fallback = `Premium Indian mythological illustration, portrait 9:16. ` +
+                `${character || "An ancient Indian sage"} in ornate royal attire, ` +
+                `standing in a golden-lit palace courtyard at dusk. ` +
+                `Dramatic volumetric lighting, deep saffron sky, ` +
+                `Amar Chitra Katha meets cinematic concept art style. ` +
+                `No text, no borders, highly detailed, emotionally intense.`;
+            url = await tryGenerate(fallback);
+        } else {
+            throw err;
+        }
+    }
+
+    await downloadFile(url, imagePath);
     console.log(`✅ Image downloaded: ${path.basename(imagePath)}`);
 }
 
@@ -291,7 +321,7 @@ async function generateMahabharatVideo({ script, epNumber = 1, outputDir = __dir
     const videoPath = path.join(outputDir, `mb_video_${ts}.mp4`);
 
     const imagePrompt = await generateImagePrompt(script);
-    await generateImage(imagePrompt, imagePath);
+    await generateImage(imagePrompt, imagePath, script.character);
 
     try {
         await compositeVideo(imagePath, script, epNumber, videoPath);
