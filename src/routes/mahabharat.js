@@ -129,6 +129,29 @@ router.post("/generate-mahabharat-video", async (req, res) => {
         logger.info("Mahabharat", `EP ${epNumber} video rendered: ${path.basename(videoPath)}`);
     } catch (err) {
         logger.error("Mahabharat", "Video generation failed:", err.message);
+
+        // If the image was generated before the failure, upload it as a fallback
+        const imagePath = err.imagePath;
+        if (imagePath && fs.existsSync(imagePath)) {
+            try {
+                const { cloudinary } = require("../../config/cloudinary");
+                const result = await new Promise((resolve, reject) =>
+                    cloudinary.uploader.upload(imagePath, { resource_type: "image", folder: "ai-content-engine" },
+                        (e, r) => e ? reject(e) : resolve(r))
+                );
+                try { fs.unlinkSync(imagePath); } catch (_) {}
+                logger.info("Mahabharat", `EP ${epNumber} image uploaded as fallback: ${result.secure_url}`);
+                return res.status(500).json({
+                    success: false,
+                    error: "Video generation failed: " + err.message,
+                    imageUrl: result.secure_url,   // frontend can show + let user save it
+                });
+            } catch (uploadErr) {
+                logger.warn("Mahabharat", "Fallback image upload also failed:", uploadErr.message);
+                try { fs.unlinkSync(imagePath); } catch (_) {}
+            }
+        }
+
         return res.status(500).json({ success: false, error: "Video generation failed: " + err.message });
     }
 

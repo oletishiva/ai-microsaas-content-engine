@@ -58,6 +58,11 @@ function downloadFile(url, dest) {
 
 function escapeXml(str) {
     return String(str || "")
+        // Replace chars Pango's XML parser rejects
+        .replace(/—/g, "-")          // em dash
+        .replace(/–/g, "-")          // en dash
+        .replace(/•/g, "·")          // bullet → middle dot
+        .replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD]/g, "") // strip non-XML chars
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
@@ -287,7 +292,13 @@ async function generateMahabharatVideo({ script, epNumber = 1, outputDir = __dir
 
     const imagePrompt = await generateImagePrompt(script);
     await generateImage(imagePrompt, imagePath);
-    await compositeVideo(imagePath, script, epNumber, videoPath);
+
+    try {
+        await compositeVideo(imagePath, script, epNumber, videoPath);
+    } catch (err) {
+        // Return imagePath so caller can upload it as a fallback
+        throw Object.assign(err, { imagePath });
+    }
 
     try { fs.unlinkSync(imagePath); } catch (_) {}
     return videoPath;

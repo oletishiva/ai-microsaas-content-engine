@@ -899,6 +899,20 @@
       if (!data.success) {
         statusEl.style.color = "var(--red)";
         statusEl.textContent = "❌ " + (data.error || "Video generation failed");
+        // Show image fallback if DALL-E succeeded but compositing failed
+        if (data.imageUrl) {
+          linksEl.style.display = "flex";
+          linksEl.innerHTML = "<span style='font-size:0.8rem;color:var(--muted2);'>Image generated — save it below:</span>";
+          const imgEl = document.createElement("img");
+          imgEl.src = data.imageUrl;
+          imgEl.style.cssText = "width:100%;max-height:300px;object-fit:contain;border-radius:8px;margin-top:0.5rem;";
+          resultDiv.insertBefore(imgEl, linksEl);
+          const saveBtn = document.createElement("button");
+          saveBtn.className   = "dl-btn";
+          saveBtn.textContent = "⬇️ Save Image";
+          saveBtn.onclick     = () => saveVideo(data.imageUrl, `mahabharat_ep${String(ep).padStart(2,"0")}_image.jpg`, saveBtn);
+          linksEl.appendChild(saveBtn);
+        }
         return;
       }
 
