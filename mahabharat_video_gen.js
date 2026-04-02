@@ -231,12 +231,16 @@ async function compositeVideo(imagePath, script, epNumber, videoPath) {
         };
     }
 
-    // First complete sentence (ends with . ! ? ।) — more meaningful than word count
-    function firstSentence(text, maxWords = 28) {
-        const match = (text || "").match(/^.+?[.!?।]/);
-        const sentence = match ? match[0] : text || "";
-        const words = sentence.split(/\s+/);
-        return words.length <= maxWords ? sentence : words.slice(0, maxWords).join(" ") + "...";
+    // Split text at sentence boundary into [part1, part2]
+    function splitTwo(text) {
+        const sentences = (text || "").split(/(?<=[.!?।])\s+/).filter(Boolean);
+        if (sentences.length <= 1) {
+            const words = (text || "").split(/\s+/);
+            const mid   = Math.ceil(words.length / 2);
+            return [words.slice(0, mid).join(" "), words.slice(mid).join(" ")];
+        }
+        const mid = Math.ceil(sentences.length / 2);
+        return [sentences.slice(0, mid).join(" "), sentences.slice(mid).join(" ")];
     }
 
     // ── Persistent elements (appear on every frame) ───────────────────────────
@@ -252,37 +256,34 @@ async function compositeVideo(imagePath, script, epNumber, videoPath) {
         { input: epTxtBuf, top: 47, left: 47 },
     ];
 
-    // Character · Category — small centered line, always visible
+    // Character - Category — small centered line, always visible
     const { buf: charBuf } = await renderText(
         `${script.character}  -  ${script.category}`, 20, "#CCCCCC", "normal"
     );
     const CHAR_LINE = [{ input: charBuf, top: 96, left: Math.floor((W - (W - 100)) / 2) }];
 
-    // ── Text content ──────────────────────────────────────────────────────────
-    const hookText   = script.hook  || "";
-    const storyText  = firstSentence(script.story  || "", 28);
-    const lessonText = firstSentence(script.lesson || "", 22);
-    const ctaText    = script.cta   || "";
+    // ── Text content split into halves ────────────────────────────────────────
+    const hookText              = script.hook || "";
+    const [story1, story2text]  = splitTwo(script.story  || "");
+    const [lesson1, lesson2text]= splitTwo(script.lesson || "");
+    const ctaText               = script.cta  || "";
 
-    // ── Frame layout ──────────────────────────────────────────────────────────
-    // Hook  → text at BOTTOM  (Y: 1440) — scroll-stopper
-    // Story → label + text at TOP (Y: 200) — reader's eye starts top-left naturally
-    // Lesson→ label + text at TOP (Y: 200) — same pattern, different content
-    // CTA   → text at BOTTOM  (Y: 1500) — final action
+    // ── Frame layout — 6 frames = 30s ────────────────────────────────────────
+    // Frame 1 (4s):  Hook — BOTTOM — scroll-stopper
+    // Frame 2 (6s):  "కథ" label + Story part 1 — TOP
+    // Frame 3 (6s):  Story part 2 — TOP (continuation, no label)
+    // Frame 4 (5s):  "నేటి పాఠం" label + Lesson part 1 — TOP
+    // Frame 5 (5s):  Lesson part 2 — TOP (gold, continuation)
+    // Frame 6 (4s):  CTA — BOTTOM
 
-    // Frame 1: Hook at bottom
-    const hook1 = await textPill(hookText, 46, WHITE, "bold", 1440, null);
-
-    // Frame 2: Story — label "కథ" at top, story text just below
-    const storyLabel = await labelPill("కథ", 200);
-    const story2     = await textPill(storyText, 36, WHITE, "normal", storyLabel.bottom + 20);
-
-    // Frame 3: Lesson — label "నేటి పాఠం" at top, lesson in gold just below
+    const hookPill    = await textPill(hookText,    46, WHITE, "bold",   1440, null);
+    const storyLabel  = await labelPill("కథ", 200);
+    const storyPill1  = await textPill(story1,      34, WHITE, "normal", storyLabel.bottom + 20);
+    const storyPill2  = await textPill(story2text,  34, WHITE, "normal", storyLabel.bottom + 20);
     const lessonLabel = await labelPill("నేటి పాఠం", 200);
-    const lesson2     = await textPill(lessonText, 36, GOLD, "bold", lessonLabel.bottom + 20, GOLD);
-
-    // Frame 4: CTA at bottom
-    const cta1 = await textPill(ctaText, 38, WHITE, "bold", 1500, null);
+    const lessonPill1 = await textPill(lesson1,     34, GOLD,  "bold",   lessonLabel.bottom + 20, GOLD);
+    const lessonPill2 = await textPill(lesson2text, 34, GOLD,  "bold",   lessonLabel.bottom + 20, GOLD);
+    const ctaPill     = await textPill(ctaText,     38, WHITE, "bold",   1480, null);
 
     // ── Build each frame ──────────────────────────────────────────────────────
     async function buildFrame(items) {
@@ -293,10 +294,12 @@ async function compositeVideo(imagePath, script, epNumber, videoPath) {
     }
 
     const FRAMES = [
-        { buf: await buildFrame(hook1.items),                                    dur: 5  },
-        { buf: await buildFrame([...storyLabel.items,  ...story2.items]),        dur: 10 },
-        { buf: await buildFrame([...lessonLabel.items, ...lesson2.items]),       dur: 10 },
-        { buf: await buildFrame(cta1.items),                                     dur: 5  },
+        { buf: await buildFrame(hookPill.items),                                   dur: 4 },
+        { buf: await buildFrame([...storyLabel.items,  ...storyPill1.items]),      dur: 6 },
+        { buf: await buildFrame(storyPill2.items),                                 dur: 6 },
+        { buf: await buildFrame([...lessonLabel.items, ...lessonPill1.items]),     dur: 5 },
+        { buf: await buildFrame(lessonPill2.items),                                dur: 5 },
+        { buf: await buildFrame(ctaPill.items),                                    dur: 4 },
     ];
 
     // Write temp JPEG files
