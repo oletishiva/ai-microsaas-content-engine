@@ -22,13 +22,20 @@ const {
     pickRandomSameta,
 } = require("../../sameta_video_gen");
 
-const { uploadVideoToCloudinary } = require("../services/cloudinaryUploader");
-const { uploadToYouTube } = require("../services/youtubeUploader");
+const { uploadVideoToCloudinary }                       = require("../services/cloudinaryUploader");
+const { uploadToYouTube }                               = require("../services/youtubeUploader");
+const { publishInstagramReel, publishFacebookVideo }    = require("../services/metaPublisher");
 const apiKeys = require("../../config/apiKeys");
 
-const TOKEN_FILE = path.join(__dirname, "../../../output/.youtube_user_token");
+const TOKEN_FILE      = path.join(__dirname, "../../../output/.youtube_user_token");
+const META_TOKEN_FILE = path.join(__dirname, "../../../output/.meta_tokens.json");
+
 function loadTokenFromFile() {
     try { return fs.readFileSync(TOKEN_FILE, "utf8").trim() || null; } catch (_) { return null; }
+}
+function loadMetaTokens(session) {
+    if (session?.metaTokens?.userToken) return session.metaTokens;
+    try { return JSON.parse(fs.readFileSync(META_TOKEN_FILE, "utf8")); } catch (_) { return null; }
 }
 
 /**
@@ -36,8 +43,14 @@ function loadTokenFromFile() {
  */
 router.post("/generate-sameta", async (req, res) => {
     try {
-        let { sameta, meaning, mode, pushToYouTube: pushToYouTubeInput } = req.body;
-        const pushToYouTube = pushToYouTubeInput === true || pushToYouTubeInput === "true";
+        let { sameta, meaning, mode,
+              pushToYouTube:   pushToYouTubeInput,
+              pushToInstagram: pushToInstagramInput,
+              pushToFacebook:  pushToFacebookInput,
+        } = req.body;
+        const pushToYouTube   = pushToYouTubeInput   === true || pushToYouTubeInput   === "true";
+        const pushToInstagram = pushToInstagramInput === true || pushToInstagramInput === "true";
+        const pushToFacebook  = pushToFacebookInput  === true || pushToFacebookInput  === "true";
 
         // Random mode — Claude picks from 1000s of Telugu Sametas
         if (mode === "random" || (!sameta && !meaning)) {
@@ -100,6 +113,52 @@ router.post("/generate-sameta", async (req, res) => {
             }
         }
 
+        // Upload to Instagram Reels + Facebook if requested
+        let instagramUrl = null;
+        let facebookUrl  = null;
+        if ((pushToInstagram || pushToFacebook) && videoUrl) {
+            const metaTokens = loadMetaTokens(req.session);
+            if (!metaTokens?.userToken) {
+                logger.warn("Sameta", "Meta not connected — skipping Instagram/Facebook upload");
+            } else {
+                const caption = [
+                    `${sameta}`,
+                    ``,
+                    `అర్థం: ${meaning}`,
+                    ``,
+                    `#telugusameta #shorts #telugu #సామెత #teluguquotes #telugumotivation #dailywisdom #viral #foryou`,
+                ].join("\n");
+
+                if (pushToInstagram && metaTokens.instagramAccountId) {
+                    try {
+                        logger.info("Sameta", "Uploading to Instagram Reels...");
+                        instagramUrl = await publishInstagramReel(
+                            metaTokens.instagramAccountId,
+                            metaTokens.userToken,
+                            { videoUrl, caption }
+                        );
+                        logger.info("Sameta", `Instagram: ${instagramUrl}`);
+                    } catch (igErr) {
+                        logger.warn("Sameta", "Instagram upload failed:", igErr.message);
+                    }
+                }
+
+                if (pushToFacebook && metaTokens.facebookPageId) {
+                    try {
+                        logger.info("Sameta", "Uploading to Facebook...");
+                        facebookUrl = await publishFacebookVideo(
+                            metaTokens.facebookPageId,
+                            metaTokens.facebookPageToken || metaTokens.userToken,
+                            { videoUrl, caption, title: sameta }
+                        );
+                        logger.info("Sameta", `Facebook: ${facebookUrl}`);
+                    } catch (fbErr) {
+                        logger.warn("Sameta", "Facebook upload failed:", fbErr.message);
+                    }
+                }
+            }
+        }
+
         // Clean up local file after uploads
         if (videoUrl || youtubeUrl) {
             try { fs.unlinkSync(videoPath); } catch (_) {}
@@ -112,6 +171,8 @@ router.post("/generate-sameta", async (req, res) => {
             videoUrl: videoUrl || videoPath,
             usedDefaultChannel: (youtubeUrl && !sessionToken) || undefined,
             youtubeUrl,
+            instagramUrl,
+            facebookUrl,
         });
     } catch (err) {
         logger.error("Sameta", err.message);
