@@ -393,6 +393,19 @@
     }
     .copy-btn:hover { border-color: var(--gold); color: var(--gold); }
     .copy-btn.copied { border-color: var(--green); color: var(--green); }
+    .dl-btn {
+      padding: 0.4rem 1rem;
+      background: var(--gold-dim);
+      border: 1px solid rgba(201,168,76,0.4);
+      border-radius: 8px;
+      color: var(--gold);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .dl-btn:hover { background: rgba(201,168,76,0.25); }
 
     .card-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
 
@@ -568,6 +581,7 @@
         <span class="tag" id="outChar">–</span>
         <span class="card-title" id="outTitle"></span>
         <button class="copy-btn" id="copyBtn" onclick="copyAll()">📋 Copy All</button>
+        <button class="dl-btn" onclick="downloadScript()">⬇️ Download</button>
       </div>
       <div class="card-body">
         <div class="section-block s-hook">
@@ -784,6 +798,52 @@
       btn.classList.add("copied");
       setTimeout(() => { btn.textContent = "📋 Copy All"; btn.classList.remove("copied"); }, 2000);
     });
+  }
+
+  // ── Download script ────────────────────────────────────────────────────
+  async function downloadScript() {
+    if (!lastScript) return;
+    const s    = lastScript;
+    const ep   = String(epNumber - 1).padStart(2, "0");
+    const name = `mahabharat_ep${ep}_${(s.character || "script").replace(/\s+/g, "_").toLowerCase()}.txt`;
+    const text = [
+      `╔══════════════════════════════════════════╗`,
+      `  MAHABHARAT SHORTS — EP ${ep}`,
+      `  ${s.category || ""} | ${s.difficulty || ""} | ${s.character || ""}`,
+      `╚══════════════════════════════════════════╝`,
+      ``,
+      `TITLE: ${s.title || ""}`,
+      ``,
+      `🎣 HOOK (0–5s)`,
+      `${s.hook || ""}`,
+      ``,
+      `📖 STORY (5–20s)`,
+      `${s.story || ""}`,
+      ``,
+      `💡 LESSON (20–28s)`,
+      `${s.lesson || ""}`,
+      ``,
+      `📣 CTA (28–30s)`,
+      `${s.cta || ""}`,
+      ``,
+      `🎨 VISUAL DIRECTION`,
+      `${s.visual || ""}`,
+    ].join("\n");
+
+    const blob = new Blob([text], { type: "text/plain" });
+    const file = new File([blob], name, { type: "text/plain" });
+
+    // iOS: Web Share API → saves to Files / Notes
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e.name === "AbortError") return; }
+    }
+    // Desktop: blob download
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
 
   // ── History ────────────────────────────────────────────────────────────
