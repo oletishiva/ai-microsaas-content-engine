@@ -273,7 +273,7 @@ async function compositeVideo(imagePath, script, epNumber, videoPath) {
 
     let cmd;
     if (audioPath) {
-        const mixedPath = jpegPath.replace("_comp.jpg", "_mixed.mp3");
+        const mixedPath = jpegPath.replace("_comp.jpg", "_mixed.m4a");
         // Mix voice + music
         execSync(
             `ffmpeg -y -i "${audioPath}" -i "${musicPath}" ` +
