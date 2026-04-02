@@ -168,32 +168,6 @@ async function compositeVideo(imagePath, script, epNumber, videoPath) {
 
     const composites = [];
 
-    // ── Top dark gradient overlay (for EP badge + character) ─────────────────
-    const topGradH = Math.floor(H * 0.30);
-    const topSvg   = `<svg width="${W}" height="${topGradH}" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stop-color="#000000" stop-opacity="0.85"/>
-          <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      <rect width="${W}" height="${topGradH}" fill="url(#tg)"/>
-    </svg>`;
-    composites.push({ input: await sharp(Buffer.from(topSvg)).png().toBuffer(), top: 0, left: 0 });
-
-    // ── Bottom dark gradient overlay (for title text) ─────────────────────────
-    const botGradH = Math.floor(H * 0.40);
-    const botSvg   = `<svg width="${W}" height="${botGradH}" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stop-color="#000000" stop-opacity="0"/>
-          <stop offset="100%" stop-color="#000000" stop-opacity="0.92"/>
-        </linearGradient>
-      </defs>
-      <rect width="${W}" height="${botGradH}" fill="url(#bg)"/>
-    </svg>`;
-    composites.push({ input: await sharp(Buffer.from(botSvg)).png().toBuffer(), top: H - botGradH, left: 0 });
-
     // ── Helper: Pango text ────────────────────────────────────────────────────
     async function pangoText(text, sizePt, color, weight, topY, maxW) {
         const w      = maxW || W - 80;
@@ -204,29 +178,55 @@ async function compositeVideo(imagePath, script, epNumber, videoPath) {
         return { input: buf, top: topY, left, _h: th || 0 };
     }
 
-    // ── TOP AREA: EP badge + Character name ───────────────────────────────────
-    const epText   = `EP ${String(epNumber).padStart(2, "0")}  •  ${script.character || ""}`;
-    const epEl     = await pangoText(epText, 28, GOLD, "bold", 60);
-    composites.push(epEl);
+    // ── Solid bottom panel (35% of height) ───────────────────────────────────
+    const panelH = Math.floor(H * 0.35);   // 672px
+    const panelY = H - panelH;             // 1248px — image fills top 65%
 
-    // Category tag below EP
-    const catEl = await pangoText(script.category || "", 24, "#A8A4B8", "normal", epEl.top + epEl._h + 10);
+    const panelBuf = await sharp({
+        create: { width: W, height: panelH, channels: 4, background: { r: 13, g: 13, b: 15, alpha: 1 } },
+    }).png().toBuffer();
+    composites.push({ input: panelBuf, top: panelY, left: 0 });
+
+    // Thin gold top border on panel (separates image from panel cleanly)
+    const borderBuf = await sharp({
+        create: { width: W, height: 3, channels: 4, background: { r: 201, g: 168, b: 76, alpha: 1 } },
+    }).png().toBuffer();
+    composites.push({ input: borderBuf, top: panelY, left: 0 });
+
+    // ── Small EP pill badge — top-left corner of image ────────────────────────
+    const epLabel  = `EP ${String(epNumber).padStart(2, "0")}`;
+    const pillSvg  = `<svg width="130" height="44" xmlns="http://www.w3.org/2000/svg">
+      <rect width="130" height="44" rx="10" fill="#0D0D0F" fill-opacity="0.78"/>
+      <rect x="0" y="0" width="130" height="44" rx="10" fill="none" stroke="#C9A84C" stroke-width="1.5" stroke-opacity="0.7"/>
+    </svg>`;
+    composites.push({ input: await sharp(Buffer.from(pillSvg)).png().toBuffer(), top: 36, left: 40 });
+    const epPillText = await pangoText(epLabel, 22, GOLD, "bold", 47, 120);
+    composites.push({ ...epPillText, left: 40 + Math.floor((130 - (epPillText._h > 0 ? 110 : 110)) / 2) });
+
+    // ── Panel text layout ─────────────────────────────────────────────────────
+    let ty = panelY + 36;
+
+    // Character name (gold, prominent)
+    const charEl = await pangoText(script.character || "", 30, GOLD, "bold", ty);
+    composites.push(charEl);
+    ty = charEl.top + charEl._h + 8;
+
+    // Category (muted)
+    const catEl = await pangoText(script.category || "", 22, "#A8A4B8", "normal", ty);
     composites.push(catEl);
+    ty = catEl.top + catEl._h + 22;
 
-    // ── BOTTOM AREA: Title (large) + Hook (smaller) ───────────────────────────
-    // Title: 2 lines max
-    const title      = script.title || "";
-    const titleWords = title.split(/\s+/);
-    // Split into 2 lines of ~5 words each
-    const line1 = titleWords.slice(0, Math.ceil(titleWords.length / 2)).join(" ");
-    const line2 = titleWords.slice(Math.ceil(titleWords.length / 2)).join(" ");
+    // Title — split into 2 lines max
+    const titleWords = (script.title || "").split(/\s+/);
+    const half  = Math.ceil(titleWords.length / 2);
+    const line1 = titleWords.slice(0, half).join(" ");
+    const line2 = titleWords.slice(half).join(" ");
 
-    const titleY1 = H - botGradH + Math.floor(botGradH * 0.28);
-    const t1 = await pangoText(line1, 52, WHITE, "bold", titleY1);
+    const t1 = await pangoText(line1, 50, WHITE, "bold", ty);
     composites.push(t1);
-    let ty = t1.top + t1._h + 8;
+    ty = t1.top + t1._h + 6;
     if (line2) {
-        const t2 = await pangoText(line2, 52, WHITE, "bold", ty);
+        const t2 = await pangoText(line2, 50, WHITE, "bold", ty);
         composites.push(t2);
         ty = t2.top + t2._h + 20;
     } else {
@@ -234,14 +234,14 @@ async function compositeVideo(imagePath, script, epNumber, videoPath) {
     }
 
     // Thin gold divider
-    const divW = 160;
-    const divBuf = await sharp({ create: { width: divW, height: 3, channels: 4, background: { r: 201, g: 168, b: 76, alpha: 0.8 } } }).png().toBuffer();
+    const divW   = 140;
+    const divBuf = await sharp({ create: { width: divW, height: 2, channels: 4, background: { r: 201, g: 168, b: 76, alpha: 1 } } }).png().toBuffer();
     composites.push({ input: divBuf, top: ty, left: Math.floor((W - divW) / 2) });
-    ty += 18;
+    ty += 16;
 
-    // Hook text (first line only — teaser)
+    // Hook preview (first sentence, cream)
     const hookPreview = (script.hook || "").split(/[.!?]/)[0]?.trim() || script.hook || "";
-    const hookEl = await pangoText(hookPreview, 32, CREAM, "normal", ty);
+    const hookEl = await pangoText(hookPreview, 28, CREAM, "normal", ty);
     composites.push(hookEl);
 
     // ── Write composite ───────────────────────────────────────────────────────
