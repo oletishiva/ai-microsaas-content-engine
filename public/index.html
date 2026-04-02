@@ -3,1127 +3,880 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>AI Content Engine – Make Viral Shorts</title>
+  <title>AI Content Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #09090e; /* Deep dark indigo/black */
-      --surface: #141221; /* Rich purple-tinted card bg */
-      --card: #181528;
-      --card-hover: #1e1b33;
-      --border: rgba(123, 44, 191, 0.2);
-      --border-focus: rgba(123, 44, 191, 0.6);
-      --text: #ffffff;
-      --text-glow: 0 0 10px rgba(123, 44, 191, 0.5);
-      --muted: #948ea5;
-      --accent: #9d4edd;
-      --accent-grad: linear-gradient(135deg, #7b2cbf 0%, #3a0ca3 100%);
-      --accent-hover: #c77dff;
-      --success: #10b981;
-      --success-bg: rgba(16, 185, 129, 0.1);
-      --error: #ef4444;
-      --error-bg: rgba(239, 68, 68, 0.1);
+      --bg:           #09090e;
+      --surface:      #111118;
+      --card:         #16161f;
+      --border:       rgba(255,255,255,0.07);
+      --border-focus: rgba(139,92,246,0.6);
+      --text:         #f2f2f5;
+      --muted:        #8a8a9a;
+      --accent:       #7c3aed;
+      --accent-soft:  rgba(124,58,237,0.12);
+      --success:      #10b981;
+      --success-soft: rgba(16,185,129,0.1);
+      --error:        #ef4444;
+      --error-soft:   rgba(239,68,68,0.1);
+      --gold:         #C9A84C;
+      --gold-soft:    rgba(201,168,76,0.1);
+      --warm:         #CD853F;
+      --warm-soft:    rgba(205,133,63,0.1);
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
     body {
       font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-      background-color: var(--bg);
-      background-image: 
-        radial-gradient(circle at 15% 50%, rgba(123, 44, 191, 0.08) 0%, transparent 50%),
-        radial-gradient(circle at 85% 30%, rgba(58, 12, 163, 0.08) 0%, transparent 50%);
-      background-attachment: fixed;
+      background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      line-height: 1.5;
-      padding-bottom: 2rem;
-      position: relative;
+      line-height: 1.55;
     }
-    /* Subtle glowing orb effect behind the main content */
-    .bg-glow {
-        position: absolute;
-        top: -10%; left: 50%; transform: translateX(-50%);
-        width: 60vw; height: 60vw;
-        background: radial-gradient(circle, rgba(123, 44, 191, 0.15) 0%, transparent 60%);
-        filter: blur(80px);
-        z-index: -1;
-        pointer-events: none;
-    }
-    .hero {
-      text-align: center;
-      padding: 4rem 1rem 3rem;
-      border-bottom: 1px solid rgba(123, 44, 191, 0.15);
-      margin-bottom: 2.5rem;
-      position: relative;
-    }
-    .hero-badge {
-      display: inline-block;
-      padding: 0.3rem 0.8rem;
-      background: rgba(157, 78, 221, 0.15);
-      border: 1px solid rgba(157, 78, 221, 0.4);
-      color: #e0aaff;
-      border-radius: 100px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      margin-bottom: 1rem;
-      box-shadow: 0 0 15px rgba(157, 78, 221, 0.2);
-    }
-    .hero h1 {
-      font-size: 2.25rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      margin-bottom: 0.5rem;
-      background: linear-gradient(to right, #ffffff, #a1a1aa);
-      background-clip: text;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .hero p {
-      color: var(--muted);
-      font-size: 1.05rem;
-      max-width: 400px;
-      margin: 0 auto;
-    }
-    /* Feature Pills */
-    .features {
-      display: flex;
-      justify-content: center;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-      margin-top: 1.5rem;
-    }
-    .pill {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.08);
-      padding: 0.4rem 0.8rem;
-      border-radius: 8px;
-      font-size: 0.8rem;
-      font-weight: 500;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
-    }
-    /* Main Layout */
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
+
+    /* ── Top Nav ─────────────────────────────────────────────── */
+    .topnav {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(9,9,14,0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
       padding: 0 1rem;
-    }
-    form {
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
-    }
-    /* Card Groups */
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1.75rem;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03);
-    }
-    .card-header {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      margin-bottom: 1.5rem;
-      font-weight: 700;
-      font-size: 1.15rem;
-      color: var(--text);
-    }
-    .card-header span {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 8px;
-      font-size: 1rem;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
-    }
-    /* Form Fields */
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      margin-bottom: 1.5rem;
-    }
-    .field:last-child { margin-bottom: 0; }
-    label {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--muted);
-    }
-    label .req { color: var(--accent); }
-    input[type="text"], textarea, select {
-      font-family: inherit;
-      font-size: 16px;
-      padding: 0.85rem 1rem;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text);
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
-    }
-    textarea { min-height: 90px; resize: vertical; }
-    input:focus, textarea:focus, select:focus {
-      outline: none;
-      border-color: var(--border-focus);
-      background: rgba(255,255,255,0.04);
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2), 0 0 0 3px rgba(255, 153, 0, 0.15);
-    }
-    select {
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23a1a1aa' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 1rem center;
-    }
-    .hint { font-size: 0.75rem; color: var(--muted); opacity: 0.8; margin-top: 0.2rem; }
-    
-    /* Image Upload Zone */
-    .image-mode-tabs {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1.25rem;
-      padding: 0.3rem;
-      background: rgba(255,255,255,0.02);
-      border-radius: 10px;
-      border: 1px solid var(--border);
-    }
-    .tab {
-      flex: 1;
-      text-align: center;
-      padding: 0.6rem;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--muted);
-      cursor: pointer;
-      border-radius: 6px;
-      transition: all 0.2s;
-    }
-    .tab.active {
-      background: rgba(255,255,255,0.08);
-      color: var(--text);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    }
-    .upload-zone {
-      border: 2px dashed rgba(255,255,255,0.15);
-      background: rgba(255,255,255,0.01);
-      border-radius: 12px;
-      padding: 3rem 1rem;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-    .upload-zone:hover { 
-      border-color: var(--accent); 
-      background: rgba(255,153,0,0.04); 
-    }
-    .upload-zone input { display: none; }
-    .upload-icon { font-size: 2.5rem; margin-bottom: 0.5rem; display: block; transition: transform 0.3s; }
-    .upload-zone:hover .upload-icon { transform: translateY(-5px); }
-    .upload-title { font-weight: 600; color: var(--text); margin-bottom: 0.25rem; }
-    .upload-subtitle { font-size: 0.85rem; color: var(--muted); }
-    .preview-grid {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      margin-top: 1rem;
-    }
-    .preview-thumb {
-      width: 60px;
-      height: 80px;
-      border-radius: 6px;
-      object-fit: cover;
-      border: 1px solid var(--border);
-    }
-    
-    /* Switches */
-    .switch-field {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 1rem;
-      background: rgba(255,255,255,0.015);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 12px;
-      margin-bottom: 0.75rem;
-      transition: background 0.2s;
+      height: 56px;
     }
-    .switch-field:hover { background: rgba(255,255,255,0.03); }
-    .switch-field label { margin: 0; font-size: 0.9rem; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; }
-    .switch-field input[type="checkbox"] {
-      appearance: none; width: 44px; height: 24px; background: rgba(255,255,255,0.1); border-radius: 12px; position: relative; cursor: pointer; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: none; padding: 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
-    }
-    .switch-field input[type="checkbox"]::after {
-      content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: white; border-radius: 50%; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    }
-    .switch-field input[type="checkbox"]:checked { background: var(--accent); }
-    .switch-field input[type="checkbox"]:checked::after { transform: translateX(20px); }
-    
-    /* Sticky Generate Button */
-    .sticky-bar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      background: rgba(5, 5, 5, 0.85);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-top: 1px solid rgba(255,255,255,0.05);
-      padding: 1.25rem 1rem;
-      z-index: 100;
-    }
-    .sticky-container { max-width: 600px; margin: 0 auto; }
-    button[type="submit"] {
-      width: 100%;
-      font-family: inherit;
-      font-size: 1.15rem;
+    .nav-brand {
+      font-size: 1rem;
       font-weight: 800;
-      padding: 1.15rem;
-      background: var(--accent-grad);
-      color: #fff;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
-      box-shadow: 0 4px 20px rgba(255, 153, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+      color: var(--text);
+      letter-spacing: -0.02em;
       display: flex;
       align-items: center;
-      justify-content: center;
       gap: 0.5rem;
+    }
+    .nav-brand .dot {
+      width: 8px; height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent);
+    }
+    .nav-tabs {
+      display: flex;
+      gap: 0.25rem;
+    }
+    .nav-tab {
+      padding: 0.4rem 0.9rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 1px solid transparent;
+      background: none;
+      white-space: nowrap;
+    }
+    .nav-tab:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .nav-tab.active { color: var(--text); background: rgba(255,255,255,0.07); border-color: var(--border); }
+    .nav-tab.gold    { color: var(--gold); }
+    .nav-tab.gold.active { color: var(--gold); background: var(--gold-soft); border-color: rgba(201,168,76,0.3); }
+    .nav-tab.warm    { color: var(--warm); }
+    .nav-tab.warm.active { color: var(--warm); background: var(--warm-soft); border-color: rgba(205,133,63,0.3); }
+
+    /* ── Channel Status Cards ─────────────────────────────────── */
+    .channels-bar {
+      max-width: 780px;
+      margin: 1.75rem auto 0;
+      padding: 0 1rem;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+    }
+    .ch-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.1rem 1.25rem;
+      cursor: pointer;
+      transition: all 0.2s;
       position: relative;
       overflow: hidden;
     }
-    button[type="submit"]::before {
+    .ch-card::before {
       content: '';
       position: absolute;
-      top: 0; left: -100%;
-      width: 50%; height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
-      transform: skewX(-20deg);
-      transition: 0.5s;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.2s;
     }
-    button[type="submit"]:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 25px rgba(255, 153, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+    .ch-card:hover { border-color: rgba(255,255,255,0.14); transform: translateY(-1px); }
+    .ch-card.ch-motivation::before { background: linear-gradient(135deg, rgba(124,58,237,0.06), transparent); }
+    .ch-card.ch-mahabharat::before { background: linear-gradient(135deg, rgba(201,168,76,0.06), transparent); }
+    .ch-card.ch-sameta::before     { background: linear-gradient(135deg, rgba(205,133,63,0.06), transparent); }
+    .ch-card:hover::before { opacity: 1; }
+    .ch-card.active-card { border-color: rgba(124,58,237,0.35); }
+    .ch-card.active-card.ch-mahabharat { border-color: rgba(201,168,76,0.35); }
+    .ch-card.active-card.ch-sameta     { border-color: rgba(205,133,63,0.35); }
+    .ch-name {
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 0.55rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
     }
-    button[type="submit"]:hover:not(:disabled)::before {
-      left: 150%;
-    }
-    button[type="submit"]:disabled {
-      background: rgba(255,255,255,0.05);
+    .ch-name.purple { color: #a78bfa; }
+    .ch-name.gold   { color: var(--gold); }
+    .ch-name.warm   { color: #e8b87a; }
+    .ch-sched {
+      font-size: 0.72rem;
       color: var(--muted);
-      box-shadow: none;
-      transform: none;
-      cursor: not-allowed;
-      text-shadow: none;
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
     }
+    .ch-badges {
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+    .ch-badge {
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 5px;
+    }
+    .badge-yt  { background: rgba(255,0,0,0.12); color: #ff6b6b; }
+    .badge-ig  { background: rgba(225,48,108,0.12); color: #e1306c; }
+    .badge-fb  { background: rgba(24,119,242,0.12); color: #4a9af5; }
+    .badge-off { background: rgba(255,255,255,0.05); color: var(--muted); }
+
+    /* ── Page Tabs ────────────────────────────────────────────── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── Shared Layout ────────────────────────────────────────── */
+    .container { max-width: 600px; margin: 0 auto; padding: 0 1rem 6rem; }
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin: 2rem 0 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-header {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 1rem;
+    }
+    .field { margin-bottom: 1.1rem; }
+    .field:last-child { margin-bottom: 0; }
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+    input[type="text"], textarea, select {
+      font-family: inherit;
+      font-size: 16px;
+      padding: 0.8rem 1rem;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      width: 100%;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    textarea { min-height: 80px; resize: vertical; }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(124,58,237,0.1);
+    }
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%236b6b80' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.9rem center;
+    }
+    .hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.3rem; }
+
+    /* Toggle switch */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.9rem 1rem;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 0.6rem;
+    }
+    .toggle-label { font-size: 0.88rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+    .toggle {
+      appearance: none; width: 42px; height: 23px;
+      background: rgba(255,255,255,0.1); border-radius: 12px;
+      position: relative; cursor: pointer; transition: 0.25s; border: none; padding: 0;
+    }
+    .toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 19px; height: 19px; background: #fff; border-radius: 50%;
+      transition: 0.25s; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+    .toggle:checked { background: var(--accent); }
+    .toggle:checked::after { transform: translateX(19px); }
+
+    /* Auth status banner */
+    .auth-banner {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 1.1rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+    .auth-banner.connected { background: var(--success-soft); border: 1px solid rgba(16,185,129,0.2); color: var(--success); }
+    .auth-banner.disconnected { background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--muted); }
+    .auth-banner .auth-name { flex: 1; }
+    .auth-banner a, .auth-banner button {
+      font-size: 0.78rem; font-weight: 700; padding: 0.3rem 0.7rem;
+      border-radius: 6px; text-decoration: none; cursor: pointer;
+    }
+    .auth-banner.connected button { background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--muted); }
+    .auth-banner.disconnected a { background: rgba(255,255,255,0.08); border: 1px solid var(--border); color: var(--text); }
+
+    /* Sticky generate bar */
+    .sticky-bar {
+      position: fixed; bottom: 0; left: 0; width: 100%;
+      background: rgba(9,9,14,0.9);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid var(--border);
+      padding: 1rem;
+      z-index: 40;
+    }
+    .sticky-inner { max-width: 600px; margin: 0 auto; }
+    .btn-primary {
+      width: 100%;
+      font-family: inherit; font-size: 1.05rem; font-weight: 800;
+      padding: 1.05rem;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff; border: none; border-radius: 12px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+      box-shadow: 0 4px 20px rgba(124,58,237,0.35);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(124,58,237,0.45); }
+    .btn-primary:disabled { background: rgba(255,255,255,0.05); color: var(--muted); box-shadow: none; cursor: not-allowed; }
+    .btn-primary.gold-btn { background: linear-gradient(135deg, #8B6914, #C9A84C); box-shadow: 0 4px 20px rgba(201,168,76,0.3); }
+    .btn-primary.gold-btn:hover:not(:disabled) { box-shadow: 0 6px 24px rgba(201,168,76,0.4); }
+    .btn-primary.warm-btn { background: linear-gradient(135deg, #7a3b0a, #CD853F); box-shadow: 0 4px 20px rgba(205,133,63,0.3); }
+    .btn-primary.warm-btn:hover:not(:disabled) { box-shadow: 0 6px 24px rgba(205,133,63,0.4); }
     .spinner {
-      width: 20px; height: 20px; border: 3px solid rgba(0,0,0,0.2); border-top-color: #fff; border-radius: 50%;
-      animation: spin 0.8s linear infinite; display: none;
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.2);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.75s linear infinite; display: none;
     }
-    button:disabled .spinner { display: block; border-top-color: var(--muted); }
+    .btn-primary:disabled .spinner { display: block; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    
-    /* Result Box */
-    #result {
-      margin-top: 2rem; padding: 1.5rem; border-radius: 12px; display: none;
-      text-align: center;
+
+    /* Result box */
+    .result-box {
+      display: none; padding: 1.25rem; border-radius: 12px; text-align: center;
+      margin-bottom: 1rem;
     }
-    #result.success { background: var(--success-bg); border: 1px solid rgba(16, 185, 129, 0.3); }
-    #result.error { background: var(--error-bg); border: 1px solid rgba(239, 68, 68, 0.3); }
-    #result h3 { font-size: 1.1rem; margin-bottom: 1rem; }
-    #result.success h3 { color: var(--success); }
-    #result.error h3 { color: var(--error); }
-    .btn-link {
-      display: inline-block; padding: 0.8rem 1.5rem; background: var(--surface);
-      border: 1px solid var(--border); color: var(--text); text-decoration: none;
-      border-radius: 8px; font-weight: 600; margin: 0.5rem; transition: 0.2s;
+    .result-box.success { background: var(--success-soft); border: 1px solid rgba(16,185,129,0.25); }
+    .result-box.error   { background: var(--error-soft); border: 1px solid rgba(239,68,68,0.25); }
+    .result-box h3 { font-size: 1rem; margin-bottom: 0.75rem; }
+    .result-box.success h3 { color: var(--success); }
+    .result-box.error h3   { color: var(--error); }
+    .result-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-top: 0.75rem; }
+    .result-links a {
+      padding: 0.6rem 1.1rem; background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); text-decoration: none; font-size: 0.85rem; font-weight: 600;
+      transition: border-color 0.15s;
     }
-    .btn-link:hover { border-color: var(--accent); color: var(--accent); }
+    .result-links a:hover { border-color: rgba(255,255,255,0.2); }
+
+    /* Collapsible advanced settings */
+    .collapse-toggle {
+      width: 100%; background: none; border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.75rem 1rem; font-family: inherit;
+      font-size: 0.88rem; font-weight: 600; color: var(--muted);
+      cursor: pointer; text-align: left; display: flex;
+      align-items: center; justify-content: space-between; transition: 0.2s;
+      margin-bottom: 0.75rem;
+    }
+    .collapse-toggle:hover { border-color: rgba(255,255,255,0.14); color: var(--text); }
+    .collapse-body { display: none; }
+    .collapse-body.open { display: block; }
+    .chevron { transition: transform 0.2s; }
+    .chevron.open { transform: rotate(180deg); }
+
+    /* Progress steps */
+    .progress-list { list-style: none; padding: 0; }
+    .progress-list li {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.5rem 0; font-size: 0.88rem; color: var(--muted);
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .progress-list li:last-child { border-bottom: none; }
+    .progress-list li.done  { color: var(--success); }
+    .progress-list li.active { color: var(--text); font-weight: 600; }
+    .step-icon { font-size: 1rem; min-width: 1.2rem; text-align: center; }
+
+    /* Image fallback */
+    .fallback-img { max-width: 100%; border-radius: 8px; margin: 0.75rem auto; display: block; }
+
+    /* Mode tabs (for Sameta) */
+    .mode-tabs {
+      display: flex; gap: 0.4rem; margin-bottom: 1.1rem;
+      padding: 0.25rem; background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border); border-radius: 10px;
+    }
+    .mode-tab {
+      flex: 1; text-align: center; padding: 0.55rem; font-size: 0.85rem;
+      font-weight: 600; color: var(--muted); cursor: pointer; border-radius: 7px;
+      transition: all 0.15s; border: none; background: none; font-family: inherit;
+    }
+    .mode-tab.active { background: rgba(255,255,255,0.07); color: var(--text); }
+
+    /* Platform publish row */
+    .platform-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .platform-label {
+      display: flex; align-items: center; gap: 0.45rem;
+      padding: 0.55rem 0.9rem;
+      border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600;
+      transition: 0.15s; user-select: none;
+    }
+    .platform-label input { width: 14px; height: 14px; cursor: pointer; }
+    .platform-yt { background: rgba(255,0,0,0.06); border: 1px solid rgba(255,0,0,0.2); color: #ff6b6b; }
+    .platform-ig { background: rgba(225,48,108,0.06); border: 1px solid rgba(225,48,108,0.25); color: #e1306c; }
+    .platform-fb { background: rgba(24,119,242,0.06); border: 1px solid rgba(24,119,242,0.2); color: #4a9af5; }
+
+    /* ONE-CLICK button (full-width standalone) */
+    .one-click-wrap { margin-top: 1rem; }
+    .one-click-wrap .btn-primary { font-size: 1.1rem; padding: 1.1rem; }
+
+    @media (max-width: 640px) {
+      .channels-bar { grid-template-columns: 1fr; }
+      .nav-tab span.label { display: none; }
+    }
   </style>
 </head>
 <body>
-  
-  <div class="bg-glow"></div>
 
-  <div class="hero">
-    <div class="hero-badge">Beta v2.0</div>
-    <h1>AI Content Engine</h1>
-    <p>Upload your photos or type a prompt. Get a viral, fully edited voiceover Short in 60 seconds.</p>
-    <div class="features">
-      <div class="pill">✨ AI Script</div>
-      <div class="pill">🎙️ Voiceover</div>
-      <div class="pill">🎬 Auto-Edit</div>
-      <div class="pill">📤 YouTube Ready</div>
+<!-- ── Top Nav ──────────────────────────────────────────────────── -->
+<nav class="topnav">
+  <div class="nav-brand">
+    <div class="dot"></div>
+    AI Content Studio
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('motivation', this)">
+      <span>Motivation</span>
+    </button>
+    <button class="nav-tab gold" onclick="switchTab('mahabharat', this)">
+      <span>Mahabharat</span>
+    </button>
+    <button class="nav-tab warm" onclick="switchTab('sameta', this)">
+      <span>Sameta</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ── Channel Status Cards ─────────────────────────────────────── -->
+<div class="channels-bar">
+  <div class="ch-card ch-motivation active-card" onclick="switchTab('motivation', document.querySelector('.nav-tab.active'))">
+    <div class="ch-name purple">Motivation</div>
+    <div class="ch-sched">3x daily — 6AM, 3PM, 9PM UTC<br>Notebook aesthetic · English</div>
+    <div class="ch-badges">
+      <span class="ch-badge badge-yt" id="motYtBadge">YT —</span>
+    </div>
+  </div>
+  <div class="ch-card ch-mahabharat" onclick="switchTab('mahabharat', document.querySelectorAll('.nav-tab')[1])">
+    <div class="ch-name gold">Mahabharat</div>
+    <div class="ch-sched">2x daily — 10AM + 6PM IST<br>Telugu Shorts · Animated</div>
+    <div class="ch-badges">
+      <span class="ch-badge badge-yt" id="mbYtBadge">YT —</span>
+    </div>
+  </div>
+  <div class="ch-card ch-sameta" onclick="switchTab('sameta', document.querySelectorAll('.nav-tab')[2])">
+    <div class="ch-name warm">Sameta</div>
+    <div class="ch-sched">Manual · Telugu proverbs<br>Watercolor + text overlay</div>
+    <div class="ch-badges">
+      <span class="ch-badge badge-yt" id="sameYtBadge">YT —</span>
+      <span class="ch-badge badge-ig" id="sameIgBadge">IG —</span>
+      <span class="ch-badge badge-fb" id="sameFbBadge">FB —</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- TAB 1: ENGLISH MOTIVATIONAL                                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="page-motivation" class="page active">
+<div class="container">
+
+  <div class="section-title">Motivation Video</div>
+
+  <!-- YouTube connect -->
+  <div id="motYtConnect" class="auth-banner disconnected">
+    <div class="auth-name">YouTube not connected</div>
+    <a href="/auth/youtube">Connect</a>
+  </div>
+  <div id="motYtConnected" class="auth-banner connected" style="display:none">
+    <div class="auth-name">YouTube connected</div>
+    <button onclick="disconnectYouTube()">Disconnect</button>
+  </div>
+
+  <!-- Quick Generate -->
+  <div class="card">
+    <div class="card-header">Topic</div>
+    <div class="field">
+      <input type="text" id="motTopic" placeholder="e.g. stoic rules for morning success — or leave blank for AI pick">
     </div>
   </div>
 
-  <!-- ══ MAHABHARAT SHORTS LINK ════════════════════════════════════════════ -->
-  <div style="max-width:600px; margin: 0 auto 1.5rem auto; padding: 0 1rem;">
-    <a href="/mahabharat.html" style="display:flex; align-items:center; justify-content:space-between; background:linear-gradient(135deg,rgba(201,168,76,0.1),rgba(201,168,76,0.05)); border:1px solid rgba(201,168,76,0.35); border-radius:14px; padding:1.1rem 1.5rem; text-decoration:none; transition:border-color 0.2s;">
-      <div>
-        <div style="font-size:1rem; font-weight:800; color:#C9A84C;">⚔️ Mahabharat Shorts Generator</div>
-        <div style="font-size:0.8rem; color:var(--muted); margin-top:2px;">AI Telugu scripts for 30-second Mahabharat shorts — auto + manual mode</div>
+  <!-- Advanced Settings (collapsible) -->
+  <button class="collapse-toggle" onclick="toggleCollapse('motAdvanced', this)">
+    Advanced settings
+    <svg class="chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <div id="motAdvanced" class="collapse-body">
+    <div class="card">
+      <div class="field">
+        <label>Script (optional — AI generates if blank)</label>
+        <textarea id="motScript" placeholder="Paste your own script here..."></textarea>
       </div>
-      <div style="color:#C9A84C; font-size:1.2rem;">→</div>
+      <div class="field" style="display:flex;align-items:center;justify-content:space-between;">
+        <label style="margin:0">Length</label>
+        <select id="motMaxWords" style="width:180px">
+          <option value="35">Short (~15 sec)</option>
+          <option value="50">Long (~20 sec)</option>
+        </select>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">YouTube</div>
+      <div class="toggle-row">
+        <span class="toggle-label">Push to YouTube</span>
+        <input type="checkbox" class="toggle" id="motPushYT">
+      </div>
+      <div id="motYtExtra" style="display:none;">
+        <div class="field" style="margin-top:0.75rem">
+          <label>YouTube title (optional)</label>
+          <input type="text" id="motYtTitle" placeholder="AI will auto-generate if blank">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div id="motResult" class="result-box"></div>
+
+</div>
+<!-- Sticky bar for motivation -->
+<div class="sticky-bar" id="motStickyBar">
+  <div class="sticky-inner">
+    <button class="btn-primary" id="motGenBtn" onclick="generateMotivation()">
+      <span class="spinner"></span>
+      <span class="btn-text">Generate Notebook Video</span>
+    </button>
+  </div>
+</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- TAB 2: MAHABHARAT                                              -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="page-mahabharat" class="page">
+<div class="container">
+
+  <div class="section-title">Mahabharat Shorts</div>
+  <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1.5rem;line-height:1.6">
+    AI-generated Telugu scripts based on factual Mahabharat incidents.<br>
+    Progressive text reveal · 30-second Shorts · Auto-posts 10 AM + 6 PM IST.
+  </p>
+
+  <div style="text-align:center;margin:2rem 0">
+    <a href="/mahabharat.html"
+       style="display:inline-flex;align-items:center;gap:0.6rem;padding:1rem 2rem;
+              background:linear-gradient(135deg,#8B6914,#C9A84C);color:#fff;text-decoration:none;
+              border-radius:12px;font-size:1.05rem;font-weight:800;
+              box-shadow:0 4px 20px rgba(201,168,76,0.3);transition:0.2s">
+      Open Mahabharat Generator →
     </a>
   </div>
 
-  <!-- ══ TELUGU SAMETA SECTION ══════════════════════════════════════════════ -->
-  <div style="max-width:600px; margin: 0 auto 2.5rem auto; padding: 0 1rem;">
-    <div style="background: linear-gradient(135deg, rgba(139,69,19,0.15), rgba(205,133,63,0.1)); border: 1px solid rgba(205,133,63,0.35); border-radius: 16px; padding: 1.75rem;">
-      <div style="font-size:1.1rem; font-weight:800; margin-bottom:0.4rem; color:#e8c97a;">
-        🪔 Telugu Sameta Video Generator
-      </div>
-      <div style="font-size:0.85rem; color:var(--muted); margin-bottom:1.25rem;">
-        AI generates a watercolor village scene + Telugu text overlay. One click = publish-ready Short.
-      </div>
-
-      <!-- Mode toggle -->
-      <div style="display:flex; gap:0.5rem; margin-bottom:1.25rem;">
-        <button id="sametaModeRandom" onclick="setSametaMode('random')"
-          style="flex:1; padding:0.65rem; border-radius:8px; border:1px solid rgba(205,133,63,0.5); background:rgba(205,133,63,0.2); color:#e8c97a; font-weight:700; cursor:pointer; font-size:0.9rem;">
-          🎲 Random Sameta
-        </button>
-        <button id="sametaModeCustom" onclick="setSametaMode('custom')"
-          style="flex:1; padding:0.65rem; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03); color:var(--muted); font-weight:600; cursor:pointer; font-size:0.9rem;">
-          ✏️ Custom Input
-        </button>
-      </div>
-
-      <!-- Custom input fields (hidden by default) -->
-      <div id="sametaCustomFields" style="display:none; margin-bottom:1.25rem;">
-        <input id="sametaText" type="text" placeholder="సామెత — e.g. చేసిన మేలు మరువకు"
-          style="width:100%; margin-bottom:0.6rem; padding:0.85rem 1rem; background:rgba(255,255,255,0.04); border:1px solid rgba(205,133,63,0.3); border-radius:10px; color:var(--text); font-size:16px; font-family:inherit;">
-        <textarea id="sametaMeaning" placeholder="అర్థం — meaning in Telugu"
-          style="width:100%; padding:0.85rem 1rem; background:rgba(255,255,255,0.04); border:1px solid rgba(205,133,63,0.3); border-radius:10px; color:var(--text); font-size:16px; font-family:inherit; min-height:80px; resize:vertical;"></textarea>
-      </div>
-
-      <!-- Platform publish checkboxes -->
-      <div style="margin-bottom:1rem;">
-        <div style="font-size:0.78rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.5rem;">Publish to</div>
-        <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
-          <label id="ytPushLabel" style="display:flex; align-items:center; gap:0.5rem; padding:0.6rem 0.9rem; background:rgba(255,0,0,0.06); border:1px solid rgba(255,0,0,0.2); border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600; color:var(--text);">
-            <input type="checkbox" id="sametaPushToYouTube" style="width:15px; height:15px; accent-color:#FF0000; cursor:pointer;">
-            <svg viewBox="0 0 24 24" fill="#FF0000" width="14" height="14"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-            YouTube
-          </label>
-          <label id="igPushLabel" style="display:flex; align-items:center; gap:0.5rem; padding:0.6rem 0.9rem; background:rgba(225,48,108,0.06); border:1px solid rgba(225,48,108,0.25); border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600; color:var(--text);">
-            <input type="checkbox" id="sametaPushToInstagram" style="width:15px; height:15px; accent-color:#E1306C; cursor:pointer;">
-            <svg viewBox="0 0 24 24" fill="url(#igGrad)" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="igGrad" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stop-color="#f09433"/><stop offset="50%" stop-color="#e1306c"/><stop offset="100%" stop-color="#833ab4"/></linearGradient></defs><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-            Instagram
-            <span id="igNotConnectedBadge" style="font-size:0.7rem; background:rgba(225,48,108,0.15); color:#E1306C; padding:1px 6px; border-radius:4px; display:none;">Connect ↗</span>
-          </label>
-          <label id="fbPushLabel" style="display:flex; align-items:center; gap:0.5rem; padding:0.6rem 0.9rem; background:rgba(24,119,242,0.06); border:1px solid rgba(24,119,242,0.2); border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600; color:var(--text);">
-            <input type="checkbox" id="sametaPushToFacebook" style="width:15px; height:15px; accent-color:#1877F2; cursor:pointer;">
-            <svg viewBox="0 0 24 24" fill="#1877F2" width="14" height="14"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-            Facebook
-            <span id="fbNotConnectedBadge" style="font-size:0.7rem; background:rgba(24,119,242,0.15); color:#1877F2; padding:1px 6px; border-radius:4px; display:none;">Connect ↗</span>
-          </label>
-        </div>
-      </div>
-
-      <button id="sametaGenerateBtn" onclick="generateSameta()"
-        style="width:100%; padding:1.1rem; background:linear-gradient(135deg,#8B4513,#CD853F); color:white; border:none; border-radius:12px; font-size:1.05rem; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:0.5rem;">
-        <span id="sametaBtnSpinner" class="spinner" style="display:none; border-color:rgba(255,255,255,0.3); border-top-color:white;"></span>
-        <span id="sametaBtnText">🎬 Generate Sameta Video</span>
-      </button>
-
-      <div id="sametaResult" style="display:none; margin-top:1.25rem; padding:1rem; border-radius:10px; text-align:center;"></div>
+  <!-- Trigger cron manually -->
+  <div class="card" style="margin-top:1.5rem">
+    <div class="card-header">Manual Trigger</div>
+    <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem">
+      Fires the scheduled job immediately — generates a new video and posts to YouTube.
+    </p>
+    <div class="field">
+      <label>Admin Secret</label>
+      <input type="password" id="mbAdminSecret" placeholder="ADMIN_SECRET env variable">
     </div>
-  </div>
-  <!-- ══ END TELUGU SAMETA SECTION ════════════════════════════════════════════ -->
-
-  <div class="container">
-
-    <!-- TOP LEVEL: THE MAGIC BAR -->
-    <div style="text-align: center; margin-bottom: 2rem;">
-      <h2 style="margin-bottom: 1rem; color: var(--text);">What is your video about?</h2>
-      <div style="position: relative; max-width: 600px; margin: 0 auto;">
-        <input type="text" id="topLevelTopic" placeholder="e.g. 3 stoic rules for morning success" style="width: 100%; padding: 1.2rem; font-size: 1.1rem; border-radius: 16px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); color: var(--text); box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
-        <div style="font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem; text-align: left; padding-left: 1rem;">Leave blank for a surprise viral topic!</div>
-      </div>
-    </div>
-
-    <!-- YOUTUBE AUTH STATUS (Moved to Top Level) -->
-    <div id="ytAuthSection" style="max-width: 600px; margin: 0 auto 2rem auto; text-align: center; padding: 1.5rem; background: rgba(123, 44, 191, 0.05); border: 1px dashed rgba(123, 44, 191, 0.4); border-radius: 12px; backdrop-filter: blur(10px);">
-      <h4 style="margin-bottom: 0.5rem; color: #e0aaff;">Connect your YouTube Channel</h4>
-      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem;">To use the One-Click Push, you must connect your account first.</p>
-      <a href="/auth/youtube" class="btn-link" style="display: inline-block; padding: 0.8rem 1.5rem; background: var(--accent-grad); color: white; text-decoration: none; border-radius: 8px; font-weight: 700; box-shadow: 0 4px 15px rgba(123, 44, 191, 0.3); display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: fit-content; margin: 0 auto; transition: transform 0.2s;">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-        Connect YouTube
-      </a>
-    </div>
-    
-    <div id="ytConnectedSection" style="display: none; max-width: 600px; margin: 0 auto 1rem auto;">
-      <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.8rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16,185,129,0.2); border-radius: 8px; color: var(--success); font-size: 0.9rem; font-weight: 600;">
-        ✅ YouTube: <span id="ytChannelName">Connected</span>
-        <button onclick="disconnectYouTube()" style="background: none; border: none; color: var(--muted); font-size: 0.8rem; margin-left: 1rem; text-decoration: underline; cursor: pointer;">Disconnect</button>
-      </div>
-    </div>
-
-    <!-- META (Instagram + Facebook) CONNECT -->
-    <div id="metaAuthSection" style="display:none; max-width: 600px; margin: 0 auto 1rem auto; text-align: center; padding: 1.25rem; background: rgba(225,48,108,0.04); border: 1px dashed rgba(225,48,108,0.35); border-radius: 12px;">
-      <h4 style="margin-bottom:0.4rem; color:#E1306C; font-size:0.95rem;">Connect Instagram &amp; Facebook</h4>
-      <p style="font-size:0.82rem; color:var(--muted); margin-bottom:0.9rem;">One login covers both. Posts Reels to Instagram + video to your Facebook Page.</p>
-      <a href="/auth/meta" style="display:inline-flex; align-items:center; gap:0.5rem; padding:0.7rem 1.4rem; background:linear-gradient(135deg,#833ab4,#e1306c,#f09433); color:white; text-decoration:none; border-radius:8px; font-weight:700; font-size:0.9rem;">
-        <svg viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-        Connect Instagram + Facebook
-      </a>
-    </div>
-    <div id="metaConnectedSection" style="display:none; max-width: 600px; margin: 0 auto 1rem auto;">
-      <div style="display:flex; align-items:center; justify-content:center; gap:0.5rem; padding:0.8rem; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.2); border-radius:8px; color:var(--success); font-size:0.9rem; font-weight:600; flex-wrap:wrap;">
-        ✅ Meta: <span id="metaAccountNames">Instagram + Facebook connected</span>
-        <button onclick="disconnectMeta()" style="background:none; border:none; color:var(--muted); font-size:0.8rem; margin-left:1rem; text-decoration:underline; cursor:pointer;">Disconnect</button>
-      </div>
-    </div>
-
-    <!-- PRIMARY MAIN ACTIONS -->
-    <div style="max-width: 600px; margin: 0 auto 3rem auto; display: flex; flex-direction: column; gap: 1rem;">
-      <button type="button" id="autoSubmitBtn" style="background: var(--accent-grad); padding: 1.2rem; position: relative; overflow: hidden; font-size: 1.25rem; font-weight: 800; border-radius: 16px; box-shadow: 0 8px 30px rgba(123, 44, 191, 0.4); border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 100%; transition: transform 0.2s, box-shadow 0.2s;">
-        <span class="spinner" id="autoSpinner" style="display: none; border-color: rgba(255,255,255,0.3); border-top-color: white;"></span>
-        <span id="autoBtnText">⚡ One-Click YouTube Push</span>
-      </button>
-
-      <button type="button" id="toggleAdvancedSettingsBtn" style="background: rgba(255,255,255,0.03); color: #e0aaff; padding: 1rem; font-size: 1rem; font-weight: 600; border: 1px solid rgba(123, 44, 191, 0.4); border-radius: 12px; cursor: pointer; transition: all 0.2s;">
-        <span id="advancedToggleText">⚙️ Customize Video Settings</span>
-      </button>
-    </div>
-
-    <!-- RESULT BOX -->
-    <div id="result" style="display: none; max-width: 600px; margin: 0 auto 2rem auto;"></div>
-
-
-    <!-- ADVANCED SETTINGS PANE (Hidden by default) -->
-    <div id="advancedSettingsPane" style="display: none;">
-      <form id="form">
-        
-        <!-- 1. SCRIPT OVERRIDE -->
-        <div class="card">
-          <div class="card-header"><span>✍️</span> 1. Script & Topic Settings</div>
-          
-          <div class="field">
-            <label for="script">Have your own script? (Optional)</label>
-            <textarea id="script" placeholder="Paste script here. If empty, AI generates based on your Top Level Topic."></textarea>
-          </div>
-          
-          <div class="field" style="flex-direction: row; align-items: center; justify-content: space-between;">
-            <label for="maxWords" style="margin:0;">Target Length:</label>
-            <select id="maxWords" style="width: 200px;">
-              <option value="35">Short (~15 sec)</option>
-              <option value="50">Long (~20 sec)</option>
-            </select>
-          </div>
-        </div>
-
-      <!-- 2. VISUALS -->
-      <div class="card">
-        <div class="card-header"><span>🖼️</span> 2. Visuals</div>
-        
-        <div class="image-mode-tabs">
-          <div class="tab active" data-target="uploadPane">Your Photos (Pro)</div>
-          <div class="tab" data-target="pexelsPane">AI Stock Photos</div>
-        </div>
-
-        <!-- Local Upload Pane -->
-        <div id="uploadPane">
-          <div class="upload-zone" onclick="document.getElementById('imageUpload').click()">
-            <input type="file" id="imageUpload" multiple accept="image/*">
-            <span class="upload-icon">📸</span>
-            <div class="upload-title">Tap to upload photos</div>
-            <div class="upload-subtitle">Select up to 10 images from your gallery</div>
-          </div>
-          <div class="preview-grid" id="previewGrid"></div>
-        </div>
-
-        <!-- Pexels Pane -->
-        <div id="pexelsPane" style="display: none;">
-          <div class="field">
-            <label for="imageQuerySelect">Pexels search theme</label>
-            <select id="imageQuerySelect">
-              <option value="">Match topic (Auto)</option>
-              <option value="dark aesthetic background">Dark aesthetic</option>
-              <option value="pastel gradient background">Pastel gradient</option>
-              <option value="nature landscape">Nature / Calm</option>
-              <option value="urban lifestyle">Urban luxury</option>
-              <option value="custom">Custom...</option>
-            </select>
-            <input type="text" id="imageQuery" placeholder="e.g. tropical beach" style="display:none; margin-top:0.5rem;">
-          </div>
-        </div>
-        
-        <hr style="border:0; border-top:1px solid var(--border); margin: 1.5rem 0;">
-        
-        <div class="field">
-          <label for="textColor">Subtitle Color</label>
-          <select id="textColor">
-            <option value="white">White font + Black outline</option>
-            <option value="black">Black font + White outline (Best for light photos)</option>
-          </select>
-        </div>
-        
-        <div class="switch-field">
-          <label for="showQuote">Show Quote Text Overlay</label>
-          <input type="checkbox" id="showQuote" checked>
-        </div>
-        
-        <div class="switch-field">
-          <label for="addSubscribeBtn"><span>🔴</span> Show Subscribe Button</label>
-          <input type="checkbox" id="addSubscribeBtn" checked>
-        </div>
-      </div>
-
-      <!-- 3. AUDIO & MUSIC -->
-      <div class="card">
-        <div class="card-header"><span>🎵</span> 3. Audio & Hook</div>
-        
-        <div class="field">
-          <label for="hook">Opening Hook Text (First 3s)</label>
-          <input type="text" id="hook" placeholder="e.g. STOP SCROLLING (auto-generated if empty)">
-        </div>
-        
-        <div class="field">
-          <label>Audio Output <span class="req">*</span></label>
-          <div style="display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.015); padding: 1rem; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
-            <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text); cursor: pointer; margin: 0; font-size: 0.9rem;">
-              <input type="radio" name="audioMode" value="music-only" checked style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;">
-              🎵 <strong>Music Only</strong> — people read the quote (best for motivation Shorts)
-            </label>
-            <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text); cursor: pointer; margin: 0; font-size: 0.9rem;">
-              <input type="radio" name="audioMode" value="full" style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;">
-              🎙️ <strong>Voice + Music</strong> — AI voiceover with background music
-            </label>
-            <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text); cursor: pointer; margin: 0; font-size: 0.9rem;">
-              <input type="radio" name="audioMode" value="voice-only" style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;">
-              🔊 <strong>Voice Only</strong> — clear AI voiceover, no music
-            </label>
-            <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text); cursor: pointer; margin: 0; font-size: 0.9rem;">
-              <input type="radio" name="audioMode" value="silent" style="width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;">
-              🔇 <strong>Silent</strong> — add your own trending sound on TikTok/Reels
-            </label>
-          </div>
-        </div>
-        
-        <div class="field" id="musicThemeWrap">
-          <label for="musicQuery">Background Music Vibe (if Full Audio)</label>
-          <select id="musicQuery">
-            <option value="">Auto (Match Topic)</option>
-            <option value="motivation">Motivation & Cinematic</option>
-            <option value="calm">Calm & Peaceful</option>
-            <option value="energy">High Energy</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- 4. PUBLISH TO YOUTUBE -->
-      <div class="card">
-        <div class="card-header"><span>🚀</span> 4. Publish to YouTube</div>
-        
-        <div id="ytNotConnectedMsg" style="margin-bottom: 1.5rem; text-align: center; padding: 1.5rem; background: rgba(123, 44, 191, 0.05); border: 1px dashed rgba(123, 44, 191, 0.4); border-radius: 12px;">
-          <p style="font-size: 0.95rem; color: var(--muted); margin: 0;">⚠️ Please connect your YouTube account at the top of the page to enable direct publishing.</p>
-        </div>
-
-        <div id="ytConnectedSectionAdvanced" style="display: none;">
-          <div class="switch-field" style="margin-bottom: 0;">
-            <label for="pushToYouTube">Push directly to YouTube channel</label>
-            <input type="checkbox" id="pushToYouTube">
-          </div>
-          
-          <div id="youtubeSettingsPane" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
-            <div class="field">
-              <label for="youtubeTitle">Custom Title (Optional)</label>
-              <input type="text" id="youtubeTitle" placeholder="e.g. My Viral Short #shorts">
-              <div class="hint">Overrides the auto-generated AI title.</div>
-            </div>
-            
-            <div class="field">
-              <label for="youtubeTags">Custom Tags (Optional)</label>
-              <input type="text" id="youtubeTags" placeholder="e.g. motivation, productivity, luxury">
-              <div class="hint">Comma separated. Overrides the auto-generated viral tags.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-        
-        <!-- Custom Execute Button inside the Advanced Form -->
-        <div style="margin-top: 2rem; text-align: center;">
-            <button type="submit" id="customSubmitBtn" style="background: rgba(255,255,255,0.05); color: var(--text); padding: 1.2rem; font-size: 1.1rem; border-radius: 12px; width: 100%; box-shadow: none; border: 1px solid rgba(255,255,255,0.1);">
-                <span class="spinner" id="customSpinner" style="display: none;"></span>
-                <span id="customBtnText">⚙️ Generate with Custom Settings</span>
-            </button>
-        </div>
-
-      </form>
-    </div> <!-- End Advanced Settings Pane -->
-
+    <button class="btn-primary gold-btn" id="mbTriggerBtn" onclick="triggerMahabharatCron()" style="max-width:260px">
+      <span class="spinner"></span>
+      <span class="btn-text">Trigger Cron Job</span>
+    </button>
+    <div id="mbTriggerResult" style="font-size:0.85rem;margin-top:0.75rem;color:var(--muted)"></div>
   </div>
 
-<!-- Sticky Bar removed for cleaner layout -->
+  <!-- Schedule info -->
+  <div class="card" style="margin-top:0">
+    <div class="card-header">Auto-Schedule</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+      <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:0.85rem;text-align:center">
+        <div style="font-size:1.2rem;font-weight:800;color:var(--gold)">10:00 AM</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:2px">IST daily</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:0.85rem;text-align:center">
+        <div style="font-size:1.2rem;font-weight:800;color:var(--gold)">6:00 PM</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:2px">IST daily</div>
+      </div>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);margin-top:0.75rem">
+      Enable: set <code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px">MAHABHARAT_AUTO_PUBLISH=true</code> in Railway Variables.
+    </p>
+  </div>
 
-  <script>
-    // Custom select reveals
-    function setupCustomParams(selectId, inputId, defaultShow = false) {
-      const sel = document.getElementById(selectId);
-      const inp = document.getElementById(inputId);
-      if(!sel || !inp) return;
-      sel.addEventListener('change', () => {
-        inp.style.display = (sel.value === 'custom' || (!sel.value && defaultShow)) ? 'block' : 'none';
-        if (inp.style.display === 'none') inp.value = '';
-      });
+</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- TAB 3: SAMETA                                                  -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="page-sameta" class="page">
+<div class="container">
+
+  <div class="section-title">Sameta Video Generator</div>
+
+  <!-- Platform connections -->
+  <div id="sameYtConnect" class="auth-banner disconnected">
+    <div class="auth-name">YouTube not connected</div>
+    <a href="/auth/youtube">Connect</a>
+  </div>
+  <div id="sameYtConnected" class="auth-banner connected" style="display:none">
+    <div class="auth-name">YouTube connected</div>
+    <button onclick="disconnectYouTube()">Disconnect</button>
+  </div>
+  <div id="sameMetaConnect" class="auth-banner disconnected">
+    <div class="auth-name">Instagram + Facebook not connected</div>
+    <a href="/auth/meta">Connect Meta</a>
+  </div>
+  <div id="sameMetaConnected" class="auth-banner connected" style="display:none">
+    <div class="auth-name" id="sameMetaName">Instagram + Facebook connected</div>
+    <button onclick="disconnectMeta()">Disconnect</button>
+  </div>
+
+  <!-- Mode selector -->
+  <div class="card">
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="sameRandBtn" onclick="setSametaMode('random')">Random Sameta</button>
+      <button class="mode-tab" id="sameCustomBtn" onclick="setSametaMode('custom')">Custom Input</button>
+    </div>
+
+    <div id="sameCustomFields" style="display:none">
+      <div class="field">
+        <label>Sameta (Telugu proverb)</label>
+        <input type="text" id="sametaText" placeholder="e.g. చేసిన మేలు మరువకు">
+      </div>
+      <div class="field">
+        <label>Meaning (Telugu)</label>
+        <textarea id="sametaMeaning" placeholder="అర్థం — meaning in Telugu" style="min-height:70px"></textarea>
+      </div>
+    </div>
+
+    <!-- Publish to -->
+    <div class="card-header" style="margin-top:0.5rem">Publish to</div>
+    <div class="platform-row">
+      <label class="platform-label platform-yt">
+        <input type="checkbox" id="sametaPushToYouTube" style="accent-color:#ff0000">
+        <svg viewBox="0 0 24 24" fill="#ff4444" width="14" height="14"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        YouTube
+      </label>
+      <label class="platform-label platform-ig">
+        <input type="checkbox" id="sametaPushToInstagram" style="accent-color:#e1306c">
+        <svg viewBox="0 0 24 24" fill="#e1306c" width="14" height="14"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+        Instagram
+      </label>
+      <label class="platform-label platform-fb">
+        <input type="checkbox" id="sametaPushToFacebook" style="accent-color:#1877f2">
+        <svg viewBox="0 0 24 24" fill="#1877f2" width="14" height="14"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        Facebook
+      </label>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div id="sameResult" class="result-box"></div>
+
+</div>
+<!-- Sticky bar for Sameta -->
+<div class="sticky-bar" id="sameStickyBar" style="display:none">
+  <div class="sticky-inner">
+    <button class="btn-primary warm-btn" id="sameGenBtn" onclick="generateSameta()">
+      <span class="spinner"></span>
+      <span class="btn-text">Generate Sameta Video</span>
+    </button>
+  </div>
+</div>
+</div>
+
+
+<!-- ── JavaScript ────────────────────────────────────────────────── -->
+<script>
+// ── Tab switching ────────────────────────────────────────────────
+const TABS = ['motivation', 'mahabharat', 'sameta'];
+const STICKY_BARS = { motivation: 'motStickyBar', sameta: 'sameStickyBar' };
+
+function switchTab(name, btn) {
+  TABS.forEach(t => {
+    document.getElementById('page-' + t).classList.remove('active');
+  });
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.ch-card').forEach(c => c.classList.remove('active-card'));
+
+  document.getElementById('page-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+
+  const cardMap = { motivation: 0, mahabharat: 1, sameta: 2 };
+  document.querySelectorAll('.ch-card')[cardMap[name]]?.classList.add('active-card');
+
+  // Show/hide sticky bars
+  Object.values(STICKY_BARS).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  if (STICKY_BARS[name]) {
+    document.getElementById(STICKY_BARS[name]).style.display = 'block';
+  }
+}
+
+// ── Collapse toggle ───────────────────────────────────────────────
+function toggleCollapse(id, btn) {
+  const body = document.getElementById(id);
+  const chevron = btn.querySelector('.chevron');
+  body.classList.toggle('open');
+  chevron.classList.toggle('open');
+}
+
+// ── Sameta mode ───────────────────────────────────────────────────
+function setSametaMode(mode) {
+  const custom = document.getElementById('sameCustomFields');
+  const randBtn = document.getElementById('sameRandBtn');
+  const custBtn = document.getElementById('sameCustomBtn');
+  if (mode === 'custom') {
+    custom.style.display = 'block';
+    custBtn.classList.add('active');
+    randBtn.classList.remove('active');
+  } else {
+    custom.style.display = 'none';
+    randBtn.classList.add('active');
+    custBtn.classList.remove('active');
+  }
+}
+
+// ── YouTube push toggle ───────────────────────────────────────────
+document.getElementById('motPushYT').addEventListener('change', function () {
+  document.getElementById('motYtExtra').style.display = this.checked ? 'block' : 'none';
+});
+
+// ── Auth status check ─────────────────────────────────────────────
+async function checkAuthStatus() {
+  try {
+    const r = await fetch('/api/auth/status');
+    if (!r.ok) return;
+    const d = await r.json();
+
+    if (d.youtube) {
+      document.getElementById('motYtConnect').style.display = 'none';
+      document.getElementById('motYtConnected').style.display = 'flex';
+      document.getElementById('sameYtConnect').style.display = 'none';
+      document.getElementById('sameYtConnected').style.display = 'flex';
+      document.getElementById('motYtBadge').textContent = 'YT ✓';
+      document.getElementById('sameYtBadge').textContent = 'YT ✓';
     }
-    setupCustomParams('topicSelect', 'topic', true);
-    setupCustomParams('imageQuerySelect', 'imageQuery', false);
+    if (d.meta) {
+      document.getElementById('sameMetaConnect').style.display = 'none';
+      document.getElementById('sameMetaConnected').style.display = 'flex';
+      if (d.meta.name) document.getElementById('sameMetaName').textContent = d.meta.name;
+      document.getElementById('sameIgBadge').textContent = 'IG ✓';
+      document.getElementById('sameFbBadge').textContent = 'FB ✓';
+    }
+    if (d.mahabharatYouTube) {
+      document.getElementById('mbYtBadge').textContent = 'YT ✓';
+    }
+  } catch (_) {}
+}
 
-    // Tabs for Image Modes
-    const tabs = document.querySelectorAll('.tab');
-    let useLocalImages = true; // Default
-    tabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        tabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById('uploadPane').style.display = tab.dataset.target === 'uploadPane' ? 'block' : 'none';
-        document.getElementById('pexelsPane').style.display = tab.dataset.target === 'pexelsPane' ? 'block' : 'none';
-        useLocalImages = tab.dataset.target === 'uploadPane';
-      });
+function disconnectYouTube() {
+  fetch('/api/auth/disconnect-youtube', { method: 'POST' }).then(() => location.reload()).catch(() => {});
+}
+function disconnectMeta() {
+  fetch('/api/auth/disconnect-meta', { method: 'POST' }).then(() => location.reload()).catch(() => {});
+}
+
+// ── English Motivational Generate ────────────────────────────────
+async function generateMotivation() {
+  const btn = document.getElementById('motGenBtn');
+  const result = document.getElementById('motResult');
+  const topic = document.getElementById('motTopic').value.trim();
+  const script = document.getElementById('motScript').value.trim();
+
+  if (!topic && !script) {
+    showResult(result, 'error', 'Enter a topic or script.');
+    return;
+  }
+
+  setLoading(btn, true);
+  result.style.display = 'none';
+
+  const body = new FormData();
+  if (topic)  body.append('topic', topic);
+  if (script) body.append('script', script);
+  body.append('maxWords', document.getElementById('motMaxWords').value);
+  body.append('pushToYouTube', document.getElementById('motPushYT').checked ? 'true' : 'false');
+  const ytTitle = document.getElementById('motYtTitle').value.trim();
+  if (ytTitle) body.append('youtubeTitle', ytTitle);
+
+  try {
+    const r = await fetch('/api/generate-video', { method: 'POST', body });
+    const d = await r.json();
+    if (d.success) {
+      let html = '<h3>Video ready!</h3>';
+      const links = [];
+      if (d.videoUrl) links.push(`<a href="${d.videoUrl}" target="_blank">Watch Video</a>`);
+      if (d.youtubeUrl) links.push(`<a href="${d.youtubeUrl}" target="_blank">View on YouTube</a>`);
+      if (links.length) html += `<div class="result-links">${links.join('')}</div>`;
+      showResult(result, 'success', html);
+    } else {
+      showResult(result, 'error', d.error || 'Generation failed.');
+    }
+  } catch (e) {
+    showResult(result, 'error', e.message);
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+// ── Sameta Generate ───────────────────────────────────────────────
+async function generateSameta() {
+  const btn = document.getElementById('sameGenBtn');
+  const result = document.getElementById('sameResult');
+  const customVisible = document.getElementById('sameCustomFields').style.display !== 'none';
+  const sametaText = document.getElementById('sametaText').value.trim();
+  const sametaMeaning = document.getElementById('sametaMeaning').value.trim();
+
+  setLoading(btn, true);
+  result.style.display = 'none';
+
+  const payload = {
+    mode: customVisible ? 'custom' : 'random',
+    pushToYouTube: document.getElementById('sametaPushToYouTube').checked,
+    pushToInstagram: document.getElementById('sametaPushToInstagram').checked,
+    pushToFacebook: document.getElementById('sametaPushToFacebook').checked,
+  };
+  if (customVisible && sametaText) payload.sameta = sametaText;
+  if (customVisible && sametaMeaning) payload.meaning = sametaMeaning;
+
+  try {
+    const r = await fetch('/api/generate-sameta-video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
-
-    // YouTube Settings Toggle
-    const pushToYouTubeToggle = document.getElementById('pushToYouTube');
-    const youtubeSettingsPane = document.getElementById('youtubeSettingsPane');
-    if(pushToYouTubeToggle && youtubeSettingsPane) {
-      pushToYouTubeToggle.addEventListener('change', (e) => {
-        youtubeSettingsPane.style.display = e.target.checked ? 'block' : 'none';
-      });
+    const d = await r.json();
+    if (d.success) {
+      let html = '<h3>Video ready!</h3>';
+      const links = [];
+      if (d.videoUrl) links.push(`<a href="${d.videoUrl}" target="_blank">Watch Video</a>`);
+      if (d.youtubeUrl) links.push(`<a href="${d.youtubeUrl}" target="_blank">YouTube</a>`);
+      if (d.instagramUrl) links.push(`<a href="${d.instagramUrl}" target="_blank">Instagram</a>`);
+      if (links.length) html += `<div class="result-links">${links.join('')}</div>`;
+      showResult(result, 'success', html);
+    } else {
+      showResult(result, 'error', d.error || 'Generation failed.');
     }
+  } catch (e) {
+    showResult(result, 'error', e.message);
+  } finally {
+    setLoading(btn, false);
+  }
+}
 
-    // File Upload Preview
-    const fileInput = document.getElementById('imageUpload');
-    const grid = document.getElementById('previewGrid');
-    fileInput.addEventListener('change', () => {
-      grid.innerHTML = '';
-      const files = Array.from(fileInput.files).slice(0, 10); // max 10
-      files.forEach(file => {
-        const url = URL.createObjectURL(file);
-        const img = document.createElement('img');
-        img.src = url;
-        img.className = 'preview-thumb';
-        grid.appendChild(img);
-      });
-    });
+// ── Mahabharat cron trigger ───────────────────────────────────────
+async function triggerMahabharatCron() {
+  const btn = document.getElementById('mbTriggerBtn');
+  const result = document.getElementById('mbTriggerResult');
+  const secret = document.getElementById('mbAdminSecret').value.trim();
+  if (!secret) { result.textContent = 'Enter admin secret.'; return; }
 
-    // Form Submission JS
-    const form = document.getElementById('form');
-    const autoBtn = document.getElementById('autoSubmitBtn');
-    const customBtn = document.getElementById('customSubmitBtn');
-    const autoBtnText = document.getElementById('autoBtnText');
-    const customBtnText = document.getElementById('customBtnText');
-    const autoSpinner = document.getElementById('autoSpinner');
-    const customSpinner = document.getElementById('customSpinner');
-    const resultBox = document.getElementById('result');
+  setLoading(btn, true);
+  result.textContent = 'Triggering...';
 
-    // Toggle Advanced Settings Pane
-    const advancedSettingsPane = document.getElementById('advancedSettingsPane');
-    const toggleAdvancedBtn = document.getElementById('toggleAdvancedSettingsBtn');
-    const advancedToggleText = document.getElementById('advancedToggleText');
+  try {
+    const r = await fetch(`/api/trigger-mahabharat-cron?secret=${encodeURIComponent(secret)}`, { method: 'POST' });
+    const d = await r.json();
+    result.style.color = d.success ? 'var(--success)' : 'var(--error)';
+    result.textContent = d.success ? 'Job triggered — check Railway logs.' : (d.error || 'Failed.');
+  } catch (e) {
+    result.style.color = 'var(--error)';
+    result.textContent = e.message;
+  } finally {
+    setLoading(btn, false);
+  }
+}
 
-    toggleAdvancedBtn.addEventListener('click', () => {
-        if (advancedSettingsPane.style.display === 'none') {
-            advancedSettingsPane.style.display = 'block';
-            advancedToggleText.textContent = '❌ Close Custom Settings';
-            autoBtn.style.display = 'none'; // Hide auto button
-        } else {
-            advancedSettingsPane.style.display = 'none';
-            advancedToggleText.textContent = '⚙️ Customize Video Settings';
-            autoBtn.style.display = 'flex'; // Show auto button
-        }
-    });
+// ── Helpers ───────────────────────────────────────────────────────
+function setLoading(btn, loading) {
+  btn.disabled = loading;
+  const spinner = btn.querySelector('.spinner');
+  const text = btn.querySelector('.btn-text');
+  if (spinner) spinner.style.display = loading ? 'block' : 'none';
+  if (text) text.style.display = loading ? 'none' : 'inline';
+}
 
-    // Route Cloudinary videos through our server-side download proxy so iOS/Android
-    // Chrome receives a same-origin response with Content-Disposition: attachment.
-    // Cross-origin download attribute and fl_attachment are ignored by mobile browsers.
-    function toDownloadUrl(url, filename) {
-      if (!url) return url;
-      if (url.includes('res.cloudinary.com')) {
-        const name = encodeURIComponent(filename || 'video.mp4');
-        return `/api/download?url=${encodeURIComponent(url)}&filename=${name}`;
-      }
-      return url;
-    }
+function showResult(el, type, html) {
+  el.className = 'result-box ' + type;
+  el.innerHTML = html;
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
 
-    // Save video to Camera Roll (iOS) via Web Share API, or blob download on desktop.
-    async function saveVideo(videoUrl, filename, btnEl) {
-      const origText = btnEl ? btnEl.textContent : '';
-      if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Saving…'; }
-      try {
-        const proxyUrl = toDownloadUrl(videoUrl, filename);
-        const res = await fetch(proxyUrl);
-        if (!res.ok) throw new Error('Download failed (' + res.status + ')');
-        const blob = await res.blob();
-        const file = new File([blob], filename, { type: 'video/mp4' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          // iOS/Android: shows native share sheet → "Save to Camera Roll"
-          await navigator.share({ files: [file], title: filename });
-        } else {
-          // Desktop: trigger blob download
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-        }
-      } catch (e) {
-        if (e.name !== 'AbortError') alert('Save failed: ' + e.message);
-      } finally {
-        if (btnEl) { btnEl.disabled = false; btnEl.textContent = origText; }
-      }
-    }
+// ── Init ──────────────────────────────────────────────────────────
+// Show motivation sticky bar by default
+document.getElementById('motStickyBar').style.display = 'block';
+checkAuthStatus();
+</script>
 
-    async function checkYoutubeAuth() {
-      try {
-        const res = await fetch('/auth/youtube/status');
-        const data = await res.json();
-        const topAuth = document.getElementById('ytAuthSection');
-        const topConn = document.getElementById('ytConnectedSection');
-        const notConnectedMsg = document.getElementById('ytNotConnectedMsg');
-        const advConn = document.getElementById('ytConnectedSectionAdvanced');
-
-        if(data.connected) {
-          if (topAuth) topAuth.style.display = 'none';
-          if (topConn) topConn.style.display = 'block';
-          const nameEl = document.getElementById('ytChannelName');
-          if (nameEl && data.channelTitle) nameEl.textContent = data.channelTitle;
-          if (notConnectedMsg) notConnectedMsg.style.display = 'none';
-          if (advConn) advConn.style.display = 'block';
-        } else {
-          if (topAuth) topAuth.style.display = 'block';
-          if (topConn) topConn.style.display = 'none';
-          if (notConnectedMsg) notConnectedMsg.style.display = 'block';
-          if (advConn) advConn.style.display = 'none';
-        }
-      } catch (e) { console.error('Error checking YT auth'); }
-    }
-    checkYoutubeAuth();
-
-    async function disconnectYouTube() {
-      await fetch('/auth/youtube/disconnect', { method: 'POST' });
-      checkYoutubeAuth();
-    }
-
-    // ── Meta (Instagram + Facebook) auth ──────────────────────────────────────
-    async function checkMetaAuth() {
-      try {
-        const res  = await fetch('/auth/meta/status');
-        const data = await res.json();
-        const authEl = document.getElementById('metaAuthSection');
-        const connEl = document.getElementById('metaConnectedSection');
-        const igBadge = document.getElementById('igNotConnectedBadge');
-        const fbBadge = document.getElementById('fbNotConnectedBadge');
-
-        if (!data.configured) {
-          // META_APP_ID not set — hide connect card entirely
-          if (authEl) authEl.style.display = 'none';
-          if (connEl) connEl.style.display = 'none';
-          return;
-        }
-        if (data.connected) {
-          if (authEl) authEl.style.display = 'none';
-          if (connEl) connEl.style.display = 'block';
-          const parts = [];
-          if (data.instagramUsername) parts.push(`@${data.instagramUsername}`);
-          if (data.facebookPageName)  parts.push(data.facebookPageName);
-          const namesEl = document.getElementById('metaAccountNames');
-          if (namesEl && parts.length) namesEl.textContent = parts.join(' + ');
-          if (igBadge) igBadge.style.display = 'none';
-          if (fbBadge) fbBadge.style.display = 'none';
-        } else {
-          if (authEl) authEl.style.display = 'block';
-          if (connEl) connEl.style.display = 'none';
-          if (igBadge) igBadge.style.display = 'inline';
-          if (fbBadge) fbBadge.style.display = 'inline';
-        }
-      } catch (e) { console.error('Error checking Meta auth'); }
-    }
-    checkMetaAuth();
-
-    async function disconnectMeta() {
-      await fetch('/auth/meta/disconnect', { method: 'POST' });
-      checkMetaAuth();
-    }
-
-    // Toggle Audio mode logic
-    const audioModes = document.querySelectorAll('input[name="audioMode"]');
-    const musicThemeWrap = document.getElementById('musicThemeWrap');
-    audioModes.forEach(radio => {
-      radio.addEventListener('change', (e) => {
-        const showMusic = e.target.value === 'full' || e.target.value === 'music-only';
-        musicThemeWrap.style.opacity = showMusic ? '1' : '0.4';
-        musicThemeWrap.style.pointerEvents = showMusic ? 'auto' : 'none';
-      });
-    });
-
-    async function submitGeneration(isAutoMode) {
-      let finalTopic = document.getElementById('topLevelTopic').value.trim();
-      const script = document.getElementById('script') ? document.getElementById('script').value : '';
-      
-      if (!finalTopic && !script) {
-        if (isAutoMode) {
-          const randomTopics = ["morning motivation for success", "stoic quotes about life", "entrepreneur grind mindset", "daily positive affirmations", "discipline over motivation"];
-          finalTopic = randomTopics[Math.floor(Math.random() * randomTopics.length)];
-          console.log("Auto Mode: No topic provided. Using random topic:", finalTopic);
-        } else {
-          alert("Please enter a topic or script first.");
-          return;
-        }
-      }
-
-      // Freeze buttons
-      autoBtn.disabled = true;
-      customBtn.disabled = true;
-      if (isAutoMode) {
-        autoBtnText.textContent = 'Auto Generating...';
-        autoSpinner.style.display = 'inline-block';
-      } else {
-        customBtnText.textContent = 'Custom Generating...';
-        customSpinner.style.display = 'inline-block';
-      }
-      resultBox.style.display = 'none';
-
-      // Advanced Form Elements (might be null if bypassed)
-      const fileInputObj = document.getElementById('imageUpload');
-
-      // Build payload
-      const formData = new FormData();
-      if (finalTopic) formData.append('topic', finalTopic);
-      if (script) formData.append('script', script);
-
-      // Auto Mode ignores form uploads and forces defaults (matches scheduler behaviour)
-      if (isAutoMode) {
-        formData.append('maxWords', 35);
-        formData.append('textColor', 'auto');
-        formData.append('showQuote', true);
-        formData.append('addSubscribeButton', false);
-        formData.append('audioMode', 'music-only');
-        formData.append('pushToYouTube', true);
-      } else {
-        // Custom Mode respects form
-        if (useLocalImages && fileInputObj && fileInputObj.files.length > 0) {
-          const files = Array.from(fileInputObj.files).slice(0, 10);
-          files.forEach(f => formData.append('images', f));
-        } else {
-          const selQuery = document.getElementById('imageQuerySelect').value;
-          const custQuery = document.getElementById('imageQuery').value;
-          formData.append('imageQuery', selQuery === 'custom' ? custQuery : selQuery);
-        }
-        formData.append('maxWords', document.getElementById('maxWords').value);
-        formData.append('textColor', document.getElementById('textColor').value);
-        formData.append('showQuote', document.getElementById('showQuote').checked);
-        formData.append('addSubscribeButton', document.getElementById('addSubscribeBtn').checked);
-        
-        const audioRadio = document.querySelector('input[name="audioMode"]:checked');
-        const audioModeValue = audioRadio ? audioRadio.value : 'full';
-        formData.append('audioMode', audioModeValue);
-        formData.append('musicQuery', document.getElementById('musicQuery').value);
-        
-        const isPushToYouTube = document.getElementById('pushToYouTube') ? document.getElementById('pushToYouTube').checked : false;
-        formData.append('pushToYouTube', isPushToYouTube);
-        if (isPushToYouTube) {
-          const ytTitle = document.getElementById('youtubeTitle').value;
-          const ytTags = document.getElementById('youtubeTags').value;
-          if (ytTitle) formData.append('youtubeTitle', ytTitle);
-          if (ytTags) formData.append('youtubeTags', ytTags);
-        }
-        
-        const hookText = document.getElementById('hook').value;
-        if (hookText) formData.append('hook', hookText);
-      }
-
-      try {
-        const response = await fetch('/api/generate-video', {
-          method: 'POST',
-          body: formData, // Auto sets multipart/form-data boundary
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'API Error');
-
-        resultBox.className = 'success';
-        let html = '<h3>✨ Video is Ready!</h3>';
-        
-        // Output options (Cloud/Local Download + YouTube)
-        const outputActions = [];
-        
-        if (data.youtubeUrl) {
-          outputActions.push(`<a href="${data.youtubeUrl}" class="btn-link" target="_blank" style="background:#FF0000; display:inline-flex; align-items:center; gap:0.5rem;"><svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg> View on YouTube</a>`);
-        }
-        
-        if (data.videoUrl) {
-          outputActions.push(`<button class="btn-link" onclick="saveVideo('${data.videoUrl}', 'video.mp4', this)" style="cursor:pointer;">⬇️ Save to Photos / Download</button>`);
-        } else if (data.videoPath) {
-          html += `<p style="font-family:monospace; font-size:13px; color:var(--muted); margin-bottom: 1rem;">Saved to server: ${data.videoPath}</p>`;
-        }
-        
-        if (outputActions.length > 0) {
-            html += `<div style="display:flex; gap:1rem; flex-wrap:wrap; margin-top: 1rem;">${outputActions.join('')}</div>`;
-        }
-
-        resultBox.innerHTML = html;
-        resultBox.style.display = 'block';
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-
-      } catch (err) {
-        resultBox.className = 'error';
-        resultBox.innerHTML = `<h3>⚠️ Generation Failed</h3><p>${err.message}</p>`;
-        resultBox.style.display = 'block';
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-      } finally {
-        autoBtn.disabled = false;
-        customBtn.disabled = false;
-        autoBtnText.textContent = '⚡ One-Click YouTube Push';
-        customBtnText.textContent = '⚙️ Generate with Custom Settings';
-        autoSpinner.style.display = 'none';
-        customSpinner.style.display = 'none';
-      }
-    }
-
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      submitGeneration(false); // Custom mode
-    });
-
-    autoBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      submitGeneration(true); // Auto mode
-    });
-    
-    // Dynamic Fields (moved below so elements exist)
-    function setupCustomParams(selectId, inputId, defaultShow) {
-      const sel = document.getElementById(selectId);
-      const inp = document.getElementById(inputId);
-      if(!sel || !inp) return;
-      sel.addEventListener('change', () => {
-        inp.style.display = (sel.value === 'custom' || (!sel.value && defaultShow)) ? 'block' : 'none';
-        if (inp.style.display === 'none') inp.value = '';
-      });
-    }
-    setupCustomParams('imageQuerySelect', 'imageQuery', false);
-
-    // ── Telugu Sameta ──────────────────────────────────────────────────────
-    let sametaMode = 'random';
-
-    function setSametaMode(mode) {
-      sametaMode = mode;
-      document.getElementById('sametaCustomFields').style.display = mode === 'custom' ? 'block' : 'none';
-      document.getElementById('sametaModeRandom').style.background = mode === 'random' ? 'rgba(205,133,63,0.2)' : 'rgba(255,255,255,0.03)';
-      document.getElementById('sametaModeRandom').style.color      = mode === 'random' ? '#e8c97a' : 'var(--muted)';
-      document.getElementById('sametaModeCustom').style.background = mode === 'custom' ? 'rgba(205,133,63,0.2)' : 'rgba(255,255,255,0.03)';
-      document.getElementById('sametaModeCustom').style.color      = mode === 'custom' ? '#e8c97a' : 'var(--muted)';
-    }
-
-    async function generateSameta() {
-      const btn     = document.getElementById('sametaGenerateBtn');
-      const spinner = document.getElementById('sametaBtnSpinner');
-      const btnText = document.getElementById('sametaBtnText');
-      const result  = document.getElementById('sametaResult');
-
-      btn.disabled = true;
-      spinner.style.display = 'inline-block';
-      result.style.display = 'none';
-
-      // Collect selected platforms
-      const platforms = [];
-      if (document.getElementById('sametaPushToYouTube')?.checked)   platforms.push('youtube');
-      if (document.getElementById('sametaPushToInstagram')?.checked) platforms.push('instagram');
-      if (document.getElementById('sametaPushToFacebook')?.checked)  platforms.push('facebook');
-
-      const pushAny = platforms.length > 0;
-      btnText.textContent = pushAny ? 'Generating + Publishing... (~60s)' : 'Generating... (~30s)';
-
-      const body = sametaMode === 'random'
-        ? { mode: 'random', pushToYouTube: platforms.includes('youtube') }
-        : {
-            sameta:        document.getElementById('sametaText').value.trim(),
-            meaning:       document.getElementById('sametaMeaning').value.trim(),
-            pushToYouTube: platforms.includes('youtube'),
-          };
-
-      if (sametaMode === 'custom' && (!body.sameta || !body.meaning)) {
-        alert('Please enter both Sameta and Meaning.');
-        btn.disabled = false; spinner.style.display = 'none'; btnText.textContent = '🎬 Generate Sameta Video';
-        return;
-      }
-
-      try {
-        // Step 1: Generate video (YouTube handled inside if checked)
-        const res  = await fetch('/api/generate-sameta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed');
-
-        const videoUrl = data.videoUrl;
-
-        // Step 2: Publish to Instagram/Facebook via unified /api/publish
-        let publishResults = {};
-        const metaPlatforms = platforms.filter(p => p === 'instagram' || p === 'facebook');
-        if (metaPlatforms.length > 0 && videoUrl) {
-          btnText.textContent = 'Publishing to Instagram/Facebook...';
-          try {
-            const caption = `${data.sameta}\n\nభావం: ${data.meaning}\n\n#telugusameta #shorts #telugu #సామెత #teluguquotes`;
-            const pubRes = await fetch('/api/publish', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ videoUrl, caption, title: data.sameta, platforms: metaPlatforms }),
-            });
-            publishResults = (await pubRes.json()).results || {};
-          } catch (e) { console.warn('Publish step failed:', e); }
-        }
-
-        // Build result HTML
-        result.style.cssText = 'display:block; background:rgba(139,69,19,0.1); border:1px solid rgba(205,133,63,0.3); border-radius:10px; padding:1rem; text-align:center; margin-top:1.25rem;';
-
-        const platformLinks = [];
-        if (data.youtubeUrl)
-          platformLinks.push(`<a href="${data.youtubeUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:0.6rem 1rem;background:#FF0000;color:white;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.85rem;">▶️ YouTube</a>`);
-        if (publishResults.instagram?.success)
-          platformLinks.push(`<a href="${publishResults.instagram.url}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:0.6rem 1rem;background:linear-gradient(135deg,#833ab4,#e1306c,#f09433);color:white;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.85rem;">📸 Instagram</a>`);
-        else if (publishResults.instagram?.error)
-          platformLinks.push(`<span style="color:#f87171;font-size:0.8rem;">IG: ${publishResults.instagram.error}</span>`);
-        if (publishResults.facebook?.success)
-          platformLinks.push(`<a href="${publishResults.facebook.url}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:0.6rem 1rem;background:#1877F2;color:white;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.85rem;">👍 Facebook</a>`);
-        else if (publishResults.facebook?.error)
-          platformLinks.push(`<span style="color:#f87171;font-size:0.8rem;">FB: ${publishResults.facebook.error}</span>`);
-
-        const sessionWarn = data.usedDefaultChannel
-          ? `<div style="margin-top:0.75rem;padding:0.6rem 0.9rem;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.4);border-radius:8px;color:#fbbf24;font-size:0.82rem;">⚠️ Published to default YouTube channel (session expired). <a href="/auth/youtube" style="color:#fbbf24;text-decoration:underline;">Reconnect</a></div>`
-          : '';
-
-        result.innerHTML = `
-          <div style="color:#e8c97a; font-weight:700; margin-bottom:0.5rem;">✅ Video Ready!</div>
-          <div style="color:var(--muted); font-size:0.85rem; margin-bottom:1rem;">${data.sameta}</div>
-          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;align-items:center;margin-bottom:0.75rem;">
-            <button onclick="saveVideo('${videoUrl}', 'sameta_video.mp4', this)" style="display:inline-flex;align-items:center;gap:4px;padding:0.6rem 1rem;background:linear-gradient(135deg,#8B4513,#CD853F);color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.85rem;">⬇️ Save Video</button>
-            ${platformLinks.join('')}
-          </div>
-          ${sessionWarn}`;
-      } catch (err) {
-        result.style.cssText = 'display:block; background:var(--error-bg); border:1px solid rgba(239,68,68,0.3); border-radius:10px; padding:1rem; text-align:center; margin-top:1.25rem;';
-        result.innerHTML = `<div style="color:var(--error);">❌ ${err.message}</div>`;
-      } finally {
-        btn.disabled = false;
-        spinner.style.display = 'none';
-        btnText.textContent = '🎬 Generate Sameta Video';
-      }
-    }
-
-  </script>
 </body>
 </html>
