@@ -47,7 +47,8 @@ const authRouter           = require("./routes/auth");
 const sametaRouter         = require("./routes/sameta");
 const socialRouter         = require("./routes/social");
 const mahabharatRouter     = require("./routes/mahabharat");
-const { startScheduler }   = require("./services/scheduler");
+const { startScheduler }            = require("./services/scheduler");
+const { startMahabharatScheduler }  = require("./services/mahabharatScheduler");
 
 // ── 3. Create Express app ─────────────────────────────────────────────────
 const app = express();
@@ -264,6 +265,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     logger.info("App", `Server started on port ${PORT}`);
     startScheduler();
+    startMahabharatScheduler();
     logger.info("App", `POST /api/generate-video | GET /health`);
     console.log(`
 ╔══════════════════════════════════════════╗
