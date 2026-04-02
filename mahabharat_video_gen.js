@@ -210,7 +210,7 @@ async function compositeVideo(imagePath, script, epNumber, videoPath) {
     composites.push(epEl);
 
     // Category tag below EP
-    const catEl = await pangoText(script.category || "", 24, "rgba(255,255,255,0.7)", "normal", epEl.top + epEl._h + 10);
+    const catEl = await pangoText(script.category || "", 24, "#A8A4B8", "normal", epEl.top + epEl._h + 10);
     composites.push(catEl);
 
     // ── BOTTOM AREA: Title (large) + Hook (smaller) ───────────────────────────
