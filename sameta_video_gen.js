@@ -32,6 +32,17 @@ const { execSync } = require("child_process");
 // ── Layout constants ──────────────────────────────────────────────────────────
 const W = 1080, H = 1920;
 
+// ── Used-sameta log — prevents repeats across runs ───────────────────────────
+const USED_FILE = path.join(__dirname, "output", ".sameta_used.json");
+function loadUsedSametas() {
+    try { return JSON.parse(fs.readFileSync(USED_FILE, "utf8")); } catch (_) { return []; }
+}
+function saveUsedSameta(sameta) {
+    const list = loadUsedSametas();
+    list.push(sameta);
+    try { fs.writeFileSync(USED_FILE, JSON.stringify(list.slice(-500)), "utf8"); } catch (_) {}
+}
+
 // Colors matching reference images
 const MAROON = "#5C1A1A"; // "సామెత" label + Sameta text
 
@@ -102,25 +113,56 @@ function wrapText(text, maxChars) {
     return lines;
 }
 
-// ── Random Sameta: Claude picks one from its knowledge of 1000s ──────────────
+// ── Random Sameta: Claude picks from its vast knowledge, never repeating ──────
 async function pickRandomSameta() {
-    console.log("🎲 Asking Claude to pick a random Telugu Sameta...");
+    console.log("🎲 Asking Claude to pick a fresh Telugu Sameta...");
+
+    // Build avoid list from last 80 used sametas
+    const used = loadUsedSametas();
+    const recent = used.slice(-80);
+    const avoidSection = recent.length > 0
+        ? `\n\nSTRICTLY AVOID — already used (do NOT repeat any of these):\n${recent.map((s, i) => `${i + 1}. ${s}`).join("\n")}`
+        : "";
+
+    // Rotate through categories so content stays diverse
+    const CATEGORIES = [
+        "motivational / hardwork / perseverance",
+        "wisdom / life lessons / experience",
+        "karma / justice / what goes around",
+        "family / relationships / love",
+        "village life / farming / nature / seasons",
+        "character / honesty / integrity",
+        "money / wealth / greed",
+        "friendship / trust / betrayal",
+        "food / hunger / hospitality",
+        "patience / timing / opportunity",
+        "pride / ego / humility",
+        "knowledge / education / foolishness",
+    ];
+    const category = CATEGORIES[used.length % CATEGORIES.length];
+
     const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
     const response = await client.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 300,
-        system: `You are an expert in Telugu literature and proverbs (సామెతలు).
-Return a random Telugu Sameta and its meaning as JSON only.
+        system: `You are an expert in Telugu literature and proverbs (సామెతలు) with knowledge of thousands of ancient and regional Telugu sayings.
+Return ONLY valid JSON — no markdown, no explanation.
 Format: {"sameta": "Telugu proverb here", "meaning": "Telugu meaning here"}
-- Pick a genuinely random, interesting one each time — avoid repeating overly common ones
-- Prefer lesser-known gems, regional wisdom, and vivid imagery proverbs
-- Both sameta and meaning must be in Telugu script
-- Meaning must be MAX 15 words in Telugu — one short punchy sentence only. No long explanations.`,
-        messages: [{ role: "user", content: "Give me one random Telugu Sameta with its meaning in Telugu." }],
+Rules:
+- Both sameta and meaning MUST be in Telugu script
+- Meaning: MAX 15 words — one punchy sentence, no long explanations
+- Today's category: ${category} — pick a sameta fitting this theme
+- Prefer lesser-known regional gems and vivid imagery over famous/overused ones${avoidSection}`,
+        messages: [{ role: "user", content: "Give me one fresh Telugu Sameta from today's category that is NOT in the avoid list." }],
     });
+
     const raw = response.content[0].text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
     const json = JSON.parse(raw);
-    console.log(`✅ Random Sameta: ${json.sameta}`);
+
+    // Record it so it won't be picked again
+    saveUsedSameta(json.sameta);
+
+    console.log(`✅ Sameta (${category}): ${json.sameta}`);
     return json;
 }
 
