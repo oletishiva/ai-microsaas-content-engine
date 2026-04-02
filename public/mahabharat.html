@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mahabharat Shorts Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Tiro+Telugu&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0D0D0F;
+      --surface:  #141418;
+      --surface2: #1C1C22;
+      --border:   rgba(255,255,255,0.07);
+      --gold:     #C9A84C;
+      --gold-dim: rgba(201,168,76,0.15);
+      --green:    #3ECF8E;
+      --amber:    #E8860A;
+      --red:      #EF4444;
+      --text:     #F0EDE8;
+      --muted:    #6B6870;
+      --muted2:   #9896A0;
+      --sidebar:  280px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ── Sidebar ────────────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar);
+      min-height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      overflow-y: auto;
+      z-index: 10;
+    }
+
+    .sidebar-logo {
+      padding: 1.5rem 1.25rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-logo a {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+      transition: color 0.2s;
+    }
+    .sidebar-logo a:hover { color: var(--gold); }
+    .sidebar-logo h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      color: var(--gold);
+      line-height: 1.3;
+    }
+    .sidebar-logo p {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+
+    .ep-counter {
+      margin: 1rem 1.25rem;
+      background: var(--gold-dim);
+      border: 1px solid rgba(201,168,76,0.3);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .ep-counter span { font-size: 0.75rem; color: var(--muted2); }
+    .ep-counter strong { font-size: 1.4rem; color: var(--gold); font-weight: 700; }
+
+    .sidebar-section {
+      padding: 1rem 1.25rem 0.5rem;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .history-list {
+      padding: 0 0.75rem;
+      flex: 1;
+      overflow-y: auto;
+    }
+    .history-item {
+      padding: 0.6rem 0.75rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-bottom: 2px;
+    }
+    .history-item:hover { background: var(--surface2); }
+    .history-item .h-title {
+      font-size: 0.8rem;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .history-item .h-meta {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 2px;
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+    }
+    .h-cat {
+      background: var(--gold-dim);
+      color: var(--gold);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+    }
+    .history-empty {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: center;
+      padding: 2rem 1rem;
+      font-style: italic;
+    }
+
+    /* ── Main ───────────────────────────────────────────────── */
+    .main {
+      margin-left: var(--sidebar);
+      flex: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(20,20,24,0.95);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .topbar h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.35rem;
+      color: var(--text);
+    }
+    .topbar h1 span { color: var(--gold); }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .mode-toggle {
+      display: flex;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .mode-btn {
+      padding: 0.45rem 1rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border: none;
+      background: transparent;
+      color: var(--muted2);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: var(--gold);
+      color: #000;
+    }
+
+    .content {
+      padding: 2rem;
+      max-width: 860px;
+      width: 100%;
+    }
+
+    /* ── Auto Mode Panel ──────────────────────────────────── */
+    .auto-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .auto-panel h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.4rem;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    .auto-panel p {
+      color: var(--muted2);
+      font-size: 0.875rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+
+    /* ── Manual Mode Panel ────────────────────────────────── */
+    .manual-panel {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .field-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted2);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.5rem;
+    }
+    .field-group { margin-bottom: 1.25rem; }
+
+    .text-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .text-input:focus { border-color: rgba(201,168,76,0.5); }
+    .text-input::placeholder { color: var(--muted); }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.5rem;
+    }
+    .chip {
+      padding: 0.3rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted2);
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .chip:hover { border-color: var(--gold); color: var(--gold); }
+    .chip.selected {
+      background: var(--gold-dim);
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .diff-help {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.4rem;
+      font-style: italic;
+      min-height: 1.2em;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    /* ── Generate Button ──────────────────────────────────── */
+    .generate-btn {
+      width: 100%;
+      padding: 1rem 2rem;
+      background: linear-gradient(135deg, #C9A84C, #E8C96A);
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: opacity 0.2s, transform 0.1s;
+      box-shadow: 0 4px 20px rgba(201,168,76,0.3);
+    }
+    .generate-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .generate-btn:active { transform: translateY(0); }
+    .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(0,0,0,0.3);
+      border-top-color: #000;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Output Card ──────────────────────────────────────── */
+    .output-card {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-top: 1.5rem;
+      animation: fadeUp 0.4s ease;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-header {
+      padding: 1.25rem 1.5rem;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+    .ep-badge {
+      background: var(--gold);
+      color: #000;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.05em;
+    }
+    .tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      color: var(--muted2);
+    }
+    .tag.cat { border-color: rgba(201,168,76,0.4); color: var(--gold); }
+    .tag.easy { border-color: rgba(62,207,142,0.4); color: var(--green); }
+    .tag.medium { border-color: rgba(232,134,10,0.4); color: var(--amber); }
+    .tag.deep { border-color: rgba(239,68,68,0.4); color: var(--red); }
+
+    .card-title {
+      flex: 1;
+      font-family: 'Playfair Display', serif;
+      font-size: 1rem;
+      color: var(--text);
+    }
+    .copy-btn {
+      padding: 0.4rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted2);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .copy-btn:hover { border-color: var(--gold); color: var(--gold); }
+    .copy-btn.copied { border-color: var(--green); color: var(--green); }
+
+    .card-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .section-block {
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+    }
+    .section-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .section-text {
+      font-family: 'Tiro Telugu', serif;
+      font-size: 1rem;
+      line-height: 1.75;
+    }
+    .section-text.en {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.875rem;
+      color: var(--muted2);
+      line-height: 1.6;
+    }
+
+    .s-hook  { background: rgba(232,134,10,0.08); border: 1px solid rgba(232,134,10,0.2); }
+    .s-hook .section-label  { color: var(--amber); }
+    .s-hook .section-text   { color: #FBBF24; }
+
+    .s-story { background: var(--surface2); border: 1px solid var(--border); }
+    .s-story .section-label { color: var(--muted2); }
+    .s-story .section-text  { color: var(--text); }
+
+    .s-lesson { background: rgba(62,207,142,0.06); border-left: 3px solid var(--green); padding-left: 1.1rem; }
+    .s-lesson .section-label { color: var(--green); }
+    .s-lesson .section-text  { color: #D1FAE5; }
+
+    .s-cta  { background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.2); }
+    .s-cta .section-label   { color: var(--gold); }
+    .s-cta .section-text    { color: var(--gold); font-weight: 600; }
+
+    .s-visual { background: transparent; border: 1px dashed var(--border); }
+    .s-visual .section-label { color: var(--muted); }
+
+    .timing-badge {
+      font-size: 0.62rem;
+      background: rgba(255,255,255,0.07);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--muted);
+      font-family: monospace;
+    }
+
+    /* ── Error ────────────────────────────────────────────── */
+    .error-box {
+      display: none;
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      color: #FCA5A5;
+      font-size: 0.875rem;
+      margin-top: 1rem;
+    }
+
+    /* ── Responsive ───────────────────────────────────────── */
+    @media (max-width: 720px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; }
+      .two-col { grid-template-columns: 1fr; }
+      .content { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ SIDEBAR ══════════════════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <a href="/">← Back to main app</a>
+    <h2>Mahabharat<br>Shorts Generator</h2>
+    <p>AI-powered Telugu scripts</p>
+  </div>
+
+  <div class="ep-counter">
+    <span>Current EP</span>
+    <strong id="sideEpNum">01</strong>
+  </div>
+
+  <div class="sidebar-section">Session History</div>
+  <div class="history-list" id="historyList">
+    <div class="history-empty" id="historyEmpty">No scripts generated yet.<br>Hit Generate to start.</div>
+  </div>
+</aside>
+
+<!-- ══ MAIN ═════════════════════════════════════════════════════ -->
+<div class="main">
+  <div class="topbar">
+    <h1>Mahabharat <span>Shorts</span></h1>
+    <div class="topbar-right">
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btnAuto" onclick="setMode('auto')">⚡ Auto</button>
+        <button class="mode-btn" id="btnManual" onclick="setMode('manual')">✏️ Manual</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- AUTO MODE -->
+    <div class="auto-panel" id="autoPanel">
+      <h3>One-Click Script Generator</h3>
+      <p>Claude picks the best character, category, and hook style automatically.<br>
+         Perfect for cron jobs and daily publishing.</p>
+      <button class="generate-btn" id="generateBtn" onclick="generate()">
+        <span class="spinner" id="spinner"></span>
+        <span id="btnLabel">⚡ Generate Mahabharat Short</span>
+      </button>
+    </div>
+
+    <!-- MANUAL MODE -->
+    <div class="manual-panel" id="manualPanel">
+
+      <div class="two-col">
+        <div class="field-group">
+          <div class="field-label">Character / Incident</div>
+          <input class="text-input" id="charInput" type="text" placeholder="e.g. Karna, Draupadi's swayamvar...">
+          <div class="chips" id="charChips"></div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Modern Context</div>
+          <input class="text-input" id="contextInput" type="text" placeholder="e.g. workplace politics, loyalty...">
+          <div class="chips" id="contextChips"></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="field-group">
+          <div class="field-label">Category</div>
+          <div class="chips" id="categoryChips"></div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Difficulty</div>
+          <div class="chips" id="diffChips"></div>
+          <div class="diff-help" id="diffHelp">Medium difficulty works for most audiences</div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Hook Style</div>
+        <div class="chips" id="hookChips"></div>
+      </div>
+
+      <button class="generate-btn" id="generateBtnManual" onclick="generate()">
+        <span class="spinner" id="spinnerManual"></span>
+        <span id="btnLabelManual">✨ Generate Script</span>
+      </button>
+    </div>
+
+    <!-- ERROR -->
+    <div class="error-box" id="errorBox"></div>
+
+    <!-- OUTPUT CARD -->
+    <div class="output-card" id="outputCard">
+      <div class="card-header">
+        <span class="ep-badge" id="outEp">EP 01</span>
+        <span class="tag cat" id="outCat">–</span>
+        <span class="tag" id="outDiff">–</span>
+        <span class="tag" id="outChar">–</span>
+        <span class="card-title" id="outTitle"></span>
+        <button class="copy-btn" id="copyBtn" onclick="copyAll()">📋 Copy All</button>
+      </div>
+      <div class="card-body">
+        <div class="section-block s-hook">
+          <div class="section-label">🎣 Hook <span class="timing-badge">0–5s</span></div>
+          <div class="section-text" id="outHook"></div>
+        </div>
+        <div class="section-block s-story">
+          <div class="section-label">📖 కథ <span class="timing-badge">5–20s</span></div>
+          <div class="section-text" id="outStory"></div>
+        </div>
+        <div class="section-block s-lesson">
+          <div class="section-label">💡 నేటి పాఠం <span class="timing-badge">20–28s</span></div>
+          <div class="section-text" id="outLesson"></div>
+        </div>
+        <div class="section-block s-cta">
+          <div class="section-label">📣 CTA <span class="timing-badge">28–30s</span></div>
+          <div class="section-text" id="outCta"></div>
+        </div>
+        <div class="section-block s-visual">
+          <div class="section-label">🎨 Visual Direction</div>
+          <div class="section-text en" id="outVisual"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────
+  const CATEGORIES = ["నాయకత్వం","Family","Career","Dharma","స్త్రీ శక్తి","Strategy","Trust","Self Growth"];
+  const CHARACTERS  = ["Krishna","Arjuna","Draupadi","Bhishma","Karna","Yudhishthira","Duryodhana","Kunti","Vidura","Abhimanyu"];
+  const CONTEXTS    = ["workplace ethics","leadership","loyalty","sacrifice","strategy","family duty","self-discipline","trust & betrayal"];
+  const HOOK_STYLES = ["Question","Shocking fact","Challenge","Story start","Contradiction"];
+  const DIFFICULTIES = {
+    Easy:   "Simple stories, universal lessons. Great for new audiences.",
+    Medium: "Deeper incidents with nuanced modern parallels.",
+    Deep:   "Complex Dharma dilemmas. For philosophy enthusiasts.",
+  };
+
+  let currentMode        = "auto";
+  let selectedCategory   = null;
+  let selectedDifficulty = "Medium";
+  let selectedHookStyle  = null;
+  let usedCharacters     = JSON.parse(localStorage.getItem("mb_usedChars") || "[]");
+  let epNumber           = parseInt(localStorage.getItem("mb_ep") || "1", 10);
+  let history            = JSON.parse(localStorage.getItem("mb_history") || "[]");
+  let lastScript         = null;
+
+  // ── Init ───────────────────────────────────────────────────────────────
+  document.addEventListener("DOMContentLoaded", () => {
+    renderChips("categoryChips", CATEGORIES, (v) => { selectedCategory = v; });
+    renderChips("diffChips", Object.keys(DIFFICULTIES), (v) => {
+      selectedDifficulty = v;
+      document.getElementById("diffHelp").textContent = DIFFICULTIES[v];
+    }, "Medium");
+    renderChips("hookChips", HOOK_STYLES, (v) => { selectedHookStyle = v; });
+    renderChips("charChips", CHARACTERS, (v) => {
+      document.getElementById("charInput").value = v;
+    });
+    renderChips("contextChips", CONTEXTS, (v) => {
+      document.getElementById("contextInput").value = v;
+    });
+    updateEpDisplay();
+    renderHistory();
+    // Check URL params
+    if (new URLSearchParams(location.search).get("mode") === "manual") setMode("manual");
+  });
+
+  // ── Mode ───────────────────────────────────────────────────────────────
+  function setMode(m) {
+    currentMode = m;
+    document.getElementById("autoPanel").style.display   = m === "auto"   ? "block" : "none";
+    document.getElementById("manualPanel").style.display = m === "manual" ? "block" : "none";
+    document.getElementById("btnAuto").classList.toggle("active", m === "auto");
+    document.getElementById("btnManual").classList.toggle("active", m === "manual");
+  }
+
+  // ── Chips ──────────────────────────────────────────────────────────────
+  function renderChips(containerId, items, onSelect, defaultVal) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = "";
+    items.forEach((item) => {
+      const chip = document.createElement("span");
+      chip.className = "chip" + (item === defaultVal ? " selected" : "");
+      chip.textContent = item;
+      chip.onclick = () => {
+        el.querySelectorAll(".chip").forEach(c => c.classList.remove("selected"));
+        chip.classList.add("selected");
+        onSelect(item);
+      };
+      el.appendChild(chip);
+    });
+  }
+
+  // ── EP display ─────────────────────────────────────────────────────────
+  function updateEpDisplay() {
+    const padded = String(epNumber).padStart(2, "0");
+    document.getElementById("sideEpNum").textContent = padded;
+  }
+
+  // ── Generate ───────────────────────────────────────────────────────────
+  async function generate() {
+    const btn      = document.getElementById(currentMode === "auto" ? "generateBtn" : "generateBtnManual");
+    const spinner  = document.getElementById(currentMode === "auto" ? "spinner" : "spinnerManual");
+    const label    = document.getElementById(currentMode === "auto" ? "btnLabel" : "btnLabelManual");
+    const errorBox = document.getElementById("errorBox");
+
+    btn.disabled = true;
+    spinner.style.display = "inline-block";
+    label.textContent = "Generating...";
+    errorBox.style.display = "none";
+    document.getElementById("outputCard").style.display = "none";
+
+    const body = {
+      mode:           currentMode,
+      epNumber,
+      usedCharacters,
+    };
+
+    if (currentMode === "manual") {
+      body.character  = document.getElementById("charInput").value.trim();
+      body.context    = document.getElementById("contextInput").value.trim();
+      body.category   = selectedCategory;
+      body.difficulty = selectedDifficulty;
+      body.hookStyle  = selectedHookStyle;
+    }
+
+    try {
+      const res  = await fetch("/api/generate-mahabharat", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Generation failed");
+
+      lastScript = data.script;
+      renderOutput(data.script, epNumber);
+
+      // Update state
+      if (!usedCharacters.includes(data.script.character)) {
+        usedCharacters.push(data.script.character);
+        if (usedCharacters.length > 20) usedCharacters.shift(); // keep last 20
+        localStorage.setItem("mb_usedChars", JSON.stringify(usedCharacters));
+      }
+      epNumber++;
+      localStorage.setItem("mb_ep", String(epNumber));
+      updateEpDisplay();
+
+      // Add to history
+      history.unshift({ ep: epNumber - 1, script: data.script, ts: Date.now() });
+      if (history.length > 20) history.pop();
+      localStorage.setItem("mb_history", JSON.stringify(history));
+      renderHistory();
+
+    } catch (err) {
+      errorBox.textContent = "❌ " + err.message;
+      errorBox.style.display = "block";
+    } finally {
+      btn.disabled = false;
+      spinner.style.display = "none";
+      label.textContent = currentMode === "auto" ? "⚡ Generate Mahabharat Short" : "✨ Generate Script";
+    }
+  }
+
+  // ── Render output ──────────────────────────────────────────────────────
+  function renderOutput(s, ep) {
+    document.getElementById("outEp").textContent    = `EP ${String(ep).padStart(2, "0")}`;
+    document.getElementById("outCat").textContent   = s.category  || "–";
+    document.getElementById("outChar").textContent  = s.character || "–";
+    document.getElementById("outTitle").textContent = s.title     || "";
+
+    const diffEl = document.getElementById("outDiff");
+    diffEl.textContent  = s.difficulty || "–";
+    diffEl.className    = "tag " + (s.difficulty || "").toLowerCase();
+
+    document.getElementById("outHook").textContent   = s.hook   || "";
+    document.getElementById("outStory").textContent  = s.story  || "";
+    document.getElementById("outLesson").textContent = s.lesson || "";
+    document.getElementById("outCta").textContent    = s.cta    || "";
+    document.getElementById("outVisual").textContent = s.visual || "";
+
+    document.getElementById("outputCard").style.display = "block";
+    document.getElementById("outputCard").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ── Copy all ───────────────────────────────────────────────────────────
+  function copyAll() {
+    if (!lastScript) return;
+    const s = lastScript;
+    const text = [
+      `EP ${String(epNumber - 1).padStart(2, "0")} | ${s.category} | ${s.difficulty} | ${s.character}`,
+      `Title: ${s.title}`,
+      ``,
+      `🎣 HOOK (0-5s)`,
+      s.hook,
+      ``,
+      `📖 STORY (5-20s)`,
+      s.story,
+      ``,
+      `💡 LESSON (20-28s)`,
+      s.lesson,
+      ``,
+      `📣 CTA (28-30s)`,
+      s.cta,
+      ``,
+      `🎨 Visual Direction`,
+      s.visual,
+    ].join("\n");
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById("copyBtn");
+      btn.textContent = "✅ Copied!";
+      btn.classList.add("copied");
+      setTimeout(() => { btn.textContent = "📋 Copy All"; btn.classList.remove("copied"); }, 2000);
+    });
+  }
+
+  // ── History ────────────────────────────────────────────────────────────
+  function renderHistory() {
+    const list  = document.getElementById("historyList");
+    const empty = document.getElementById("historyEmpty");
+    if (history.length === 0) { empty.style.display = "block"; return; }
+    empty.style.display = "none";
+    list.innerHTML = "";
+    list.appendChild(empty);
+    history.forEach((item, idx) => {
+      const el = document.createElement("div");
+      el.className = "history-item";
+      el.innerHTML = `
+        <div class="h-title">${item.script.title || "Untitled"}</div>
+        <div class="h-meta">
+          <span>EP ${String(item.ep).padStart(2,"0")}</span>
+          <span class="h-cat">${item.script.category || ""}</span>
+          <span>${item.script.character || ""}</span>
+        </div>`;
+      el.onclick = () => { lastScript = item.script; renderOutput(item.script, item.ep); };
+      list.appendChild(el);
+    });
+  }
+</script>
+</body>
+</html>

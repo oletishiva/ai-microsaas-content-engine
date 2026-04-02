@@ -42,11 +42,12 @@ try {
 });
 
 // ── 2. Import route modules ───────────────────────────────────────────────
-const generateVideoRouter = require("./routes/generateVideo");
-const authRouter          = require("./routes/auth");
-const sametaRouter        = require("./routes/sameta");
-const socialRouter        = require("./routes/social");
-const { startScheduler }  = require("./services/scheduler");
+const generateVideoRouter  = require("./routes/generateVideo");
+const authRouter           = require("./routes/auth");
+const sametaRouter         = require("./routes/sameta");
+const socialRouter         = require("./routes/social");
+const mahabharatRouter     = require("./routes/mahabharat");
+const { startScheduler }   = require("./services/scheduler");
 
 // ── 3. Create Express app ─────────────────────────────────────────────────
 const app = express();
@@ -230,6 +231,9 @@ app.use("/auth", authRouter);
 // Social OAuth + unified /api/publish endpoint
 app.use("/auth", socialRouter);
 app.use("/api",  socialRouter);
+
+// Mahabharat Shorts script generator
+app.use("/api", mahabharatRouter);
 
 // Main pipeline route
 app.use("/api", generateVideoRouter);
