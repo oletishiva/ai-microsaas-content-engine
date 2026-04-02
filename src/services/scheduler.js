@@ -15,34 +15,14 @@
  */
 
 const cron = require("node-cron");
-const path = require("path");
-const fs = require("fs");
-const { execSync } = require("child_process");
-
 const { generateScript } = require("./scriptGenerator");
-const { fetchBackgroundMusic } = require("./musicFetcher");
-const { generateVideo, validatePipeline } = require("./videoGenerator");
 const { uploadToYouTube } = require("./youtubeUploader");
 const { uploadVideoToCloudinary } = require("./cloudinaryUploader");
-const { mixVoiceWithMusic } = require("../../utils/audioMixer");
-const { getImageTextColor } = require("../../utils/imageBrightness");
 const { OUTPUT_DIR } = require("../../config/paths");
-const { VIDEO_DURATION } = require("../../utils/subtitleHelper");
 const apiKeys = require("../../config/apiKeys");
 const logger = require("../../utils/logger");
+const { generateNotebookVideo } = require("../../notebook_video_gen");
 
-const IMAGES_DIR = path.join(__dirname, "../../images");
-
-/**
- * 6 core daily slots — fits within YouTube's default quota (6 × 1600 = 9600 / 10000 units).
- * 2 bonus slots marked with quota:false — enable only after requesting a quota increase
- * from Google Cloud Console → YouTube Data API v3 → Quotas.
- *
- * Test slot: 10:20 AM IST — fires once daily to verify Railway → YouTube push works.
- * Remove or set enabled:false after confirming it works.
- */
-// Audio: silent base + background music (music-only). No TTS for quote videos.
-// Set SCHEDULE_TIMEZONE=UTC on Railway for these times to be correct.
 const SCHEDULES = [
     // ── Core 6 — UTC times hit USA + UK + Germany + India simultaneously ──
     { label: "Motivation",      topic: "daily morning motivation",            cron: "0 6  * * *", enabled: true  },
@@ -56,82 +36,25 @@ const SCHEDULES = [
     { label: "Gratitude Sleep", topic: "gratitude sleep bedtime affirmation", cron: "0 10 * * *", enabled: false },
 ];
 
-/** Pick 1 random image from /images/ folder for each scheduled Short */
-function pickRandomImages() {
-    if (!fs.existsSync(IMAGES_DIR)) {
-        logger.warn("Scheduler", `Images folder not found: ${IMAGES_DIR}`);
-        return [];
-    }
-    const files = fs.readdirSync(IMAGES_DIR)
-        .filter((f) => /\.(jpg|jpeg|png|webp)$/i.test(f))
-        .map((f) => path.join(IMAGES_DIR, f));
-    if (files.length === 0) {
-        logger.warn("Scheduler", "No images found in /images/ folder");
-        return [];
-    }
-    const pick = files[Math.floor(Math.random() * files.length)];
-    return [pick];
-}
-
-/** Clean up temp files silently */
-function cleanup(...files) {
-    for (const f of files) {
-        try { if (f && fs.existsSync(f)) fs.unlinkSync(f); } catch (_) {}
-    }
-}
 
 async function runScheduledJob({ label, topic }) {
     logger.info("Scheduler", `▶ Starting: ${label} — "${topic}"`);
     const ts = Date.now();
-    let silentPath = null;
-    let mixedPath = null;
     let videoPath = null;
 
     try {
-        // 1. Generate script via OpenAI
-        const { script, hook, quote, highlight, title } = await generateScript(topic, false);
+        // 1. Generate quote via Claude/OpenAI
+        const { script, hook, quote, title = "" } = await generateScript(topic, false);
         logger.info("Scheduler", `Script ready. Hook: "${hook}"`);
 
-        // 2. Pick 1 random image from /images/ — each Short gets a different background.
-        const imagePaths = pickRandomImages();
-        if (imagePaths.length === 0) {
-            logger.warn("Scheduler", `${label}: No images in /images/ folder — skipping.`);
-            return;
-        }
-        logger.info("Scheduler", `Using image: ${path.basename(imagePaths[0])}`);
-
-        // 3. Auto-detect text color from first image brightness
-        const textColor = await getImageTextColor(imagePaths[0]);
-        logger.info("Scheduler", `Text color: ${textColor}`);
-
-        // 4. Validate FFmpeg pipeline
-        await validatePipeline(imagePaths);
-
-        // 5. Silent base audio — motivational quote videos are music + text to read.
-        //    TTS is not needed here; background music carries the mood.
-        silentPath = path.join(OUTPUT_DIR, `sched_silent_${ts}.mp3`);
-        execSync(
-            `ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t ${VIDEO_DURATION} -q:a 9 -acodec libmp3lame -y "${silentPath}"`,
-            { stdio: "pipe" }
-        );
-        let audioPath = silentPath;
-
-        // 6. Replace silent base with background music track (full volume, music-only)
-        const musicPath = fetchBackgroundMusic();
-        if (musicPath && apiKeys.ADD_MUSIC) {
-            mixedPath = path.join(OUTPUT_DIR, `sched_mixed_${ts}.mp3`);
-            await mixVoiceWithMusic(silentPath, musicPath, mixedPath, { musicOnly: true });
-            audioPath = mixedPath;
-            logger.info("Scheduler", "Background music added");
-        }
-
-        // 7. Render video with red Subscribe button overlay
+        // 2. Render notebook-style video (same background every video = brand recognition)
         const quoteText = quote || script;
         const outputFilename = `sched_${label.toLowerCase().replace(/\s+/g, "_")}_${ts}.mp4`;
-        videoPath = await generateVideo(imagePaths, audioPath, quoteText, hook, outputFilename, {
-            highlight,
-            addSubscribeButton: true,
-            textColor,
+        videoPath = await generateNotebookVideo({
+            quote:       quoteText,
+            channelName: process.env.MOTIVATIONAL_CHANNEL_NAME || "Motivational quotes",
+            outputDir:   OUTPUT_DIR,
+            outputName:  outputFilename,
         });
         logger.info("Scheduler", `Video rendered: ${outputFilename}`);
 
