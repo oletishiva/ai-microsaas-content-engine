@@ -770,6 +770,15 @@ function disconnectMeta() {
   fetch('/auth/meta/disconnect', { method: 'POST' }).then(() => location.reload()).catch(() => {});
 }
 
+// ── Download helper ───────────────────────────────────────────────
+// Routes through /api/download proxy which sets Content-Disposition: attachment,
+// making iOS Safari save to Photos/Camera Roll instead of opening in browser.
+function downloadLink(videoUrl, filename = 'video.mp4', label = 'Save to Phone ↓') {
+  if (!videoUrl) return '';
+  const proxyUrl = `/api/download?url=${encodeURIComponent(videoUrl)}&filename=${encodeURIComponent(filename)}`;
+  return `<a href="${proxyUrl}" download="${filename}" style="background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.35);color:#10b981">${label}</a>`;
+}
+
 // ── English Motivational Generate ────────────────────────────────
 async function generateMotivation() {
   const btn = document.getElementById('motGenBtn');
@@ -800,7 +809,8 @@ async function generateMotivation() {
       let html = '<h3>Video ready!</h3>';
       const links = [];
       if (d.videoUrl) links.push(`<a href="${d.videoUrl}" target="_blank">Watch Video</a>`);
-      if (d.youtubeUrl) links.push(`<a href="${d.youtubeUrl}" target="_blank">View on YouTube</a>`);
+      if (d.youtubeUrl) links.push(`<a href="${d.youtubeUrl}" target="_blank">YouTube</a>`);
+      if (d.videoUrl) links.push(downloadLink(d.videoUrl));
       if (links.length) html += `<div class="result-links">${links.join('')}</div>`;
       showResult(result, 'success', html);
     } else {
@@ -846,6 +856,8 @@ async function generateSameta() {
       if (d.videoUrl) links.push(`<a href="${d.videoUrl}" target="_blank">Watch Video</a>`);
       if (d.youtubeUrl) links.push(`<a href="${d.youtubeUrl}" target="_blank">YouTube</a>`);
       if (d.instagramUrl) links.push(`<a href="${d.instagramUrl}" target="_blank">Instagram</a>`);
+      if (d.facebookUrl) links.push(`<a href="${d.facebookUrl}" target="_blank">Facebook</a>`);
+      if (d.videoUrl) links.push(downloadLink(d.videoUrl));
       if (links.length) html += `<div class="result-links">${links.join('')}</div>`;
       showResult(result, 'success', html);
     } else {
