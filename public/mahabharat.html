@@ -948,6 +948,44 @@
           linksEl.appendChild(note);
         }
       }
+
+      // Google Flow / Veo animation widget
+      if (data.imageUrl) {
+        const flowPrompt = "Cinematic slow zoom into the main characters. Soft golden-hour light ripples. Gentle wind on clothing and hair. Authentic traditional Indian art style preserved throughout. No text movement. 9:16 vertical short.";
+        const flowDiv = document.createElement("div");
+        flowDiv.style.cssText = "margin-top:1rem;padding:0.9rem;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.25);border-radius:10px;text-align:left";
+        flowDiv.innerHTML = `
+          <div style="font-size:0.78rem;font-weight:700;color:#a78bfa;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:0.05em">🎬 Animate with Google Flow / Veo 2</div>
+          <a href="${data.imageUrl}" target="_blank"><img src="${data.imageUrl}" style="width:100%;max-height:180px;object-fit:cover;border-radius:6px;margin-bottom:0.7rem;display:block"></a>
+          <div style="margin-bottom:0.55rem">
+            <div style="font-size:0.7rem;color:var(--muted2);margin-bottom:0.25rem">① Image URL — paste into Google Flow</div>
+            <div style="display:flex;gap:0.35rem">
+              <input id="mbFlowImgUrl" type="text" value="${data.imageUrl}" readonly
+                style="flex:1;font-size:0.67rem;padding:0.28rem 0.5rem;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:#e5e7eb;min-width:0">
+              <button onclick="navigator.clipboard.writeText(document.getElementById('mbFlowImgUrl').value).then(()=>{this.textContent='✓ Copied';setTimeout(()=>this.textContent='Copy',1600)})"
+                style="font-size:0.7rem;padding:0.28rem 0.65rem;background:rgba(124,58,237,0.2);border:1px solid rgba(124,58,237,0.35);border-radius:5px;color:#a78bfa;cursor:pointer;white-space:nowrap">Copy</button>
+            </div>
+          </div>
+          <div style="margin-bottom:0.7rem">
+            <div style="font-size:0.7rem;color:var(--muted2);margin-bottom:0.25rem">② Animation Prompt — paste into Flow prompt box</div>
+            <div style="display:flex;gap:0.35rem;align-items:flex-start">
+              <textarea id="mbFlowAnimPrompt" readonly
+                style="flex:1;font-size:0.67rem;padding:0.28rem 0.5rem;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:#e5e7eb;min-width:0;resize:none;height:60px;line-height:1.4">${flowPrompt}</textarea>
+              <button onclick="navigator.clipboard.writeText(document.getElementById('mbFlowAnimPrompt').value).then(()=>{this.textContent='✓ Copied';setTimeout(()=>this.textContent='Copy',1600)})"
+                style="font-size:0.7rem;padding:0.28rem 0.65rem;background:rgba(124,58,237,0.2);border:1px solid rgba(124,58,237,0.35);border-radius:5px;color:#a78bfa;cursor:pointer;white-space:nowrap">Copy</button>
+            </div>
+          </div>
+          <div style="font-size:0.69rem;color:var(--muted2);background:rgba(0,0,0,0.2);border-radius:6px;padding:0.5rem 0.65rem;line-height:1.75">
+            <strong style="color:#c4b5fd">Steps in Google Flow:</strong><br>
+            1. Go to <a href="https://flow.google" target="_blank" style="color:#60a5fa;text-decoration:none">flow.google.com</a> → <strong>Veo 2</strong><br>
+            2. Select <strong>Image to Video</strong><br>
+            3. Click <em>Upload image</em> → paste the URL above (or open URL and save first)<br>
+            4. Paste the animation prompt above<br>
+            5. Set aspect ratio → <strong>9:16</strong> &nbsp;|&nbsp; Duration → <strong>8 sec</strong><br>
+            6. Click <strong>Generate</strong>
+          </div>`;
+        resultDiv.appendChild(flowDiv);
+      }
     } catch (e) {
       statusEl.style.color = "var(--red)";
       statusEl.textContent = "❌ Error: " + e.message;

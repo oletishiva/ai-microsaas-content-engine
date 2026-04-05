@@ -179,9 +179,9 @@ Create a SINGLE unified portrait image (9:16) — absolutely NOT two panels, NOT
 
 The image is ONE continuous scene top-to-bottom:
 
-TOP 35% — Pristine aged parchment / cream paper texture. Completely empty — NO figures, NO objects, NO illustrations here. Just warm creamy paper (#FFF8F0) with very subtle natural grain. This space is reserved for text overlays.
+TOP 40% — Pristine aged parchment / cream paper texture. Completely empty — NO figures, NO objects, NO illustrations here. Just warm creamy paper (#FFF8F0) with very subtle natural grain. This space is reserved for text overlays.
 
-BOTTOM 65% — An exquisitely detailed traditional Telugu watercolor illustration. CRITICAL COMPOSITION RULE: All human figures, animals, and main subjects MUST be fully visible and contained within the bottom 65% of the canvas. No figure should be cut off at the top — every character must show their full body, head to feet, within this lower portion. The characters should fill this space richly without being cropped. Follow these art style rules exactly:
+BOTTOM 60% — An exquisitely detailed traditional Telugu watercolor illustration. CRITICAL COMPOSITION RULE: All human figures, animals, and main subjects MUST be fully visible and contained within the bottom 60% of the canvas. No figure should be cut off at the top — every character must show their full body, head to feet, within this lower portion. The characters should fill this space richly without being cropped. Follow these art style rules exactly:
 - Style: authentic hand-painted South Indian watercolor, reminiscent of Raja Ravi Varma meets folk art
 - Characters: traditional Andhra Pradesh villagers in authentic period clothing — men in dhotis/angavastrams, women in Pochampally sarees with jasmine in hair
 - Setting: rich Telugu village environment — red-tiled thatched homes, neem/mango/banyan trees, paddy fields with water buffaloes, stone wells, earthen pots, oil lamps
@@ -228,7 +228,7 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
 
     // Push text down so YouTube/Instagram top UI chrome doesn't cover the title
     const TOP_OFFSET = Math.floor(H * 0.04); // 4% = 77px @ 1920
-    const CREAM_H    = Math.floor(H * 0.45); // 45% = 864px — enough for text, more image visible
+    const CREAM_H    = Math.floor(H * 0.37); // 37% = 710px — cream ends above character area (DALL-E places figures in bottom 60%)
     const TEXT_W     = W - 120;              // 960px usable text width with padding
 
     // ── Resize + flatten base image ───────────────────────────────────────────
@@ -303,7 +303,7 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
 
     // ── H2: Proverb — very large, bold, near-black, centered ─────────────────
     for (const line of wrapText(sameta, 16)) {
-        const el = await pangoText(line, 62, "#1C0A0A", "bold", y);
+        const el = await pangoText(line, 62, "#1C0A0A", "900", y);
         composites.push(el);
         y += el._h + 6;
     }
@@ -359,8 +359,8 @@ async function generateSametaVideo({ sameta, meaning, outputDir = __dirname } = 
     await generateImage(imagePrompt, imagePath);
     await createVideo(imagePath, sameta, meaning, videoPath);
 
-    // Return both paths — caller decides whether to upload/keep the image
-    return { videoPath, imagePath };
+    // Return paths + prompt — caller uploads image; prompt shown in UI for Google Flow
+    return { videoPath, imagePath, imagePrompt };
 }
 
 // ── CLI entry point ───────────────────────────────────────────────────────────

@@ -65,7 +65,7 @@ router.post("/generate-sameta", async (req, res) => {
 
         logger.info("Sameta", `Generating: "${sameta.slice(0, 40)}"`);
 
-        const { videoPath, imagePath } = await generateSametaVideo({ sameta, meaning, outputDir: OUTPUT_DIR });
+        const { videoPath, imagePath, imagePrompt } = await generateSametaVideo({ sameta, meaning, outputDir: OUTPUT_DIR });
         const ts = Date.now();
 
         // Upload video + image to Cloudinary
@@ -188,6 +188,7 @@ router.post("/generate-sameta", async (req, res) => {
             meaning,
             videoUrl: videoUrl || videoPath,
             imageUrl,
+            imagePrompt: imagePrompt || null,
             usedDefaultChannel: (youtubeUrl && !sessionToken) || undefined,
             youtubeUrl,
             instagramUrl,
