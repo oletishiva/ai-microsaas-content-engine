@@ -110,7 +110,7 @@ Make it fresh, surprising, and deeply relatable to modern Telugu youth.`;
 
         // 2. Generate video
         const { generateMahabharatVideo } = require("../../mahabharat_video_gen");
-        const videoPath = await generateMahabharatVideo({ script, epNumber, outputDir: OUTPUT_DIR });
+        const { videoPath } = await generateMahabharatVideo({ script, epNumber, outputDir: OUTPUT_DIR });
         logger.info("MahabharatCron", `Video rendered: ${path.basename(videoPath)}`);
 
         // 3. Upload to Cloudinary

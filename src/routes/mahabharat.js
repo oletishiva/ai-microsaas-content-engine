@@ -122,10 +122,12 @@ router.post("/generate-mahabharat-video", async (req, res) => {
     // Stream progress via SSE — but since we're in a normal POST, just run to completion
     logger.info("Mahabharat", `EP ${epNumber} video generation started — ${script.character}`);
 
-    let videoPath;
+    let videoPath, rawImagePath;
     try {
         const { generateMahabharatVideo } = require("../../mahabharat_video_gen");
-        videoPath = await generateMahabharatVideo({ script, epNumber, outputDir: OUTPUT_DIR });
+        const result = await generateMahabharatVideo({ script, epNumber, outputDir: OUTPUT_DIR });
+        videoPath    = result.videoPath;
+        rawImagePath = result.imagePath;
         logger.info("Mahabharat", `EP ${epNumber} video rendered: ${path.basename(videoPath)}`);
     } catch (err) {
         logger.error("Mahabharat", "Video generation failed:", err.message);
@@ -155,17 +157,41 @@ router.post("/generate-mahabharat-video", async (req, res) => {
         return res.status(500).json({ success: false, error: "Video generation failed: " + err.message });
     }
 
-    // Upload to Cloudinary for streaming URL
+    const ts = Date.now();
+
+    // Upload video to Cloudinary
     let cloudinaryUrl;
     try {
-        cloudinaryUrl = await uploadVideoToCloudinary(videoPath, `mb_ep${String(epNumber).padStart(3, "0")}_${Date.now()}`);
+        cloudinaryUrl = await uploadVideoToCloudinary(videoPath, `mb_ep${String(epNumber).padStart(3, "0")}_${ts}`);
         logger.info("Mahabharat", `EP ${epNumber} uploaded to Cloudinary`);
     } catch (err) {
         logger.error("Mahabharat", "Cloudinary upload failed:", err.message);
-        // Don't fail the whole request — return local path info at least
+        try { fs.unlinkSync(videoPath); } catch (_) {}
+        try { if (rawImagePath) fs.unlinkSync(rawImagePath); } catch (_) {}
         return res.status(500).json({ success: false, error: "Cloudinary upload failed: " + err.message });
     } finally {
         try { fs.unlinkSync(videoPath); } catch (_) {}
+    }
+
+    // Upload raw DALL-E image for Google Flow / Veo animation
+    let imageUrl = null;
+    if (rawImagePath && fs.existsSync(rawImagePath)) {
+        try {
+            const { cloudinary } = require("../../config/cloudinary");
+            const imgResult = await new Promise((resolve, reject) =>
+                cloudinary.uploader.upload(rawImagePath, {
+                    resource_type: "image",
+                    folder: "ai-content-engine/mahabharat-images",
+                    public_id: `mb_img_ep${String(epNumber).padStart(3, "0")}_${ts}`,
+                }, (e, r) => e ? reject(e) : resolve(r))
+            );
+            imageUrl = imgResult.secure_url;
+            logger.info("Mahabharat", `EP ${epNumber} image: ${imageUrl}`);
+        } catch (imgErr) {
+            logger.warn("Mahabharat", "Image upload failed (non-fatal):", imgErr.message);
+        } finally {
+            try { fs.unlinkSync(rawImagePath); } catch (_) {}
+        }
     }
 
     // Optional YouTube upload
@@ -201,6 +227,7 @@ router.post("/generate-mahabharat-video", async (req, res) => {
     res.json({
         success: true,
         videoUrl: cloudinaryUrl,
+        imageUrl: imageUrl || null,
         youtubeUrl: youtubeUrl || null,
         epNumber,
         script,

@@ -179,9 +179,9 @@ Create a SINGLE unified portrait image (9:16) — absolutely NOT two panels, NOT
 
 The image is ONE continuous scene top-to-bottom:
 
-TOP 45% — Pristine aged parchment / cream paper texture. Completely empty — NO figures, NO objects, NO illustrations here. Just warm creamy paper (#FFF8F0) with very subtle natural grain and a faint aged-paper vignette at the edges. This space is reserved for text overlays.
+TOP 35% — Pristine aged parchment / cream paper texture. Completely empty — NO figures, NO objects, NO illustrations here. Just warm creamy paper (#FFF8F0) with very subtle natural grain. This space is reserved for text overlays.
 
-BOTTOM 55% — An exquisitely detailed traditional Telugu watercolor illustration that vividly depicts the literal scene described in the proverb. Follow these art style rules exactly:
+BOTTOM 65% — An exquisitely detailed traditional Telugu watercolor illustration. CRITICAL COMPOSITION RULE: All human figures, animals, and main subjects MUST be fully visible and contained within the bottom 65% of the canvas. No figure should be cut off at the top — every character must show their full body, head to feet, within this lower portion. The characters should fill this space richly without being cropped. Follow these art style rules exactly:
 - Style: authentic hand-painted South Indian watercolor, reminiscent of Raja Ravi Varma meets folk art
 - Characters: traditional Andhra Pradesh villagers in authentic period clothing — men in dhotis/angavastrams, women in Pochampally sarees with jasmine in hair
 - Setting: rich Telugu village environment — red-tiled thatched homes, neem/mango/banyan trees, paddy fields with water buffaloes, stone wells, earthen pots, oil lamps
@@ -227,8 +227,8 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     const jpegCompositePath = imagePath.replace(/\.png$/, "_composite.jpg");
 
     // Push text down so YouTube/Instagram top UI chrome doesn't cover the title
-    const TOP_OFFSET = Math.floor(H * 0.05); // 5% = 96px @ 1920
-    const CREAM_H    = Math.floor(H * 0.60); // 60% = 1152px — enough for all text layers
+    const TOP_OFFSET = Math.floor(H * 0.04); // 4% = 77px @ 1920
+    const CREAM_H    = Math.floor(H * 0.45); // 45% = 864px — enough for text, more image visible
     const TEXT_W     = W - 120;              // 960px usable text width with padding
 
     // ── Resize + flatten base image ───────────────────────────────────────────
@@ -255,7 +255,7 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
 
     // Gradient cream overlay — fully opaque at top, fades to transparent at bottom
     // so the scene blends naturally instead of showing a hard edge (two-image look)
-    const FADE_START = Math.floor(CREAM_H * 0.70); // solid until 70% of cream area
+    const FADE_START = Math.floor(CREAM_H * 0.80); // solid until 80% of cream area, quick fade
     const gradientSvg = `<svg width="${W}" height="${CREAM_H}" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
@@ -359,10 +359,8 @@ async function generateSametaVideo({ sameta, meaning, outputDir = __dirname } = 
     await generateImage(imagePrompt, imagePath);
     await createVideo(imagePath, sameta, meaning, videoPath);
 
-    // Clean up raw image after video is done
-    try { fs.unlinkSync(imagePath); } catch (_) {}
-
-    return videoPath;
+    // Return both paths — caller decides whether to upload/keep the image
+    return { videoPath, imagePath };
 }
 
 // ── CLI entry point ───────────────────────────────────────────────────────────

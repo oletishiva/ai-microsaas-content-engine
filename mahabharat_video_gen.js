@@ -352,8 +352,8 @@ async function generateMahabharatVideo({ script, epNumber = 1, outputDir = __dir
         throw Object.assign(err, { imagePath });
     }
 
-    try { fs.unlinkSync(imagePath); } catch (_) {}
-    return videoPath;
+    // Return both paths — caller decides whether to upload/keep the image
+    return { videoPath, imagePath };
 }
 
 module.exports = { generateMahabharatVideo };

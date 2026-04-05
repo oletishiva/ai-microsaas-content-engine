@@ -65,15 +65,33 @@ router.post("/generate-sameta", async (req, res) => {
 
         logger.info("Sameta", `Generating: "${sameta.slice(0, 40)}"`);
 
-        const videoPath = await generateSametaVideo({ sameta, meaning, outputDir: OUTPUT_DIR });
+        const { videoPath, imagePath } = await generateSametaVideo({ sameta, meaning, outputDir: OUTPUT_DIR });
         const ts = Date.now();
 
-        // Upload to Cloudinary
+        // Upload video + image to Cloudinary
         let videoUrl = null;
+        let imageUrl = null;
         if (apiKeys.hasCloudinaryConfig) {
             videoUrl = await uploadVideoToCloudinary(videoPath, `sameta_${ts}`);
-            logger.info("Sameta", `Cloudinary: ${videoUrl}`);
+            logger.info("Sameta", `Cloudinary video: ${videoUrl}`);
+            // Upload raw DALL-E image for Google Flow / Veo animation
+            try {
+                const { cloudinary } = require("../../config/cloudinary");
+                const imgResult = await new Promise((resolve, reject) =>
+                    cloudinary.uploader.upload(imagePath, {
+                        resource_type: "image",
+                        folder: "ai-content-engine/sameta-images",
+                        public_id: `sameta_img_${ts}`,
+                    }, (e, r) => e ? reject(e) : resolve(r))
+                );
+                imageUrl = imgResult.secure_url;
+                logger.info("Sameta", `Cloudinary image: ${imageUrl}`);
+            } catch (imgErr) {
+                logger.warn("Sameta", "Image upload failed (non-fatal):", imgErr.message);
+            }
         }
+        // Clean up local image after upload attempts
+        try { fs.unlinkSync(imagePath); } catch (_) {}
 
         // Upload to YouTube if requested and credentials available
         let youtubeUrl = null;
@@ -169,6 +187,7 @@ router.post("/generate-sameta", async (req, res) => {
             sameta,
             meaning,
             videoUrl: videoUrl || videoPath,
+            imageUrl,
             usedDefaultChannel: (youtubeUrl && !sessionToken) || undefined,
             youtubeUrl,
             instagramUrl,
