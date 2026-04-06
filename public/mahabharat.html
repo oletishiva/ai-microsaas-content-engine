@@ -901,16 +901,16 @@
   // Time-based progress stages (seconds → % + step label)
   const PROGRESS_STAGES = [
     { at:   0, pct:  3, msg: "🤖 Building 4 scene prompts with Claude…" },
-    { at:   8, pct: 12, msg: "🎨 Scene 1/4: Generating with Gemini Imagen 3…" },
-    { at:  32, pct: 30, msg: "🎨 Scene 2/4: Generating with Gemini Imagen 3…" },
-    { at:  57, pct: 48, msg: "🎨 Scene 3/4: Generating with Gemini Imagen 3…" },
-    { at:  82, pct: 66, msg: "🎨 Scene 4/4: Generating with Gemini Imagen 3…" },
-    { at: 108, pct: 78, msg: "🖼️  Compositing text overlays on each scene…" },
-    { at: 118, pct: 86, msg: "🎬 FFmpeg assembling 4-scene video…" },
-    { at: 135, pct: 93, msg: "☁️  Uploading to Cloudinary…" },
-    { at: 150, pct: 97, msg: "📺 Posting to YouTube…" },
+    { at:  10, pct: 12, msg: "🎨 Scene 1/4: Generating image…" },
+    { at:  55, pct: 30, msg: "🎨 Scene 2/4: Generating image…" },
+    { at: 100, pct: 48, msg: "🎨 Scene 3/4: Generating image…" },
+    { at: 145, pct: 66, msg: "🎨 Scene 4/4: Generating image…" },
+    { at: 185, pct: 78, msg: "🖼️  Compositing text overlays on each scene…" },
+    { at: 200, pct: 86, msg: "🎬 FFmpeg assembling 4-scene video…" },
+    { at: 215, pct: 93, msg: "☁️  Uploading to Cloudinary…" },
+    { at: 225, pct: 97, msg: "📺 Posting to YouTube…" },
   ];
-  const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes hard timeout
+  const TIMEOUT_MS = 6 * 60 * 1000; // 6 minutes hard timeout
 
   async function generateVideo() {
     if (!lastScript) return;
