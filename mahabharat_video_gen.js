@@ -145,27 +145,27 @@ Generate 4 distinct scene prompts.`,
     return prompts;
 }
 
-// ── Step 2a: Gemini Imagen 3 → image ─────────────────────────────────────────
+// ── Step 2a: Gemini Flash Image Generation ────────────────────────────────────
+// Uses gemini-2.0-flash-preview-image-generation — works with any AI Studio key.
+// (imagen-3.0-generate-002 requires Google Cloud billing, not just AI Studio)
 async function generateGeminiImage(prompt, outputPath) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
-    console.log(`   [Gemini] Calling Imagen 3 API... (prompt: "${prompt.slice(0, 60)}...")`);
+    // Ask for portrait 9:16 framing via prompt since the API doesn't take aspect_ratio
+    const fullPrompt = `${prompt}\n\nIMPORTANT: Generate as a tall portrait image (9:16 aspect ratio, vertical orientation like a phone screen). All subjects must be fully visible within the frame.`;
+
+    console.log(`   [Gemini] Calling Flash image generation... (prompt: "${prompt.slice(0, 60)}...")`);
     const t0 = Date.now();
 
     const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`,
         {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                instances:  [{ prompt }],
-                parameters: {
-                    sampleCount:       1,
-                    aspectRatio:       "9:16",
-                    safetyFilterLevel: "block_only_high",
-                    personGeneration:  "allow_adult",
-                },
+                contents: [{ parts: [{ text: fullPrompt }] }],
+                generationConfig: { responseModalities: ["IMAGE"] },
             }),
         }
     );
@@ -179,14 +179,21 @@ async function generateGeminiImage(prompt, outputPath) {
     }
 
     const data = await res.json();
-    const b64  = data.predictions?.[0]?.bytesBase64Encoded;
-    if (!b64) {
+    const part = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    if (!part?.inlineData?.data) {
         console.error(`   [Gemini] Unexpected response: ${JSON.stringify(data).slice(0, 400)}`);
         throw new Error(`Gemini: no image in response — ${JSON.stringify(data).slice(0, 200)}`);
     }
 
-    const imgBuf = Buffer.from(b64, "base64");
-    fs.writeFileSync(outputPath, imgBuf);
+    const imgBuf = Buffer.from(part.inlineData.data, "base64");
+    // Save as PNG (mimeType is usually image/png or image/jpeg)
+    const ext = part.inlineData.mimeType === "image/jpeg" ? ".jpg" : ".png";
+    const finalPath = outputPath.replace(/\.(png|jpg)$/i, ext);
+    fs.writeFileSync(finalPath, imgBuf);
+    // Rename to expected outputPath if different
+    if (finalPath !== outputPath) {
+        try { fs.renameSync(finalPath, outputPath); } catch (_) {}
+    }
     console.log(`   [Gemini] Image saved: ${path.basename(outputPath)} (${(imgBuf.length / 1024).toFixed(0)} KB, ${Date.now() - t0}ms total)`);
 }
 
