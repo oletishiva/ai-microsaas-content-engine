@@ -936,16 +936,19 @@
   // Time-based progress stages (seconds → % + step label)
   const PROGRESS_STAGES = [
     { at:   0, pct:  3, msg: "🤖 Building 4 scene prompts with Claude…" },
-    { at:  10, pct: 12, msg: "🎨 Scene 1/4: Generating image…" },
-    { at:  55, pct: 30, msg: "🎨 Scene 2/4: Generating image…" },
-    { at: 100, pct: 48, msg: "🎨 Scene 3/4: Generating image…" },
-    { at: 145, pct: 66, msg: "🎨 Scene 4/4: Generating image…" },
-    { at: 185, pct: 78, msg: "🖼️  Compositing text overlays on each scene…" },
-    { at: 200, pct: 86, msg: "🎬 FFmpeg assembling 4-scene video…" },
-    { at: 215, pct: 93, msg: "☁️  Uploading to Cloudinary…" },
-    { at: 225, pct: 97, msg: "📺 Posting to YouTube…" },
+    { at:  10, pct: 10, msg: "🎨 Scene 1/4: Generating image…" },
+    { at:  55, pct: 22, msg: "🎨 Scene 2/4: Generating image…" },
+    { at: 100, pct: 34, msg: "🎨 Scene 3/4: Generating image…" },
+    { at: 145, pct: 46, msg: "🎨 Scene 4/4: Generating image…" },
+    { at: 185, pct: 55, msg: "🖼️  Compositing overlays…" },
+    { at: 200, pct: 62, msg: "🎬 Ken Burns clip 1/4… (~30s each)" },
+    { at: 230, pct: 70, msg: "🎬 Ken Burns clip 2/4…" },
+    { at: 260, pct: 78, msg: "🎬 Ken Burns clip 3/4…" },
+    { at: 290, pct: 86, msg: "🎬 Ken Burns clip 4/4…" },
+    { at: 320, pct: 92, msg: "☁️  Merging + uploading…" },
+    { at: 345, pct: 97, msg: "📺 Posting to YouTube…" },
   ];
-  const TIMEOUT_MS = 6 * 60 * 1000; // 6 minutes hard timeout
+  const TIMEOUT_MS = 8 * 60 * 1000; // 8 minutes — Ken Burns adds ~2 min
 
   async function generateVideo() {
     if (!lastScript) return;

@@ -286,20 +286,21 @@ async function compositeScene(imagePath, sceneIdx, script, epNumber, outputPath)
     const { buf: charBuf, w: charW } = await rt(script.character, 22, "#EEEEEE", "bold");
     composites.push({ input: charBuf, top: 38, left: Math.max(160, W - charW - 36) });
 
-    // ── BOTTOM dark gradient ──────────────────────────────────────────────────
-    const botGradH = Math.floor(H * 0.42); // 806px
+    // ── BOTTOM dark gradient — covers bottom 55% so all text is readable ─────
+    const botGradH = Math.floor(H * 0.55); // 1056px — from mid-screen down
     const botSvg   = `<svg width="${W}" height="${botGradH}" xmlns="http://www.w3.org/2000/svg">
       <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%"   stop-color="#000" stop-opacity="0"/>
-        <stop offset="40%"  stop-color="#000" stop-opacity="0.60"/>
-        <stop offset="100%" stop-color="#000" stop-opacity="0.92"/>
+        <stop offset="30%"  stop-color="#000" stop-opacity="0.55"/>
+        <stop offset="100%" stop-color="#000" stop-opacity="0.90"/>
       </linearGradient></defs>
       <rect width="${W}" height="${botGradH}" fill="url(#bg)"/>
     </svg>`;
     composites.push({ input: await sharp(Buffer.from(botSvg)).png().toBuffer(), top: H - botGradH, left: 0 });
 
-    // Section label pill (కథ / నేటి పాఠం)
-    let textBottomY = H - 70;
+    // Section label pill (కథ / నేటి పాఠం) — fixed just above branding
+    const BOTTOM_BRAND_H = 60;
+    let textTopY = H - botGradH + 80; // text starts from mid-screen
 
     if (label) {
         const { buf: lblBuf, w: lblW, h: lblH } = await rt(label, 26, GOLD, "bold");
@@ -308,27 +309,22 @@ async function compositeScene(imagePath, sceneIdx, script, epNumber, outputPath)
           <rect width="${pillW}" height="${pillH}" rx="10" fill="${GOLD}" fill-opacity="0.12"/>
           <rect x="1" y="1" width="${pillW - 2}" height="${pillH - 2}" rx="9" fill="none" stroke="${GOLD}" stroke-width="1.5"/>
         </svg>`;
-        const pillTop = textBottomY - pillH;
-        composites.push({ input: await sharp(Buffer.from(pillSvg)).png().toBuffer(), top: pillTop, left: Math.floor((W - pillW) / 2) });
-        composites.push({ input: lblBuf, top: pillTop + 11, left: Math.floor((W - lblW) / 2) });
-        textBottomY = pillTop - 18;
+        composites.push({ input: await sharp(Buffer.from(pillSvg)).png().toBuffer(), top: textTopY, left: Math.floor((W - pillW) / 2) });
+        composites.push({ input: lblBuf, top: textTopY + 11, left: Math.floor((W - lblW) / 2) });
+        textTopY += pillH + 16;
     }
 
-    // Section text — stack lines upward from textBottomY
-    // Truncate long story/lesson text to first ~130 chars so it fits cleanly in 5 lines
-    let displayText = script[section] || "";
-    if ((section === "story" || section === "lesson") && displayText.length > 130) {
-        displayText = displayText.slice(0, 130).trimEnd() + "…";
-    }
-    const maxChars = section === "hook" ? 22 : section === "cta" ? 26 : 30;
-    const lines    = wrapText(displayText, maxChars).slice(0, 5);
-    // Render bottom → top
-    for (let i = lines.length - 1; i >= 0; i--) {
-        const { buf, w: tw, h: th } = await rt(lines[i], textSize, textColor, "bold");
-        textBottomY -= th + 10;
-        const top  = Math.max(H - botGradH + 100, textBottomY);
+    // Section text — render all lines top → down, no truncation
+    const maxChars = section === "hook" ? 22 : section === "cta" ? 26 : 28;
+    const lines    = wrapText(script[section] || "", maxChars);
+    const maxBottomY = H - BOTTOM_BRAND_H - 10;
+    for (const line of lines) {
+        if (textTopY >= maxBottomY) break; // stop if we'd overflow into branding
+        const { buf, w: tw, h: th } = await rt(line, textSize, textColor, "bold");
+        if (textTopY + th > maxBottomY) break;
         const left = Math.max(0, Math.floor((W - tw) / 2));
-        composites.push({ input: buf, top, left });
+        composites.push({ input: buf, top: textTopY, left });
+        textTopY += th + 8;
     }
 
     // Bottom branding — "మహాభారతం" on scene 1 and 4
@@ -342,18 +338,22 @@ async function compositeScene(imagePath, sceneIdx, script, epNumber, outputPath)
 }
 
 // ── Step 4: FFmpeg — image → video clip ───────────────────────────────────────
-// MAHABHARAT_ZOOM=true → Ken Burns zoompan (cinematic, ~60s/clip)
-// default            → fast static clip with fade in/out (~5s/clip)
+// Always uses Ken Burns zoom for cinematic motion (Veo-like feel).
+// Even scenes zoom in slowly, odd scenes zoom out — keeps visual variety.
+// Set MAHABHARAT_ZOOM=false to disable (faster, ~5s/clip vs ~30s/clip).
 function buildClip(imagePath, sceneIdx, duration, clipPath) {
-    const useZoom = process.env.MAHABHARAT_ZOOM === "true";
-    const frames  = Math.floor(duration * 30);
+    const skipZoom = process.env.MAHABHARAT_ZOOM === "false";
+    const frames   = Math.floor(duration * 30);
 
     let vf;
-    if (useZoom) {
-        const zoomIn  = `min(zoom+0.0010,1.25)`;
-        const zoomOut = `if(lte(zoom,1.0),1.25,max(zoom-0.0010,1.0))`;
+    if (!skipZoom) {
+        // Alternate slow zoom-in / zoom-out across scenes for visual rhythm
+        const zoomIn  = `min(zoom+0.0008,1.20)`;
+        const zoomOut = `if(lte(zoom,1.0),1.20,max(zoom-0.0008,1.0))`;
         const zExpr   = sceneIdx % 2 === 0 ? zoomIn : zoomOut;
-        vf = `zoompan=z='${zExpr}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${W}x${H}:fps=30,`;
+        // Slight horizontal drift on odd scenes for parallax feel
+        const xExpr   = sceneIdx % 2 === 0 ? `iw/2-(iw/zoom/2)` : `iw/2-(iw/zoom/2)+${sceneIdx * 8}`;
+        vf = `zoompan=z='${zExpr}':d=${frames}:x='${xExpr}':y='ih/2-(ih/zoom/2)':s=${W}x${H}:fps=30,`;
     } else {
         vf = `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},`;
     }
@@ -371,7 +371,7 @@ function buildClip(imagePath, sceneIdx, duration, clipPath) {
     console.log(`   [FFmpeg] Building clip ${sceneIdx + 1}...`);
     const t0 = Date.now();
     try {
-        execSync(cmd, { stdio: "pipe", timeout: useZoom ? 180000 : 60000 });
+        execSync(cmd, { stdio: "pipe", timeout: skipZoom ? 60000 : 180000 });
     } catch (err) {
         const stderr = err.stderr?.toString() || err.stdout?.toString() || "";
         console.error(`   [FFmpeg] Clip ${sceneIdx + 1} failed:\n${stderr.slice(-800)}`);
@@ -436,7 +436,7 @@ async function generateMahabharatVideo({ script, epNumber = 1, outputDir = __dir
     console.log(`\n${"─".repeat(60)}`);
     console.log(`🎬 Mahabharat EP ${epNumber} — ${script.character} [${useGemini ? "Gemini Imagen 3" : "DALL-E 3"}]`);
     console.log(`   outputDir: ${outputDir}`);
-    console.log(`   zoom: ${process.env.MAHABHARAT_ZOOM === "true" ? "ON" : "OFF"}`);
+    console.log(`   zoom: ${process.env.MAHABHARAT_ZOOM === "false" ? "OFF" : "ON (Ken Burns)"}`);
     console.log(`${"─".repeat(60)}`);
 
     // Build 4 scene prompts via Claude (fall back to generic if fails)
