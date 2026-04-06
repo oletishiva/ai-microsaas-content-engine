@@ -107,24 +107,24 @@ async function buildScenePrompts(script) {
 
     const response = await client.messages.create({
         model:      "claude-sonnet-4-6",
-        max_tokens: 900,
+        max_tokens: 2000,
         system: `You are an expert at writing image prompts for Indian mythological art.
 
 Given a Mahabharat short script, write 4 DISTINCT image prompts — one per scene.
 
-Base style to include in each: "Premium Mahabharat illustration, dramatic golden volumetric lighting, ancient India, Amar Chitra Katha meets cinematic concept art, deep saffron sky, royal silk garments, ornate jewelry, no text, no borders, 9:16 portrait orientation"
+Base style for each: Premium Mahabharat illustration, dramatic golden volumetric lighting, ancient India, Amar Chitra Katha meets cinematic concept art, deep saffron sky, royal silk garments, ornate jewelry, no text, no borders, 9:16 portrait orientation
 
-Safety rules (MUST follow to avoid content filter rejection):
+Safety rules (MUST follow):
 - Avoid: battle, war, blood, death, kill, weapon, sword, fight, arrow
-- Use instead: confrontation, divine moment, heroic stance, contemplation, revelation, raises hand, gazes upon, stands before
+- Use: confrontation, divine moment, heroic stance, contemplation, revelation
 
 Scene roles:
-1. HOOK — dramatic wide establishing shot, atmospheric, awe-inspiring, scroll-stopping. Large sky, palace or forest background.
-2. STORY — the specific incident's emotional peak. Character close-up with intense expression.
-3. LESSON — symbolic/metaphorical. Calm wise moment. Soft warm light. Less intense, more reflective.
-4. CTA — the main character in a majestic, noble, inspiring pose. Triumphant energy. Looking toward viewer.
+1. HOOK — dramatic wide establishing shot. Large sky, palace or forest background.
+2. STORY — the incident's emotional peak. Character close-up with intense expression.
+3. LESSON — symbolic/calm. Soft warm light. Reflective mood.
+4. CTA — majestic inspiring pose. Looking toward viewer.
 
-Return ONLY valid JSON — array of 4 strings:
+Return ONLY a JSON array of exactly 4 strings. Keep each prompt under 120 words.
 ["prompt1", "prompt2", "prompt3", "prompt4"]`,
         messages: [{
             role:    "user",
