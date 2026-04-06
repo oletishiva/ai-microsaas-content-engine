@@ -150,6 +150,9 @@ async function generateGeminiImage(prompt, outputPath) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
+    console.log(`   [Gemini] Calling Imagen 3 API... (prompt: "${prompt.slice(0, 60)}...")`);
+    const t0 = Date.now();
+
     const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`,
         {
@@ -167,16 +170,24 @@ async function generateGeminiImage(prompt, outputPath) {
         }
     );
 
+    console.log(`   [Gemini] HTTP ${res.status} (${Date.now() - t0}ms)`);
+
     if (!res.ok) {
         const errText = await res.text().catch(() => "");
+        console.error(`   [Gemini] Error body: ${errText.slice(0, 500)}`);
         throw new Error(`Gemini ${res.status}: ${errText.slice(0, 200)}`);
     }
 
     const data = await res.json();
     const b64  = data.predictions?.[0]?.bytesBase64Encoded;
-    if (!b64) throw new Error(`Gemini: no image in response — ${JSON.stringify(data).slice(0, 200)}`);
+    if (!b64) {
+        console.error(`   [Gemini] Unexpected response: ${JSON.stringify(data).slice(0, 400)}`);
+        throw new Error(`Gemini: no image in response — ${JSON.stringify(data).slice(0, 200)}`);
+    }
 
-    fs.writeFileSync(outputPath, Buffer.from(b64, "base64"));
+    const imgBuf = Buffer.from(b64, "base64");
+    fs.writeFileSync(outputPath, imgBuf);
+    console.log(`   [Gemini] Image saved: ${path.basename(outputPath)} (${(imgBuf.length / 1024).toFixed(0)} KB, ${Date.now() - t0}ms total)`);
 }
 
 // ── Step 2b: DALL-E 3 fallback ────────────────────────────────────────────────
@@ -336,8 +347,16 @@ function buildClip(imagePath, sceneIdx, duration, clipPath) {
         `"${clipPath}"`,
     ].join(" ");
 
-    execSync(cmd, { stdio: "pipe", timeout: useZoom ? 180000 : 60000 });
-    console.log(`   ✅ Clip ${sceneIdx + 1} built`);
+    console.log(`   [FFmpeg] Building clip ${sceneIdx + 1}...`);
+    const t0 = Date.now();
+    try {
+        execSync(cmd, { stdio: "pipe", timeout: useZoom ? 180000 : 60000 });
+    } catch (err) {
+        const stderr = err.stderr?.toString() || err.stdout?.toString() || "";
+        console.error(`   [FFmpeg] Clip ${sceneIdx + 1} failed:\n${stderr.slice(-800)}`);
+        throw new Error(`FFmpeg clip ${sceneIdx + 1} failed: ${stderr.slice(-300)}`);
+    }
+    console.log(`   ✅ Clip ${sceneIdx + 1} built (${Date.now() - t0}ms)`);
 }
 
 // ── Step 5: xfade merge + music ───────────────────────────────────────────────
@@ -373,8 +392,17 @@ function mergeClips(clipPaths, musicPath, videoPath) {
         `"${videoPath}"`,
     ].join(" ");
 
-    execSync(cmd, { stdio: "pipe", timeout: 300000 });
-    console.log(`✅ Final video: ${path.basename(videoPath)} (${totalDur.toFixed(1)}s)`);
+    console.log(`   [FFmpeg] Merging ${n} clips with xfade...`);
+    console.log(`   [FFmpeg] Filter: ${filter}`);
+    const t0 = Date.now();
+    try {
+        execSync(cmd, { stdio: "pipe", timeout: 300000 });
+    } catch (err) {
+        const stderr = err.stderr?.toString() || err.stdout?.toString() || "";
+        console.error(`   [FFmpeg] Merge failed:\n${stderr.slice(-1000)}`);
+        throw new Error(`FFmpeg merge failed: ${stderr.slice(-400)}`);
+    }
+    console.log(`✅ Final video: ${path.basename(videoPath)} (${totalDur.toFixed(1)}s, ${Date.now() - t0}ms)`);
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -383,10 +411,12 @@ async function generateMahabharatVideo({ script, epNumber = 1, outputDir = __dir
     const useGemini = !!process.env.GEMINI_API_KEY;
     const videoPath = path.join(outputDir, `mb_video_${ts}.mp4`);
 
-    console.log(`\n🎬 Mahabharat EP ${epNumber} — ${script.character} [${useGemini ? "Gemini Imagen 3" : "DALL-E 3"}]`);
-    if (process.env.MAHABHARAT_ZOOM === "true") {
-        console.log("   Ken Burns zoom enabled (slower render)");
-    }
+    const t0Total = Date.now();
+    console.log(`\n${"─".repeat(60)}`);
+    console.log(`🎬 Mahabharat EP ${epNumber} — ${script.character} [${useGemini ? "Gemini Imagen 3" : "DALL-E 3"}]`);
+    console.log(`   outputDir: ${outputDir}`);
+    console.log(`   zoom: ${process.env.MAHABHARAT_ZOOM === "true" ? "ON" : "OFF"}`);
+    console.log(`${"─".repeat(60)}`);
 
     // Build 4 scene prompts via Claude (fall back to generic if fails)
     let scenePrompts;
@@ -456,6 +486,10 @@ async function generateMahabharatVideo({ script, epNumber = 1, outputDir = __dir
     } finally {
         clipPaths.forEach(p => { try { fs.unlinkSync(p); } catch (_) {} });
     }
+
+    const elapsed = ((Date.now() - t0Total) / 1000).toFixed(1);
+    console.log(`\n🏁 EP ${epNumber} complete in ${elapsed}s → ${path.basename(videoPath)}`);
+    console.log("─".repeat(60));
 
     // Return first scene image as the "thumbnail" for Cloudinary + Google Flow widget
     return { videoPath, imagePath: firstImgPath };
