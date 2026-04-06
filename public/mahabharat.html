@@ -393,6 +393,29 @@
     }
     .copy-btn:hover { border-color: var(--gold); color: var(--gold); }
     .copy-btn.copied { border-color: var(--green); color: var(--green); }
+    /* ── Progress bar ───────────────────────────────────────── */
+    .progress-wrap {
+      margin: 0.6rem 0 0.4rem;
+      background: rgba(255,255,255,0.06);
+      border-radius: 99px;
+      height: 6px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--gold), #f59e0b);
+      border-radius: 99px;
+      transition: width 1.2s ease;
+      width: 0%;
+    }
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--muted2);
+      margin-top: 0.35rem;
+    }
+
     .dl-btn {
       padding: 0.4rem 1rem;
       background: var(--gold-dim);
@@ -600,8 +623,15 @@
       </div>
       <!-- Video result area -->
       <div id="videoResult" style="display:none; margin: 1rem 1.5rem; padding: 1rem; background: var(--surface2); border-radius: 10px; border: 1px solid var(--border);">
-        <div id="videoStatus" style="font-size: 0.85rem; color: var(--muted2); margin-bottom: 0.75rem;"></div>
-        <video id="videoPlayer" controls playsinline style="display:none; width:100%; max-height: 400px; border-radius: 8px; background:#000;"></video>
+        <div id="videoStatus" style="font-size: 0.85rem; color: var(--muted2); margin-bottom: 0.5rem;"></div>
+        <div id="progressWrap" style="display:none">
+          <div class="progress-wrap"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="progress-meta">
+            <span id="progressStep">Starting…</span>
+            <span id="progressTimer">0:00</span>
+          </div>
+        </div>
+        <video id="videoPlayer" controls playsinline style="display:none; width:100%; max-height: 400px; border-radius: 8px; background:#000; margin-top:0.5rem"></video>
         <div id="videoLinks" style="display:none; margin-top: 0.75rem; gap: 0.75rem; flex-wrap: wrap; align-items: center;"></div>
       </div>
       <div class="card-body">
@@ -868,54 +898,111 @@
   }
 
   // ── Generate Video ─────────────────────────────────────────────────────
+  // Time-based progress stages (seconds → % + step label)
+  const PROGRESS_STAGES = [
+    { at:   0, pct:  3, msg: "🤖 Building 4 scene prompts with Claude…" },
+    { at:   8, pct: 12, msg: "🎨 Scene 1/4: Generating with Gemini Imagen 3…" },
+    { at:  32, pct: 30, msg: "🎨 Scene 2/4: Generating with Gemini Imagen 3…" },
+    { at:  57, pct: 48, msg: "🎨 Scene 3/4: Generating with Gemini Imagen 3…" },
+    { at:  82, pct: 66, msg: "🎨 Scene 4/4: Generating with Gemini Imagen 3…" },
+    { at: 108, pct: 78, msg: "🖼️  Compositing text overlays on each scene…" },
+    { at: 118, pct: 86, msg: "🎬 FFmpeg assembling 4-scene video…" },
+    { at: 135, pct: 93, msg: "☁️  Uploading to Cloudinary…" },
+    { at: 150, pct: 97, msg: "📺 Posting to YouTube…" },
+  ];
+  const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes hard timeout
+
   async function generateVideo() {
     if (!lastScript) return;
-    const btn       = document.getElementById("genVideoBtn");
-    const resultDiv = document.getElementById("videoResult");
-    const statusEl  = document.getElementById("videoStatus");
-    const playerEl  = document.getElementById("videoPlayer");
-    const linksEl   = document.getElementById("videoLinks");
-    const ep        = epNumber - 1;
+    const btn         = document.getElementById("genVideoBtn");
+    const resultDiv   = document.getElementById("videoResult");
+    const statusEl    = document.getElementById("videoStatus");
+    const playerEl    = document.getElementById("videoPlayer");
+    const linksEl     = document.getElementById("videoLinks");
+    const progressWrap = document.getElementById("progressWrap");
+    const progressFill = document.getElementById("progressFill");
+    const progressStep = document.getElementById("progressStep");
+    const progressTimer= document.getElementById("progressTimer");
+    const ep          = epNumber - 1;
 
-    btn.disabled     = true;
-    btn.textContent  = "⏳ Generating…";
+    btn.disabled            = true;
+    btn.textContent         = "⏳ Generating…";
     resultDiv.style.display = "block";
     playerEl.style.display  = "none";
     linksEl.style.display   = "none";
-    statusEl.textContent    = "🎨 Generating 4 cinematic scenes with Gemini Imagen 3… (this takes ~90–120s)";
+    linksEl.innerHTML       = "";
+    progressWrap.style.display = "block";
+    statusEl.style.color    = "var(--muted2)";
+    statusEl.textContent    = "Generating 4 cinematic scenes…";
+
+    // ── Progress bar ticker ──────────────────────────────────────────────
+    const startMs = Date.now();
+    let tickInterval = setInterval(() => {
+      const elapsed = (Date.now() - startMs) / 1000;
+      // Timer display
+      const m = Math.floor(elapsed / 60), s = Math.floor(elapsed % 60);
+      progressTimer.textContent = `${m}:${String(s).padStart(2,"0")} elapsed`;
+      // Find current stage
+      let stage = PROGRESS_STAGES[0];
+      for (const st of PROGRESS_STAGES) { if (elapsed >= st.at) stage = st; }
+      progressFill.style.width = stage.pct + "%";
+      progressStep.textContent = stage.msg;
+    }, 1000);
+
+    const stopProgress = (pct, msg) => {
+      clearInterval(tickInterval);
+      progressFill.style.width = pct + "%";
+      progressStep.textContent = msg;
+    };
+
+    // ── Fetch with 3-min timeout ─────────────────────────────────────────
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
       const res = await fetch("/api/generate-mahabharat-video", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
+        signal:  controller.signal,
         body:    JSON.stringify({
           script:        lastScript,
           epNumber:      ep,
           postToYouTube: true,
         }),
       });
+      clearTimeout(timeoutId);
       const data = await res.json();
 
       if (!data.success) {
-        statusEl.style.color = "var(--red)";
-        statusEl.textContent = "❌ " + (data.error || "Video generation failed");
-        // Show image fallback if DALL-E succeeded but compositing failed
+        stopProgress(0, "");
+        progressWrap.style.display = "none";
+        statusEl.style.color    = "var(--red)";
+        statusEl.textContent    = "❌ " + (data.error || "Video generation failed");
+
+        // Show generated images as fallback so they're not lost
         if (data.imageUrl) {
-          linksEl.style.display = "flex";
-          linksEl.innerHTML = "<span style='font-size:0.8rem;color:var(--muted2);'>Image generated — save it below:</span>";
+          const label = document.createElement("div");
+          label.style.cssText = "font-size:0.8rem;color:var(--muted2);margin-top:0.6rem;margin-bottom:0.4rem";
+          label.textContent = "Scene 1 image was generated — download it below:";
+          resultDiv.insertBefore(label, linksEl);
+
           const imgEl = document.createElement("img");
           imgEl.src = data.imageUrl;
-          imgEl.style.cssText = "width:100%;max-height:300px;object-fit:contain;border-radius:8px;margin-top:0.5rem;";
+          imgEl.style.cssText = "width:100%;max-height:320px;object-fit:contain;border-radius:8px;margin-bottom:0.5rem;cursor:pointer;";
+          imgEl.onclick = () => window.open(data.imageUrl, "_blank");
           resultDiv.insertBefore(imgEl, linksEl);
-          const saveBtn = document.createElement("button");
-          saveBtn.className   = "dl-btn";
-          saveBtn.textContent = "⬇️ Save Image";
-          saveBtn.onclick     = () => saveVideo(data.imageUrl, `mahabharat_ep${String(ep).padStart(2,"0")}_image.jpg`, saveBtn);
-          linksEl.appendChild(saveBtn);
+
+          linksEl.style.display = "flex";
+          const saveImgBtn = document.createElement("button");
+          saveImgBtn.className   = "dl-btn";
+          saveImgBtn.textContent = "⬇️ Save Image";
+          saveImgBtn.onclick     = () => saveVideo(data.imageUrl, `mb_ep${String(ep).padStart(2,"0")}_scene1.jpg`, saveImgBtn);
+          linksEl.appendChild(saveImgBtn);
         }
         return;
       }
 
+      stopProgress(100, "✅ Done!");
       statusEl.style.color = "var(--green)";
       statusEl.textContent = "✅ Video ready!";
 
@@ -988,7 +1075,18 @@
       }
     } catch (e) {
       statusEl.style.color = "var(--red)";
-      statusEl.textContent = "❌ Error: " + e.message;
+      clearTimeout(timeoutId);
+      if (e.name === "AbortError") {
+        stopProgress(0, "");
+        progressWrap.style.display = "none";
+        statusEl.style.color    = "var(--amber)";
+        statusEl.textContent    = "⏱️ Timed out after 3 minutes. The server is still processing — try refreshing in 30s, or generate again.";
+      } else {
+        stopProgress(0, "");
+        progressWrap.style.display = "none";
+        statusEl.style.color    = "var(--red)";
+        statusEl.textContent    = "❌ Error: " + e.message;
+      }
     } finally {
       btn.disabled    = false;
       btn.textContent = "🎬 Generate Video";
