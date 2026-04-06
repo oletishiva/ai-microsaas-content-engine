@@ -1152,16 +1152,21 @@
       scenePrompts = data.prompts;
 
       const LABELS = ["Hook", "Story (కథ)", "Lesson (నేటి పాఠం)", "CTA"];
+      window._mbScenePrompts = scenePrompts; // store so copy buttons can reference by index
       const list   = document.getElementById("promptsList");
       list.innerHTML = scenePrompts.map((p, i) => `
         <div style="margin-bottom:0.6rem; padding:0.6rem 0.75rem; background:var(--surface); border-radius:8px; border:1px solid var(--border);">
           <div style="font-size:0.72rem; color:var(--gold); font-weight:600; margin-bottom:0.3rem;">Scene ${i+1} — ${LABELS[i]}</div>
-          <div style="font-size:0.75rem; color:var(--muted2); line-height:1.5; margin-bottom:0.4rem;">${p}</div>
-          <button onclick="navigator.clipboard.writeText(${JSON.stringify(p)}).then(()=>{this.textContent='✅ Copied'; setTimeout(()=>this.textContent='📋 Copy Prompt',1500)})"
+          <div style="font-size:0.75rem; color:var(--muted2); line-height:1.5; margin-bottom:0.4rem;" id="scenePromptText${i}"></div>
+          <button onclick="copyScenePrompt(${i}, this)"
             style="font-size:0.7rem; padding:0.25rem 0.6rem; border-radius:5px; border:1px solid var(--border); background:var(--surface2); color:var(--text); cursor:pointer;">
             📋 Copy Prompt
           </button>
         </div>`).join("");
+      // Set text content safely (no innerHTML injection)
+      scenePrompts.forEach((p, i) => {
+        document.getElementById(`scenePromptText${i}`).textContent = p;
+      });
       document.getElementById("promptsPanel").style.display = "block";
     } catch (e) {
       alert("Failed to get prompts: " + e.message);
@@ -1169,6 +1174,14 @@
       btn.disabled = false;
       btn.textContent = "✨ Get 4 Scene Prompts from Claude";
     }
+  }
+
+  function copyScenePrompt(idx, btn) {
+    const text = (window._mbScenePrompts || [])[idx] || "";
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = "✅ Copied";
+      setTimeout(() => { btn.textContent = "📋 Copy Prompt"; }, 1500);
+    });
   }
 
   function checkUploads() {
