@@ -145,56 +145,65 @@ Generate 4 distinct scene prompts.`,
     return prompts;
 }
 
-// ── Step 2a: Gemini Flash Image Generation ────────────────────────────────────
-// Uses gemini-2.0-flash-preview-image-generation — works with any AI Studio key.
-// (imagen-3.0-generate-002 requires Google Cloud billing, not just AI Studio)
+// ── Step 2a: Gemini Image Generation ─────────────────────────────────────────
+// Tries models in order until one works. Available for standard AI Studio keys:
+//   gemini-3.1-flash-image-preview, gemini-3-pro-image-preview, gemini-2.5-flash-image
+const GEMINI_IMAGE_MODELS = [
+    "gemini-3.1-flash-image-preview",
+    "gemini-3-pro-image-preview",
+    "gemini-2.5-flash-image",
+];
+
 async function generateGeminiImage(prompt, outputPath) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
-    // Ask for portrait 9:16 framing via prompt since the API doesn't take aspect_ratio
     const fullPrompt = `${prompt}\n\nIMPORTANT: Generate as a tall portrait image (9:16 aspect ratio, vertical orientation like a phone screen). All subjects must be fully visible within the frame.`;
 
-    console.log(`   [Gemini] Calling Flash image generation... (prompt: "${prompt.slice(0, 60)}...")`);
-    const t0 = Date.now();
+    let lastErr;
+    for (const model of GEMINI_IMAGE_MODELS) {
+        console.log(`   [Gemini] Trying ${model}... (prompt: "${prompt.slice(0, 60)}...")`);
+        const t0 = Date.now();
+        try {
+            const res = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+                {
+                    method:  "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: fullPrompt }] }],
+                        generationConfig: { responseModalities: ["IMAGE"] },
+                    }),
+                }
+            );
 
-    const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`,
-        {
-            method:  "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: fullPrompt }] }],
-                generationConfig: { responseModalities: ["IMAGE"] },
-            }),
+            console.log(`   [Gemini] HTTP ${res.status} (${Date.now() - t0}ms)`);
+
+            if (!res.ok) {
+                const errText = await res.text().catch(() => "");
+                console.warn(`   [Gemini] ${model} failed (${res.status}): ${errText.slice(0, 200)}`);
+                lastErr = new Error(`Gemini ${res.status}: ${errText.slice(0, 150)}`);
+                continue; // try next model
+            }
+
+            const data = await res.json();
+            const part = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+            if (!part?.inlineData?.data) {
+                console.warn(`   [Gemini] ${model} returned no image: ${JSON.stringify(data).slice(0, 200)}`);
+                lastErr = new Error(`Gemini ${model}: no image in response`);
+                continue;
+            }
+
+            const imgBuf = Buffer.from(part.inlineData.data, "base64");
+            fs.writeFileSync(outputPath, imgBuf);
+            console.log(`   [Gemini] ✅ ${model} — saved ${path.basename(outputPath)} (${(imgBuf.length / 1024).toFixed(0)} KB, ${Date.now() - t0}ms)`);
+            return; // success
+        } catch (err) {
+            console.warn(`   [Gemini] ${model} threw: ${err.message}`);
+            lastErr = err;
         }
-    );
-
-    console.log(`   [Gemini] HTTP ${res.status} (${Date.now() - t0}ms)`);
-
-    if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        console.error(`   [Gemini] Error body: ${errText.slice(0, 500)}`);
-        throw new Error(`Gemini ${res.status}: ${errText.slice(0, 200)}`);
     }
-
-    const data = await res.json();
-    const part = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-    if (!part?.inlineData?.data) {
-        console.error(`   [Gemini] Unexpected response: ${JSON.stringify(data).slice(0, 400)}`);
-        throw new Error(`Gemini: no image in response — ${JSON.stringify(data).slice(0, 200)}`);
-    }
-
-    const imgBuf = Buffer.from(part.inlineData.data, "base64");
-    // Save as PNG (mimeType is usually image/png or image/jpeg)
-    const ext = part.inlineData.mimeType === "image/jpeg" ? ".jpg" : ".png";
-    const finalPath = outputPath.replace(/\.(png|jpg)$/i, ext);
-    fs.writeFileSync(finalPath, imgBuf);
-    // Rename to expected outputPath if different
-    if (finalPath !== outputPath) {
-        try { fs.renameSync(finalPath, outputPath); } catch (_) {}
-    }
-    console.log(`   [Gemini] Image saved: ${path.basename(outputPath)} (${(imgBuf.length / 1024).toFixed(0)} KB, ${Date.now() - t0}ms total)`);
+    throw lastErr || new Error("All Gemini image models failed");
 }
 
 // ── Step 2b: DALL-E 3 fallback ────────────────────────────────────────────────
