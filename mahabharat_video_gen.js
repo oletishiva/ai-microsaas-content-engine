@@ -44,10 +44,10 @@ const TOTAL_CLIPS = 4;
 
 // Scene → script section mapping
 const SCENES = [
-    { section: "hook",   label: "",          textColor: WHITE, textSize: 48 },
-    { section: "story",  label: "కథ",        textColor: WHITE, textSize: 38 },
-    { section: "lesson", label: "నేటి పాఠం", textColor: GOLD,  textSize: 38 },
-    { section: "cta",    label: "",          textColor: WHITE, textSize: 42 },
+    { section: "hook",   label: "",          textColor: WHITE, textSize: 36 },
+    { section: "story",  label: "కథ",        textColor: WHITE, textSize: 28 },
+    { section: "lesson", label: "నేటి పాఠం", textColor: GOLD,  textSize: 28 },
+    { section: "cta",    label: "",          textColor: WHITE, textSize: 34 },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -315,8 +315,13 @@ async function compositeScene(imagePath, sceneIdx, script, epNumber, outputPath)
     }
 
     // Section text — stack lines upward from textBottomY
-    const maxChars  = section === "hook" ? 16 : 20;
-    const lines     = wrapText(script[section] || "", maxChars).slice(0, 4);
+    // Truncate long story/lesson text to first ~130 chars so it fits cleanly in 5 lines
+    let displayText = script[section] || "";
+    if ((section === "story" || section === "lesson") && displayText.length > 130) {
+        displayText = displayText.slice(0, 130).trimEnd() + "…";
+    }
+    const maxChars = section === "hook" ? 22 : section === "cta" ? 26 : 30;
+    const lines    = wrapText(displayText, maxChars).slice(0, 5);
     // Render bottom → top
     for (let i = lines.length - 1; i >= 0; i--) {
         const { buf, w: tw, h: th } = await rt(lines[i], textSize, textColor, "bold");
@@ -352,7 +357,7 @@ function buildClip(imagePath, sceneIdx, duration, clipPath) {
     } else {
         vf = `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},`;
     }
-    vf += `fade=t=in:st=0:d=0.4,fade=t=out:st=${duration - 0.5}:d=0.5,format=yuv420p`;
+    vf += `format=yuv420p`;
 
     const cmd = [
         "ffmpeg -y",
