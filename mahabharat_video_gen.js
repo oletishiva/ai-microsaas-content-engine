@@ -516,4 +516,52 @@ async function generateMahabharatVideo({ script, epNumber = 1, outputDir = __dir
     return { videoPath, imagePath: firstImgPath };
 }
 
-module.exports = { generateMahabharatVideo };
+// ── Build video from pre-supplied local image paths ───────────────────────────
+// Used by the manual-image flow: user generates images in Gemini Studio, uploads
+// them via the UI, backend calls this with the 4 saved paths.
+async function generateMahabharatVideoFromImages({ script, epNumber = 1, outputDir = __dirname, imagePaths } = {}) {
+    if (!Array.isArray(imagePaths) || imagePaths.length < 4) {
+        throw new Error("imagePaths must be an array of 4 file paths");
+    }
+
+    const ts        = Date.now();
+    const videoPath = path.join(outputDir, `mb_video_${ts}.mp4`);
+    const t0Total   = Date.now();
+
+    console.log(`\n${"─".repeat(60)}`);
+    console.log(`🎬 Mahabharat EP ${epNumber} — ${script.character} [Manual Images]`);
+    console.log(`${"─".repeat(60)}`);
+
+    const clipPaths    = [];
+    const firstImgPath = imagePaths[0];
+
+    for (let i = 0; i < TOTAL_CLIPS; i++) {
+        const scene    = SCENES[i];
+        const imgPath  = imagePaths[i];
+        const compPath = path.join(outputDir, `mb_comp_${ts}_${i}.jpg`);
+        const clipPath = path.join(outputDir, `mb_clip_${ts}_${i}.mp4`);
+
+        console.log(`\n🔄 Scene ${i + 1}/${TOTAL_CLIPS} [${scene.section}]`);
+        await compositeScene(imgPath, i, script, epNumber, compPath);
+        buildClip(compPath, i, CLIP_DUR, clipPath);
+        clipPaths.push(clipPath);
+        try { fs.unlinkSync(compPath); } catch (_) {}
+    }
+
+    const musicPath = pickMusic();
+    console.log(`\n🔄 Merging + music (${path.basename(musicPath)})...`);
+
+    try {
+        mergeClips(clipPaths, musicPath, videoPath);
+    } finally {
+        clipPaths.forEach(p => { try { fs.unlinkSync(p); } catch (_) {} });
+    }
+
+    const elapsed = ((Date.now() - t0Total) / 1000).toFixed(1);
+    console.log(`\n🏁 EP ${epNumber} complete in ${elapsed}s → ${path.basename(videoPath)}`);
+    console.log("─".repeat(60));
+
+    return { videoPath, imagePath: firstImgPath };
+}
+
+module.exports = { generateMahabharatVideo, generateMahabharatVideoFromImages, buildScenePrompts };

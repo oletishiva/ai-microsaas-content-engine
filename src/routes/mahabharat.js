@@ -15,11 +15,21 @@ const express   = require("express");
 const router    = express.Router();
 const path      = require("path");
 const fs        = require("fs");
+const multer    = require("multer");
 const Anthropic = require("@anthropic-ai/sdk");
 const logger    = require("../../utils/logger");
 const { OUTPUT_DIR } = require("../../config/paths");
 const { uploadVideoToCloudinary } = require("../services/cloudinaryUploader");
 const { uploadToYouTube }         = require("../services/youtubeUploader");
+
+// Multer: store uploaded images as temp files in OUTPUT_DIR
+const upload = multer({
+    dest: OUTPUT_DIR,
+    limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB per image
+    fileFilter: (_, file, cb) => {
+        cb(null, /image\/(jpeg|png|webp)/.test(file.mimetype));
+    },
+});
 
 const SYSTEM_PROMPT = `You are a premium Telugu YouTube Shorts scriptwriter specializing in Mahabharat.
 
@@ -251,6 +261,122 @@ function downloadToFile(url, dest) {
         }).on("error", reject);
     });
 }
+
+// ── POST /api/mahabharat-scene-prompts ───────────────────────────────────────
+// Returns 4 Claude-generated image prompts for a given script (no image gen)
+router.post("/mahabharat-scene-prompts", async (req, res) => {
+    const { script } = req.body;
+    if (!script || !script.title) {
+        return res.status(400).json({ success: false, error: "script is required" });
+    }
+    try {
+        const { buildScenePrompts } = require("../../mahabharat_video_gen");
+        const prompts = await buildScenePrompts(script);
+        res.json({ success: true, prompts });
+    } catch (err) {
+        logger.error("Mahabharat", "Scene prompt generation failed:", err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// ── POST /api/build-mahabharat-from-images ────────────────────────────────────
+// Accepts 4 uploaded images + script JSON, builds video without any AI image gen
+router.post(
+    "/build-mahabharat-from-images",
+    upload.fields([
+        { name: "image0", maxCount: 1 },
+        { name: "image1", maxCount: 1 },
+        { name: "image2", maxCount: 1 },
+        { name: "image3", maxCount: 1 },
+    ]),
+    async (req, res) => {
+        let script, epNumber;
+        try {
+            script   = JSON.parse(req.body.scriptData);
+            epNumber = parseInt(req.body.epNumber || "1", 10);
+        } catch (_) {
+            return res.status(400).json({ success: false, error: "Invalid scriptData JSON" });
+        }
+
+        const files = req.files || {};
+        const imagePaths = ["image0","image1","image2","image3"].map(k => files[k]?.[0]?.path);
+        if (imagePaths.some(p => !p)) {
+            return res.status(400).json({ success: false, error: "All 4 images (image0–image3) are required" });
+        }
+
+        logger.info("Mahabharat", `EP ${epNumber} manual-image build started — ${script.character}`);
+        let videoPath, rawImagePath;
+        try {
+            const { generateMahabharatVideoFromImages } = require("../../mahabharat_video_gen");
+            const result = await generateMahabharatVideoFromImages({ script, epNumber, outputDir: OUTPUT_DIR, imagePaths });
+            videoPath    = result.videoPath;
+            rawImagePath = result.imagePath;
+        } catch (err) {
+            imagePaths.forEach(p => { try { fs.unlinkSync(p); } catch (_) {} });
+            logger.error("Mahabharat", "Manual build failed:", err.message);
+            return res.status(500).json({ success: false, error: err.message });
+        } finally {
+            // Remove the 3 non-first uploaded originals (first kept as thumbnail)
+            imagePaths.slice(1).forEach(p => { try { fs.unlinkSync(p); } catch (_) {} });
+        }
+
+        const ts = Date.now();
+
+        // Upload video to Cloudinary
+        let cloudinaryUrl;
+        try {
+            cloudinaryUrl = await uploadVideoToCloudinary(videoPath, `mb_ep${String(epNumber).padStart(3,"0")}_${ts}`);
+            logger.info("Mahabharat", `EP ${epNumber} manual build uploaded to Cloudinary`);
+        } catch (err) {
+            logger.error("Mahabharat", "Cloudinary upload failed:", err.message);
+            return res.status(500).json({ success: false, error: "Cloudinary upload failed: " + err.message });
+        } finally {
+            try { fs.unlinkSync(videoPath); } catch (_) {}
+        }
+
+        // Upload first image as thumbnail
+        let imageUrl = null;
+        if (rawImagePath && fs.existsSync(rawImagePath)) {
+            try {
+                const { cloudinary } = require("../../config/cloudinary");
+                const imgResult = await new Promise((resolve, reject) =>
+                    cloudinary.uploader.upload(rawImagePath, {
+                        resource_type: "image",
+                        folder: "ai-content-engine/mahabharat-images",
+                        public_id: `mb_img_ep${String(epNumber).padStart(3,"0")}_${ts}`,
+                    }, (e, r) => e ? reject(e) : resolve(r))
+                );
+                imageUrl = imgResult.secure_url;
+            } catch (_) {} finally {
+                try { fs.unlinkSync(rawImagePath); } catch (_) {}
+            }
+        }
+
+        // Optional YouTube
+        let youtubeUrl;
+        if (req.body.postToYouTube === "true" || req.body.postToYouTube === true) {
+            try {
+                const mbRefreshToken = process.env.MAHABHARAT_YOUTUBE_REFRESH_TOKEN || process.env.YOUTUBE_REFRESH_TOKEN;
+                const ytTitle = `${script.title} | EP ${String(epNumber).padStart(2,"0")} | Mahabharat Shorts`;
+                const ytDesc  = [script.hook, script.story, script.lesson, script.cta,
+                    "", `#Mahabharat #TeluguShorts #${script.character}`].filter(Boolean).join("\n");
+                const ytTags  = ["Mahabharat","Telugu","TeluguShorts","shorts",script.character,script.category,
+                    "మహాభారతం","inspirational","motivation","lifelessons"];
+                const tmpPath = path.join(OUTPUT_DIR, `mb_yt_${Date.now()}.mp4`);
+                await downloadToFile(cloudinaryUrl, tmpPath);
+                youtubeUrl = await uploadToYouTube(tmpPath, ytTitle, ytDesc, {
+                    tags: ytTags, refreshToken: mbRefreshToken, categoryId: "27", privacyStatus: "public",
+                });
+                try { fs.unlinkSync(tmpPath); } catch (_) {}
+                logger.info("Mahabharat", `EP ${epNumber} manual build posted to YouTube: ${youtubeUrl}`);
+            } catch (err) {
+                logger.warn("Mahabharat", "YouTube upload failed (non-fatal):", err.message);
+            }
+        }
+
+        res.json({ success: true, videoUrl: cloudinaryUrl, imageUrl, youtubeUrl: youtubeUrl || null, epNumber, script });
+    }
+);
 
 // ── POST /api/trigger-mahabharat-cron ────────────────────────────────────────
 // Manually fires the scheduled job — same as the 10 AM / 6 PM cron.
