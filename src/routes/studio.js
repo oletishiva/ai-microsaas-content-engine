@@ -60,8 +60,18 @@ router.post(
         { name: "image_3", maxCount: 1 },
     ]),
     async (req, res) => {
-        // Track uploaded temp files so we can clean them up on error
         const tempFiles = (Object.values(req.files || {}).flat()).map(f => f.path);
+
+        // ── SSE helpers ──────────────────────────────────────────────────────
+        res.setHeader("Content-Type", "text/event-stream");
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Connection", "keep-alive");
+        res.setHeader("X-Accel-Buffering", "no"); // disable nginx buffering on Railway
+        res.flushHeaders();
+
+        function emit(eventName, data) {
+            res.write(`event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`);
+        }
 
         try {
             const {
@@ -87,13 +97,15 @@ router.post(
             const pushToInstagram = pushIGInput   === true || pushIGInput   === "true";
             const pushToFacebook  = pushFBInput   === true || pushFBInput   === "true";
 
-            // Validate required fields
-            if (mode === "guided" && !quote.trim())
-                return res.status(400).json({ error: "quote is required in guided mode" });
-            if (mode === "prompt" && !prompt.trim())
-                return res.status(400).json({ error: "prompt is required in prompt mode" });
+            if (mode === "guided" && !quote.trim()) {
+                emit("error", { error: "quote is required in guided mode" });
+                return res.end();
+            }
+            if (mode === "prompt" && !prompt.trim()) {
+                emit("error", { error: "prompt is required in prompt mode" });
+                return res.end();
+            }
 
-            // Map uploaded files → local image paths per scene index
             const localImages = {};
             for (let i = 0; i < scenes; i++) {
                 const uploaded = req.files?.[`image_${i}`]?.[0];
@@ -101,12 +113,14 @@ router.post(
             }
 
             logger.info("Studio", `${mode} | ${language} | ${scenes}sc | ${duration}s | style:${style}`);
+            emit("progress", { pct: 2, label: "Starting generation..." });
 
             const result = await generateStudioVideo({
                 mode, language, hook: hook.trim(), quote: quote.trim(),
                 subtext: subtext.trim(), userPrompt: prompt.trim(),
                 scenes, style, duration, music, localImages,
                 outputDir: OUTPUT_DIR,
+                onProgress: (p) => emit("progress", p),
             });
 
             const { videoPath, imagePath, compositeImagePath } = result;
@@ -117,17 +131,19 @@ router.post(
             if (apiKeys.hasCloudinaryConfig) {
                 const { cloudinary } = require("../../config/cloudinary");
 
+                emit("progress", { pct: 90, label: "Uploading video to Cloudinary..." });
                 videoUrl = await uploadVideoToCloudinary(videoPath, `studio_${language}_${ts}`);
                 logger.info("Studio", `Cloudinary video: ${videoUrl}`);
 
+                emit("progress", { pct: 94, label: "Uploading images to Cloudinary..." });
                 if (imagePath && fs.existsSync(imagePath)) {
                     try {
-                        const r = await new Promise((res, rej) =>
+                        const r = await new Promise((resolve, reject) =>
                             cloudinary.uploader.upload(imagePath, {
                                 resource_type: "image",
                                 folder: "ai-content-engine/studio",
                                 public_id: `studio_img_${ts}`,
-                            }, (e, r) => e ? rej(e) : res(r))
+                            }, (e, r) => e ? reject(e) : resolve(r))
                         );
                         imageUrl = r.secure_url;
                     } catch (_) {}
@@ -135,19 +151,18 @@ router.post(
 
                 if (compositeImagePath && fs.existsSync(compositeImagePath)) {
                     try {
-                        const r = await new Promise((res, rej) =>
+                        const r = await new Promise((resolve, reject) =>
                             cloudinary.uploader.upload(compositeImagePath, {
                                 resource_type: "image",
                                 folder: "ai-content-engine/studio",
                                 public_id: `studio_comp_${ts}`,
-                            }, (e, r) => e ? rej(e) : res(r))
+                            }, (e, r) => e ? reject(e) : resolve(r))
                         );
                         compositeImageUrl = r.secure_url;
                     } catch (_) {}
                 }
             }
 
-            // Cleanup local files after Cloudinary upload
             for (const f of [imagePath, compositeImagePath]) {
                 try { if (f) fs.unlinkSync(f); } catch (_) {}
             }
@@ -158,17 +173,15 @@ router.post(
             // ── YouTube ─────────────────────────────────────────────────────
             let youtubeUrl = null;
             if (pushToYouTube && (req.session?.youtubeRefreshToken || apiKeys.hasYouTubeConfig)) {
+                emit("progress", { pct: 96, label: "Uploading to YouTube..." });
                 try {
                     const hookClean = (result.hook || result.quote || "").replace(/[#@]/g, "").trim();
                     const hookShort = hookClean.length > 60 ? hookClean.slice(0, 57).trimEnd() + "..." : hookClean;
                     const ytTitle   = `${hookShort} #shorts`;
                     const ytDesc    = [
-                        result.hook,
-                        "",
-                        result.quote,
+                        result.hook, "", result.quote,
                         result.subtext ? `\n${result.subtext}` : "",
-                        "",
-                        `#shorts #motivation #${language} #viral #foryou`,
+                        "", `#shorts #motivation #${language} #viral #foryou`,
                     ].filter(s => s !== null && s !== undefined).join("\n");
 
                     youtubeUrl = await uploadToYouTube(videoPath, ytTitle, ytDesc, {
@@ -185,40 +198,29 @@ router.post(
             let instagramUrl = null, facebookUrl = null;
             if ((pushToInstagram || pushToFacebook) && videoUrl) {
                 const metaTokens = loadMetaTokens(req.session);
-                if (!metaTokens?.userToken) {
-                    logger.warn("Studio", "Meta not connected — skipping IG/FB");
-                } else {
+                if (metaTokens?.userToken) {
                     const caption = [
-                        result.hook,
-                        result.quote,
-                        result.subtext || "",
-                        "",
-                        `#shorts #motivation #${language} #viral #foryou`,
+                        result.hook, result.quote, result.subtext || "",
+                        "", `#shorts #motivation #${language} #viral #foryou`,
                     ].filter(Boolean).join("\n");
 
                     if (pushToInstagram && metaTokens.instagramAccountId) {
+                        emit("progress", { pct: 97, label: "Publishing to Instagram..." });
                         try {
                             instagramUrl = await publishInstagramReel(
-                                metaTokens.instagramAccountId,
-                                metaTokens.userToken,
-                                { videoUrl, caption }
+                                metaTokens.instagramAccountId, metaTokens.userToken, { videoUrl, caption }
                             );
-                            logger.info("Studio", `Instagram: ${instagramUrl}`);
-                        } catch (err) {
-                            logger.warn("Studio", "Instagram failed:", err.message);
-                        }
+                        } catch (err) { logger.warn("Studio", "Instagram failed:", err.message); }
                     }
                     if (pushToFacebook && metaTokens.facebookPageId) {
+                        emit("progress", { pct: 98, label: "Publishing to Facebook..." });
                         try {
                             facebookUrl = await publishFacebookVideo(
                                 metaTokens.facebookPageId,
                                 metaTokens.facebookPageToken || metaTokens.userToken,
                                 { videoUrl, caption, title: result.quote }
                             );
-                            logger.info("Studio", `Facebook: ${facebookUrl}`);
-                        } catch (err) {
-                            logger.warn("Studio", "Facebook failed:", err.message);
-                        }
+                        } catch (err) { logger.warn("Studio", "Facebook failed:", err.message); }
                     }
                 }
             }
@@ -227,7 +229,8 @@ router.post(
                 try { fs.unlinkSync(videoPath); } catch (_) {}
             }
 
-            res.json({
+            emit("progress", { pct: 100, label: "Done!" });
+            emit("done", {
                 success: true,
                 hook:             result.hook,
                 quote:            result.quote,
@@ -242,13 +245,14 @@ router.post(
             });
 
         } catch (err) {
-            // Always cleanup uploads on error
             for (const f of tempFiles) {
                 try { if (fs.existsSync(f)) fs.unlinkSync(f); } catch (_) {}
             }
             logger.error("Studio", err.message);
-            res.status(500).json({ error: err.message });
+            emit("error", { error: err.message });
         }
+
+        res.end();
     }
 );
 

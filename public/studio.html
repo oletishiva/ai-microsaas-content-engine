@@ -201,13 +201,50 @@
       background: var(--card); border: 1px solid var(--border); border-radius: 16px;
       padding: 1.5rem; margin-bottom: 1rem; display: none;
     }
-    .prog-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
-    .prog-list  { list-style: none; }
-    .prog-item  { display: flex; align-items: flex-start; gap: 0.55rem; padding: 0.35rem 0; font-size: 0.84rem; color: var(--muted); }
+    .prog-title {
+      font-size: 0.9rem; font-weight: 600; margin-bottom: 1.1rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    /* Bar track */
+    .prog-bar-track {
+      height: 8px; background: rgba(255,255,255,0.07);
+      border-radius: 999px; overflow: hidden; margin-bottom: 0.7rem;
+    }
+    .prog-bar-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #7c3aed, #3b82f6);
+      border-radius: 999px;
+      transition: width 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative; overflow: hidden;
+    }
+    .prog-bar-fill::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%);
+      animation: shimmer 1.6s infinite;
+    }
+    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+    /* Bar meta row */
+    .prog-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem; gap: 0.75rem;
+    }
+    .prog-label { font-size: 0.82rem; color: var(--text); flex: 1; min-width: 0; }
+    .prog-pct   { font-size: 0.82rem; font-weight: 700; color: #a78bfa; flex-shrink: 0; }
+    .prog-elapsed { font-size: 0.72rem; color: var(--muted); flex-shrink: 0; }
+    /* Step list */
+    .prog-list  { list-style: none; border-top: 1px solid var(--border); padding-top: 0.85rem; }
+    .prog-item  {
+      display: flex; align-items: center; gap: 0.55rem;
+      padding: 0.28rem 0; font-size: 0.8rem; color: var(--muted);
+    }
     .prog-item.done   { color: var(--green); }
-    .prog-item.active { color: var(--text); }
-    .prog-step { font-size: 0.85rem; min-width: 1.2rem; }
-    .spinner   { width: 14px; height: 14px; border: 2px solid rgba(124,58,237,0.3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; margin-top: 2px; }
+    .prog-item.active { color: var(--text); font-weight: 600; }
+    .prog-step { font-size: 0.78rem; min-width: 1rem; flex-shrink: 0; }
+    .spinner   {
+      width: 13px; height: 13px; flex-shrink: 0;
+      border: 2px solid rgba(124,58,237,0.3); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Result card ──────────────────────────────────────────────────── */
@@ -329,13 +366,25 @@
   <!-- ── Progress ─────────────────────────────────────────────────────── -->
   <div class="prog-card" id="progCard">
     <div class="prog-title"><div class="spinner"></div> Generating your video...</div>
+
+    <!-- Progress bar -->
+    <div class="prog-bar-track">
+      <div class="prog-bar-fill" id="progBarFill"></div>
+    </div>
+    <div class="prog-meta">
+      <span class="prog-label" id="progLabel">Starting...</span>
+      <span class="prog-pct"   id="progPct">0%</span>
+      <span class="prog-elapsed" id="progElapsed">0s</span>
+    </div>
+
+    <!-- Step breakdown -->
     <ul class="prog-list" id="progList">
-      <li class="prog-item" id="pStep1"><span class="prog-step">⏳</span> Interpreting content with Claude...</li>
-      <li class="prog-item" id="pStep2"><span class="prog-step">⏳</span> Generating scene images...</li>
-      <li class="prog-item" id="pStep3"><span class="prog-step">⏳</span> Compositing text overlays...</li>
-      <li class="prog-item" id="pStep4"><span class="prog-step">⏳</span> Rendering video clips...</li>
-      <li class="prog-item" id="pStep5"><span class="prog-step">⏳</span> Stitching + adding music...</li>
-      <li class="prog-item" id="pStep6"><span class="prog-step">⏳</span> Uploading to Cloudinary...</li>
+      <li class="prog-item" id="pStep1"><span class="prog-step">⏳</span> Interpreting content</li>
+      <li class="prog-item" id="pStep2"><span class="prog-step">⏳</span> Generating images</li>
+      <li class="prog-item" id="pStep3"><span class="prog-step">⏳</span> Compositing text</li>
+      <li class="prog-item" id="pStep4"><span class="prog-step">⏳</span> Rendering clips</li>
+      <li class="prog-item" id="pStep5"><span class="prog-step">⏳</span> Stitching video</li>
+      <li class="prog-item" id="pStep6"><span class="prog-step">⏳</span> Uploading</li>
     </ul>
   </div>
 
@@ -602,47 +651,67 @@ Example: Create a powerful Telugu video about a student who failed 3 times but n
     renderImgGrid();
   }
 
-  /* ── Progress steps ───────────────────────────────────────────────────── */
-  let _progTimer = null;
-  const STEPS = ['pStep1','pStep2','pStep3','pStep4','pStep5','pStep6'];
-  const STEP_LABELS = [
-    '🧠 Interpreting content with Claude...',
-    '🖼️ Generating scene images...',
-    '✍️ Compositing text overlays...',
-    '🎬 Rendering video clips...',
-    '🎵 Stitching + adding music...',
-    '☁️ Uploading to Cloudinary...',
+  /* ── Progress bar (driven by real SSE events) ────────────────────────── */
+  // Maps pct ranges → which step row lights up
+  const STEP_RANGES = [
+    { id: 'pStep1', from:  2, to: 12,  label: 'Interpreting content' },
+    { id: 'pStep2', from: 12, to: 70,  label: 'Generating images'    },
+    { id: 'pStep3', from: 65, to: 75,  label: 'Compositing text'     },
+    { id: 'pStep4', from: 72, to: 88,  label: 'Rendering clips'      },
+    { id: 'pStep5', from: 72, to: 90,  label: 'Stitching video'      },
+    { id: 'pStep6', from: 88, to: 100, label: 'Uploading'            },
   ];
 
-  function startProgress() {
-    document.getElementById('progCard').style.display = 'block';
-    STEPS.forEach((id, i) => {
+  let _elapsedTimer = null;
+  let _elapsedSecs  = 0;
+
+  function startElapsed() {
+    _elapsedSecs = 0;
+    _elapsedTimer = setInterval(() => {
+      _elapsedSecs++;
+      const el = document.getElementById('progElapsed');
+      if (el) el.textContent = _elapsedSecs < 60
+        ? `${_elapsedSecs}s`
+        : `${Math.floor(_elapsedSecs / 60)}m ${_elapsedSecs % 60}s`;
+    }, 1000);
+  }
+
+  function stopElapsed() {
+    clearInterval(_elapsedTimer);
+    _elapsedTimer = null;
+  }
+
+  function updateProgress(pct, label) {
+    const fill  = document.getElementById('progBarFill');
+    const pctEl = document.getElementById('progPct');
+    const lblEl = document.getElementById('progLabel');
+    if (fill)  fill.style.width  = `${pct}%`;
+    if (pctEl) pctEl.textContent = `${pct}%`;
+    if (lblEl) lblEl.textContent = label || '';
+
+    // Update step rows
+    STEP_RANGES.forEach(({ id, from, to, label: stepLbl }) => {
       const el = document.getElementById(id);
-      el.className = 'prog-item';
-      el.innerHTML = `<span class="prog-step">⏳</span> ${STEP_LABELS[i]}`;
-    });
-    let cur = 0;
-    const DELAYS = [0, 4000, 12000, 16000, 20000, 25000]; // approximate timings
-    DELAYS.forEach((delay, i) => {
-      setTimeout(() => {
-        if (i > 0 && i <= STEPS.length) {
-          const prev = document.getElementById(STEPS[i - 1]);
-          if (prev) { prev.className = 'prog-item done'; prev.querySelector('.prog-step').textContent = '✅'; }
-        }
-        if (i < STEPS.length) {
-          const el = document.getElementById(STEPS[i]);
-          el.className = 'prog-item active';
-          el.innerHTML = `<div class="spinner"></div> ${STEP_LABELS[i]}`;
-        }
-      }, delay);
+      if (!el) return;
+      if (pct >= to) {
+        el.className = 'prog-item done';
+        el.innerHTML = `<span class="prog-step">✅</span> ${stepLbl}`;
+      } else if (pct >= from) {
+        el.className = 'prog-item active';
+        el.innerHTML = `<div class="spinner"></div> ${stepLbl}`;
+      } else {
+        el.className = 'prog-item';
+        el.innerHTML = `<span class="prog-step">⏳</span> ${stepLbl}`;
+      }
     });
   }
 
-  function stopProgress() {
-    document.getElementById('progCard').style.display = 'none';
+  function showProgCard(show) {
+    document.getElementById('progCard').style.display = show ? 'block' : 'none';
+    if (!show) stopElapsed();
   }
 
-  /* ── Generate ─────────────────────────────────────────────────────────── */
+  /* ── Generate (SSE stream) ─────────────────────────────────────────────── */
   async function generate() {
     const btn = document.getElementById('genBtn');
 
@@ -657,7 +726,10 @@ Example: Create a powerful Telugu video about a student who failed 3 times but n
     btn.disabled = true;
     btn.innerHTML = '<div class="spinner"></div> Generating...';
 
-    startProgress();
+    // Reset + show progress
+    updateProgress(0, 'Starting...');
+    showProgCard(true);
+    startElapsed();
     document.getElementById('resultCard').style.display = 'none';
 
     const fd = new FormData();
@@ -669,32 +741,62 @@ Example: Create a powerful Telugu video about a student who failed 3 times but n
     fd.append('music',    document.getElementById('musicToggle').checked ? 'true' : 'false');
 
     if (_mode === 'guided') {
-      fd.append('hook',    hook);
-      fd.append('quote',   quote);
-      fd.append('subtext', sub);
+      fd.append('hook', hook); fd.append('quote', quote); fd.append('subtext', sub);
     } else {
       fd.append('prompt', prompt);
     }
-
     fd.append('pushToYouTube',   document.getElementById('platYT')?.classList.contains('on') ? 'true' : 'false');
     fd.append('pushToInstagram', document.getElementById('platIG')?.classList.contains('on') ? 'true' : 'false');
     fd.append('pushToFacebook',  document.getElementById('platFB')?.classList.contains('on') ? 'true' : 'false');
-
-    // Attach uploaded images
     for (let i = 0; i < _scenes; i++) {
       if (_uploads[i]?.file) fd.append(`image_${i}`, _uploads[i].file);
     }
 
     try {
       const resp = await fetch('/api/generate-studio', { method: 'POST', body: fd });
-      const data = await resp.json();
-      if (!data.success) throw new Error(data.error || 'Generation failed');
-      _result = data;
-      showResult(data);
+      if (!resp.ok && !resp.headers.get('content-type')?.includes('text/event-stream')) {
+        const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+        throw new Error(err.error || 'Server error');
+      }
+
+      // Read SSE stream
+      const reader  = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let   buf     = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+
+        // Parse complete SSE messages from buffer
+        const parts = buf.split('\n\n');
+        buf = parts.pop(); // keep incomplete last chunk
+
+        for (const block of parts) {
+          let eventName = 'message', dataLine = '';
+          for (const line of block.split('\n')) {
+            if (line.startsWith('event: ')) eventName = line.slice(7).trim();
+            else if (line.startsWith('data: '))  dataLine  = line.slice(6).trim();
+          }
+          if (!dataLine) continue;
+          const data = JSON.parse(dataLine);
+
+          if (eventName === 'progress') {
+            updateProgress(data.pct, data.label);
+          } else if (eventName === 'done') {
+            updateProgress(100, 'Complete!');
+            _result = data;
+            showResult(data);
+          } else if (eventName === 'error') {
+            throw new Error(data.error || 'Generation failed');
+          }
+        }
+      }
     } catch (err) {
       toast('Error: ' + err.message);
     } finally {
-      stopProgress();
+      showProgCard(false);
       btn.disabled = false;
       btn.innerHTML = '<span>🎬</span><span>Generate Video</span>';
     }

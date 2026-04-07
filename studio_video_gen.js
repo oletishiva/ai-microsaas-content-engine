@@ -363,6 +363,7 @@ async function generateStudioVideo({
     music       = true,
     localImages = {}, // { 0: "/abs/path/img0.jpg", 1: "...", ... }
     outputDir   = __dirname,
+    onProgress  = () => {}, // (event) => void — called with real-time progress
 } = {}) {
     const ts          = Date.now();
     const clipDuration = Math.round((duration / scenes) * 10) / 10;
@@ -370,14 +371,20 @@ async function generateStudioVideo({
     console.log(`\n🎬 Studio — ${mode} | ${language} | ${scenes} scenes | ${duration}s`);
 
     // 1. Interpret content
+    onProgress({ pct: 5, label: "Interpreting content with Claude..." });
     console.log("🔄 Step 1 — Interpreting content via Claude...");
     const content = await interpretContent({ mode, language, hook, quote, subtext, userPrompt, scenes, style });
     console.log(`   ✅ hook: "${(content.hook || "").slice(0, 50)}"`);
     console.log(`   ✅ quote: "${(content.quote || "").slice(0, 50)}"`);
+    onProgress({ pct: 12, label: `Content ready — generating ${scenes} scene image${scenes > 1 ? "s" : ""}...` });
 
     const clipPaths  = [];
     let firstImgPath  = null;
     let firstCompPath = null;
+
+    // Images take the bulk of the time: 12% → 70% spread across scenes
+    const imgPctStart = 12, imgPctEnd = 70;
+    const imgPctStep  = (imgPctEnd - imgPctStart) / scenes;
 
     for (let i = 0; i < scenes; i++) {
         console.log(`\n🔄 Scene ${i + 1}/${scenes}...`);
@@ -386,6 +393,7 @@ async function generateStudioVideo({
         const clipPath = path.join(outputDir, `studio_clip_${ts}_${i}.mp4`);
 
         // 2. Image: local upload OR AI-generated
+        onProgress({ pct: Math.round(imgPctStart + imgPctStep * i), label: `Generating scene ${i + 1} of ${scenes} image...` });
         if (localImages[i]) {
             console.log(`   📎 Using uploaded image`);
             fs.copyFileSync(localImages[i], imgPath);
@@ -397,6 +405,7 @@ async function generateStudioVideo({
                     console.log(`   ✅ Gemini image generated`);
                 } catch (geminiErr) {
                     console.log(`   ⚠️ Gemini failed (${geminiErr.message}) — trying DALL-E...`);
+                    onProgress({ pct: Math.round(imgPctStart + imgPctStep * i + imgPctStep * 0.5), label: `Scene ${i + 1}: Gemini failed, retrying with DALL-E...` });
                     await generateDalleImage(scenePrompt, imgPath);
                     console.log(`   ✅ DALL-E image generated`);
                 }
@@ -411,12 +420,14 @@ async function generateStudioVideo({
         if (i === 0) firstImgPath = imgPath;
 
         // 3. Composite text overlay
+        onProgress({ pct: Math.round(imgPctStart + imgPctStep * (i + 0.7)), label: `Compositing text on scene ${i + 1}...` });
         console.log(`   ✍️  Compositing text...`);
         await compositeScene(imgPath, i, scenes, content, language, compPath);
 
         if (i === 0) firstCompPath = compPath;
 
         // 4. Ken Burns clip
+        onProgress({ pct: Math.round(imgPctStart + imgPctStep * (i + 0.9)), label: `Rendering scene ${i + 1} clip...` });
         console.log(`   🎬 Rendering ${clipDuration}s clip...`);
         makeClip(compPath, clipPath, clipDuration, i % 2 === 0 ? "ltr" : "rtl");
         clipPaths.push(clipPath);
@@ -429,10 +440,12 @@ async function generateStudioVideo({
     }
 
     // 5. Stitch + music
+    onProgress({ pct: 72, label: music ? "Stitching clips and adding music..." : "Stitching clips..." });
     const videoPath = path.join(outputDir, `studio_video_${ts}.mp4`);
     console.log("\n🔄 Stitching clips...");
     stitchVideo(clipPaths, music, videoPath);
     for (const cp of clipPaths) { try { fs.unlinkSync(cp); } catch (_) {} }
+    onProgress({ pct: 88, label: "Uploading to Cloudinary..." });
 
     console.log("✅ Studio video complete!");
     return {
