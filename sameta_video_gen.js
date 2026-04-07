@@ -311,12 +311,22 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     y += 22;
 
     // ── H3: Meaning — medium, regular, dark gray, centered ───────────────────
-    // Truncate to max 2 lines (keeps text inside cream area, competitor style)
-    const meaningTruncated = meaning.length > 80 ? meaning.slice(0, 78) + "..." : meaning;
-    const meaningLines = wrapText(`భావం: ${meaningTruncated}`, 28);
-    const maxLines = 3; // never overflow cream area
+    // Strip newlines, take only first sentence so it stays inside the cream area.
+    // Long custom meanings (with \n\n explanations) must not bleed into watercolor.
+    const meaningClean = meaning
+        .replace(/[\r\n]+/g, " ")   // flatten multi-line input to single line
+        .replace(/\s{2,}/g, " ")    // collapse multiple spaces
+        .trim();
+    // Use only first sentence (up to first । ।  or . or "...") — keep it punchy
+    const firstSentence = meaningClean.split(/(?<=[.।])\s/)[0] || meaningClean;
+    const meaningShort  = firstSentence.length > 72 ? firstSentence.slice(0, 70) + "..." : firstSentence;
+    const meaningLines  = wrapText(`భావం: ${meaningShort}`, 28);
+    const maxLines      = 3; // hard cap — never overflow cream area
+    const maxY          = CREAM_H - 30; // bottom boundary — stay inside cream
     for (let i = 0; i < Math.min(meaningLines.length, maxLines); i++) {
+        if (y >= maxY) break; // clamp — no text in watercolor zone
         const el = await pangoText(meaningLines[i], 34, "#2C1810", "normal", y);
+        if (y + el._h > maxY) break;
         composites.push(el);
         y += el._h + 5;
     }
