@@ -34,7 +34,15 @@ const { uploadToYouTube }         = require("../services/youtubeUploader");
 const { publishInstagramReel, publishFacebookVideo } = require("../services/metaPublisher");
 const apiKeys = require("../../config/apiKeys");
 
-const META_TOKEN_FILE = path.join(__dirname, "../../../output/.meta_tokens.json");
+const META_TOKEN_FILE   = path.join(__dirname, "../../../output/.meta_tokens.json");
+const STUDIO_TOKEN_FILE = path.join(__dirname, "../../../output/.youtube_user_token");
+
+// Load YouTube refresh token: session → file → env var (in that priority order)
+function loadYouTubeToken(session) {
+    if (session?.youtubeRefreshToken) return session.youtubeRefreshToken;
+    try { const t = fs.readFileSync(STUDIO_TOKEN_FILE, "utf8").trim(); if (t) return t; } catch (_) {}
+    return process.env.YOUTUBE_REFRESH_TOKEN || null;
+}
 
 // Multer — temp storage in OUTPUT_DIR, cleaned up after processing
 const upload = multer({
@@ -172,7 +180,8 @@ router.post(
 
             // ── YouTube ─────────────────────────────────────────────────────
             let youtubeUrl = null;
-            if (pushToYouTube && (req.session?.youtubeRefreshToken || apiKeys.hasYouTubeConfig)) {
+            const ytRefreshToken = loadYouTubeToken(req.session);
+            if (pushToYouTube && ytRefreshToken) {
                 emit("progress", { pct: 96, label: "Uploading to YouTube..." });
                 try {
                     const hookClean = (result.hook || result.quote || "").replace(/[#@]/g, "").trim();
@@ -186,7 +195,7 @@ router.post(
 
                     youtubeUrl = await uploadToYouTube(videoPath, ytTitle, ytDesc, {
                         privacyStatus: "public",
-                        refreshToken: req.session?.youtubeRefreshToken || undefined,
+                        refreshToken: ytRefreshToken,
                     });
                     logger.info("Studio", `YouTube: ${youtubeUrl}`);
                 } catch (ytErr) {
