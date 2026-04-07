@@ -6,8 +6,40 @@
       "id": "a81b0848-b4a9-4741-82fd-0c55f1933ec1",
       "name": "Start",
       "type": "n8n-nodes-base.manualTrigger",
-      "position": [-656, 16],
+      "position": [-880, 16],
       "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "lang-code",
+              "name": "language",
+              "value": "english",
+              "type": "string"
+            },
+            {
+              "id": "lang-name",
+              "name": "languageName",
+              "value": "English",
+              "type": "string"
+            },
+            {
+              "id": "lang-note",
+              "name": "_note",
+              "value": "Change language + languageName here to switch all nodes at once. Options: english/English | telugu/Telugu | hindi/Hindi | tamil/Tamil | kannada/Kannada",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cfg-001",
+      "name": "Config (Set Language Here)",
+      "type": "n8n-nodes-base.set",
+      "position": [-656, 16],
+      "typeVersion": 3.4
     },
     {
       "parameters": {
@@ -19,7 +51,7 @@
         "messages": {
           "values": [
             {
-              "content": "You are a viral YouTube Shorts content creator who deeply understands human psychology and emotion.\n\nCreate content that stops scrolling, triggers deep emotion, and makes people share immediately.\n\nReturn ONLY valid JSON (no markdown, no explanation):\n\n{\n  \"hook\": \"Max 6 words. Reads like someone is inside your head. Start with: 'You', 'Nobody', 'Stop', 'They never told you', 'This hurts but'. Must create instant emotional shock or burning curiosity.\",\n\n  \"quote\": \"20-25 words. One raw, painful hard truth or life-changing realization. Should feel like a message from your future self. No generic lines. Go to the emotional core — regret, growth, loneliness, discipline, hidden strength.\",\n\n  \"imagePrompt\": \"Soft warm artistic illustration, 9:16 portrait. Style: dreamy watercolor or digital painting with golden-hour light, warm amber and honey tones, gentle bokeh. Scene: ONE symbolic moment of transformation — e.g. person standing in field of sunflowers at dawn, hands releasing a glowing butterfly, lone figure on hilltop watching sunrise, small plant breaking through golden soil, woman sitting peacefully under ancient tree with soft light rays. Warm soft colors, emotionally uplifting, painterly brushstrokes, no harsh shadows, no dark imagery. No text. No watermarks. Soft and beautiful like a greeting card painting.\",\n\n  \"youtubeTitle\": \"Curiosity-gap title under 60 chars | #Shorts\",\n\n  \"youtubeTags\": [\"Motivation\", \"Success\", \"Mindset\", \"Discipline\", \"Growth\", \"Shorts\", \"ViralMotivation\", \"HardTruths\", \"SelfImprovement\", \"Hustle\"]\n}\n\nRules:\n- Hook = first 2 seconds, must stop the scroll\n- Quote = the line they screenshot and send to a friend\n- Image = SOFT, WARM, ARTISTIC — NOT dark, harsh or cinematic. Think Sameta-style watercolor feel\n- No clichés. No 'believe in yourself'. Twist every familiar phrase\n- Strict JSON only"
+              "content": "=You are a viral YouTube Shorts content creator who deeply understands human psychology and emotion.\n\nTARGET LANGUAGE: {{ $('Config (Set Language Here)').first().json.languageName }}\nWrite hook, quote, and youtubeTitle STRICTLY in {{ $('Config (Set Language Here)').first().json.languageName }} language.\nimagePrompt must always be in English (for DALL-E).\nyoutubeTags must always be in English.\n\nCreate content that stops scrolling, triggers deep emotion, and makes people share immediately.\n\nReturn ONLY valid JSON (no markdown, no explanation):\n\n{\n  \"hook\": \"Max 6 words in {{ $('Config (Set Language Here)').first().json.languageName }}. Reads like someone is inside your head. Must create instant emotional shock or burning curiosity.\",\n\n  \"quote\": \"20-25 words in {{ $('Config (Set Language Here)').first().json.languageName }}. One raw, painful hard truth or life-changing realization. Should feel like a message from your future self. No generic lines. Go deep — regret, growth, loneliness, discipline, hidden strength.\",\n\n  \"imagePrompt\": \"Soft warm artistic illustration, 9:16 portrait. Style: dreamy watercolor or digital painting with golden-hour light, warm amber and honey tones, gentle bokeh. Scene: ONE symbolic moment of transformation — e.g. person standing in field of sunflowers at dawn, hands releasing a glowing butterfly, lone figure on hilltop watching sunrise, small plant breaking through golden soil, woman sitting peacefully under ancient tree with soft light rays. Warm soft colors, emotionally uplifting, painterly brushstrokes, no harsh shadows, no dark imagery. No text. No watermarks. Soft and beautiful like a greeting card painting.\",\n\n  \"youtubeTitle\": \"Curiosity-gap title in {{ $('Config (Set Language Here)').first().json.languageName }}, under 60 chars | #Shorts\",\n\n  \"youtubeTags\": [\"Motivation\", \"Success\", \"Mindset\", \"Discipline\", \"Growth\", \"Shorts\", \"ViralMotivation\", \"SelfImprovement\"]\n}\n\nRules:\n- Hook and Quote MUST be in {{ $('Config (Set Language Here)').first().json.languageName }} script/language\n- imagePrompt MUST be in English always\n- Image = SOFT, WARM, ARTISTIC — NOT dark or cinematic\n- No clichés. Twist every familiar phrase\n- Strict JSON only"
             }
           ]
         },
@@ -115,7 +147,7 @@
             { "name": "imageUrl", "value": "={{ $json.secure_url }}" },
             { "name": "hook",     "value": "={{ $('Parse Response').first().json.hook }}" },
             { "name": "quote",    "value": "={{ $('Parse Response').first().json.quote }}" },
-            { "name": "language", "value": "english" },
+            { "name": "language", "value": "={{ $('Config (Set Language Here)').first().json.language }}" },
             { "name": "music",    "value": "true" }
           ]
         },
@@ -174,6 +206,9 @@
   "pinData": {},
   "connections": {
     "Start": {
+      "main": [[{ "node": "Config (Set Language Here)", "type": "main", "index": 0 }]]
+    },
+    "Config (Set Language Here)": {
       "main": [[{ "node": "Generate Content (Claude)", "type": "main", "index": 0 }]]
     },
     "Generate Content (Claude)": {
