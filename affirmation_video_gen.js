@@ -284,9 +284,8 @@ async function generateAffirmationVideo({ language = "english", type = "positive
     await compositeFrame(imgPath, quote, subtext, language, type, compPath);
     makeVideo(compPath, vidPath);
 
-    try { fs.unlinkSync(compPath); } catch (_) {}
-
-    return { videoPath: vidPath, imagePath: imgPath, quote, subtext, language, type };
+    // Keep compPath — caller uploads it to Cloudinary as the "quote image" for WhatsApp sharing
+    return { videoPath: vidPath, imagePath: imgPath, compositeImagePath: compPath, quote, subtext, language, type };
 }
 
 module.exports = { generateAffirmationVideo, TYPES };

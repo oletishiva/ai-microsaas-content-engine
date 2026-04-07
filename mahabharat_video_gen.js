@@ -25,10 +25,28 @@
 
 require("dotenv").config();
 const Anthropic    = require("@anthropic-ai/sdk");
+const OpenAI       = require("openai");
 const sharp        = require("sharp");
 const fs           = require("fs");
 const path         = require("path");
+const https        = require("https");
+const http         = require("http");
 const { execSync } = require("child_process");
+
+function downloadFile(url, dest) {
+    return new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(dest);
+        const get  = url.startsWith("https") ? https.get : http.get;
+        get(url, (res) => {
+            if ([301, 302].includes(res.statusCode))
+                return downloadFile(res.headers.location, dest).then(resolve).catch(reject);
+            if (res.statusCode !== 200)
+                return reject(new Error(`HTTP ${res.statusCode} downloading image`));
+            res.pipe(file);
+            file.on("finish", () => { file.close(); resolve(); });
+        }).on("error", reject);
+    });
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const W = 1080, H = 1920;
@@ -188,6 +206,22 @@ async function generateGeminiImage(prompt, outputPath) {
     throw lastErr || new Error("All Gemini image models failed");
 }
 
+
+// ── Step 2b: DALL-E 3 fallback image ──────────────────────────────────────────
+// Used only when Gemini fails AND allowDallEFallback=true (cron jobs only — cost control)
+async function generateDalleImage(prompt, outputPath) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error("OPENAI_API_KEY not set — no DALL-E fallback available");
+    console.log(`   [DALL-E] Generating fallback image...`);
+    const openai   = new OpenAI.default({ apiKey });
+    const response = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: `${prompt}. Portrait 9:16 vertical orientation, cinematic quality.`,
+        n: 1, size: "1024x1792", quality: "standard",
+    });
+    await downloadFile(response.data[0].url, outputPath);
+    console.log(`   [DALL-E] ✅ fallback image saved`);
+}
 
 // ── Step 3: Sharp — cinematic text overlay ────────────────────────────────────
 //
@@ -380,7 +414,7 @@ function mergeClips(clipPaths, musicPath, videoPath) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-async function generateMahabharatVideo({ script, epNumber = 1, outputDir = __dirname } = {}) {
+async function generateMahabharatVideo({ script, epNumber = 1, outputDir = __dirname, allowDallEFallback = false } = {}) {
     const ts        = Date.now();
     const useGemini = !!process.env.GEMINI_API_KEY;
     const videoPath = path.join(outputDir, `mb_video_${ts}.mp4`);
@@ -402,9 +436,10 @@ async function generateMahabharatVideo({ script, epNumber = 1, outputDir = __dir
         scenePrompts = [base, base, base, base];
     }
 
-    const rawImages  = [];
-    const clipPaths  = [];
-    let firstImgPath = null;
+    const rawImages   = [];
+    const clipPaths   = [];
+    let firstImgPath  = null;
+    let firstCompPath = null; // scene-0 composite (background + text overlay) — for WhatsApp sharing
 
     for (let i = 0; i < TOTAL_CLIPS; i++) {
         const scene    = SCENES[i];
@@ -414,11 +449,25 @@ async function generateMahabharatVideo({ script, epNumber = 1, outputDir = __dir
 
         console.log(`\n🔄 Scene ${i + 1}/4 [${scene.section}]`);
 
-        // Generate image via Gemini only — no DALL-E fallback (cost control)
-        // If Gemini quota exceeded, use the manual image flow instead.
-        if (!useGemini) throw new Error("GEMINI_API_KEY not set — use the manual image flow");
-        await generateGeminiImage(scenePrompts[i], imgPath);
-        console.log(`   ✅ Gemini image ${i + 1}`);
+        // Image generation: Gemini primary, DALL-E fallback (cron only — cost control)
+        if (useGemini) {
+            try {
+                await generateGeminiImage(scenePrompts[i], imgPath);
+                console.log(`   ✅ Gemini image ${i + 1}`);
+            } catch (geminiErr) {
+                if (allowDallEFallback) {
+                    console.warn(`   [Gemini] Failed (${geminiErr.message}) — falling back to DALL-E`);
+                    await generateDalleImage(scenePrompts[i], imgPath);
+                } else {
+                    throw geminiErr;
+                }
+            }
+        } else if (allowDallEFallback) {
+            console.log(`   GEMINI_API_KEY not set — using DALL-E fallback`);
+            await generateDalleImage(scenePrompts[i], imgPath);
+        } else {
+            throw new Error("GEMINI_API_KEY not set — use the manual image flow");
+        }
 
         if (i === 0) firstImgPath = imgPath; // keep first raw image for Cloudinary/Flow
         rawImages.push(imgPath);
@@ -426,12 +475,15 @@ async function generateMahabharatVideo({ script, epNumber = 1, outputDir = __dir
         // Composite text overlay
         await compositeScene(imgPath, i, script, epNumber, compPath);
 
+        // Keep scene-0 composite (background + text) for WhatsApp sharing
+        if (i === 0) firstCompPath = compPath;
+
         // Build video clip
         buildClip(compPath, i, CLIP_DUR, clipPath);
         clipPaths.push(clipPath);
 
-        // Cleanup composite JPEG (raw PNG kept for first image)
-        try { fs.unlinkSync(compPath); } catch (_) {}
+        // Cleanup composite JPEG — except scene 0 (returned to caller for sharing)
+        if (i > 0) { try { fs.unlinkSync(compPath); } catch (_) {} }
         if (i > 0) { try { fs.unlinkSync(imgPath); } catch (_) {} }
     }
 
@@ -452,8 +504,8 @@ async function generateMahabharatVideo({ script, epNumber = 1, outputDir = __dir
     console.log(`\n🏁 EP ${epNumber} complete in ${elapsed}s → ${path.basename(videoPath)}`);
     console.log("─".repeat(60));
 
-    // Return first scene image as the "thumbnail" for Cloudinary + Google Flow widget
-    return { videoPath, imagePath: firstImgPath };
+    // Return both raw image (for Google Flow) and composited image (for WhatsApp sharing)
+    return { videoPath, imagePath: firstImgPath, compositeImagePath: firstCompPath };
 }
 
 // ── Build video from pre-supplied local image paths ───────────────────────────

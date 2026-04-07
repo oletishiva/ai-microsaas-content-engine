@@ -62,18 +62,20 @@ router.post("/generate-affirmation", async (req, res) => {
         logger.info("Affirmation", `Generating: ${language} / ${type}${custom ? ` — custom "${custom.slice(0, 30)}"` : ""}`);
 
         const result = await generateAffirmationVideo({ language, type, custom, outputDir: OUTPUT_DIR });
-        const { videoPath, imagePath, quote, subtext } = result;
+        const { videoPath, imagePath, compositeImagePath, quote, subtext } = result;
         const ts = Date.now();
 
         // ── Cloudinary upload ──────────────────────────────────────────────────
         let videoUrl = null;
         let imageUrl = null;
+        let compositeImageUrl = null;
         if (apiKeys.hasCloudinaryConfig) {
+            const { cloudinary } = require("../../config/cloudinary");
             videoUrl = await uploadVideoToCloudinary(videoPath, `aff_${language}_${type}_${ts}`);
             logger.info("Affirmation", `Cloudinary video: ${videoUrl}`);
 
+            // Raw DALL-E background (for Google Flow / Veo animation)
             try {
-                const { cloudinary } = require("../../config/cloudinary");
                 const imgResult = await new Promise((resolve, reject) =>
                     cloudinary.uploader.upload(imagePath, {
                         resource_type: "image",
@@ -82,9 +84,28 @@ router.post("/generate-affirmation", async (req, res) => {
                     }, (e, r) => e ? reject(e) : resolve(r))
                 );
                 imageUrl = imgResult.secure_url;
-                logger.info("Affirmation", `Cloudinary image: ${imageUrl}`);
+                logger.info("Affirmation", `Cloudinary raw image: ${imageUrl}`);
             } catch (imgErr) {
-                logger.warn("Affirmation", "Image upload failed (non-fatal):", imgErr.message);
+                logger.warn("Affirmation", "Raw image upload failed (non-fatal):", imgErr.message);
+            }
+
+            // Composited image (background + quote text overlay) — for WhatsApp sharing
+            if (compositeImagePath && fs.existsSync(compositeImagePath)) {
+                try {
+                    const compResult = await new Promise((resolve, reject) =>
+                        cloudinary.uploader.upload(compositeImagePath, {
+                            resource_type: "image",
+                            folder: "ai-content-engine/affirmation-images",
+                            public_id: `aff_comp_${ts}`,
+                        }, (e, r) => e ? reject(e) : resolve(r))
+                    );
+                    compositeImageUrl = compResult.secure_url;
+                    logger.info("Affirmation", `Cloudinary composite: ${compositeImageUrl}`);
+                } catch (compErr) {
+                    logger.warn("Affirmation", "Composite image upload failed (non-fatal):", compErr.message);
+                } finally {
+                    try { fs.unlinkSync(compositeImagePath); } catch (_) {}
+                }
             }
         }
         try { fs.unlinkSync(imagePath); } catch (_) {}
@@ -191,6 +212,7 @@ router.post("/generate-affirmation", async (req, res) => {
             type,
             videoUrl: videoUrl || videoPath,
             imageUrl,
+            compositeImageUrl,
             youtubeUrl,
             instagramUrl,
             facebookUrl,

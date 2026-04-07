@@ -888,7 +888,17 @@ async function generateAffirmation() {
       if (d.instagramUrl)  links.push(`<a href="${d.instagramUrl}" target="_blank">Instagram</a>`);
       if (d.facebookUrl)   links.push(`<a href="${d.facebookUrl}" target="_blank">Facebook</a>`);
       if (links.length) html += `<div class="result-links">${links.join('')}</div>`;
-      html += waPack(caption, tags, d.videoUrl, d.imageUrl, `affirmation_${_affType}`);
+      // Use composited image (with quote text) as the primary shareable image
+      html += waPack(caption, tags, d.videoUrl, d.compositeImageUrl || d.imageUrl, `affirmation_${_affType}`);
+      // Also show plain background if available (for Google Flow animation)
+      if (d.imageUrl && d.compositeImageUrl) {
+        html += `<div style="margin-top:0.5rem;text-align:center">
+          <a href="/api/download?url=${encodeURIComponent(d.imageUrl)}&filename=affirmation_bg.jpg" download
+             style="font-size:0.75rem;color:var(--muted);text-decoration:none;border:1px solid var(--border);
+                    padding:0.4rem 0.8rem;border-radius:6px;display:inline-block">
+            📸 Save Plain Background (for Veo/Flow)
+          </a></div>`;
+      }
       showResult(result, 'success', html);
     } else {
       showResult(result, 'error', d.error || 'Generation failed.');

@@ -108,9 +108,9 @@ Make it fresh, surprising, and deeply relatable to modern Telugu youth.`;
         const script = JSON.parse(raw);
         logger.info("MahabharatCron", `Script: ${script.character} — ${script.title}`);
 
-        // 2. Generate video
+        // 2. Generate video — allow DALL-E fallback (cron = 2x/day, acceptable cost)
         const { generateMahabharatVideo } = require("../../mahabharat_video_gen");
-        const { videoPath } = await generateMahabharatVideo({ script, epNumber, outputDir: OUTPUT_DIR });
+        const { videoPath } = await generateMahabharatVideo({ script, epNumber, outputDir: OUTPUT_DIR, allowDallEFallback: true });
         logger.info("MahabharatCron", `Video rendered: ${path.basename(videoPath)}`);
 
         // 3. Upload to Cloudinary
@@ -127,12 +127,24 @@ Make it fresh, surprising, and deeply relatable to modern Telugu youth.`;
             return;
         }
 
-        const ytTitle = `${script.title} | EP ${String(epNumber).padStart(2, "0")} | Mahabharat Shorts`;
-        const ytDesc  = [
-            script.hook, script.story, script.lesson, script.cta,
+        // Hook = the scroll-stopper → use as YouTube title (most discoverable)
+        const hookClean = (script.hook || script.title || "").replace(/[#@]/g, "").trim();
+        const hookShort = hookClean.length > 60 ? hookClean.slice(0, 57).trimEnd() + "..." : hookClean;
+        const ytTitle   = `${hookShort} #shorts`;
+        const ytDesc    = [
+            `${script.title} | EP ${String(epNumber).padStart(2, "0")} | Mahabharat Shorts`,
+            `#Mahabharat #TeluguShorts #${script.character} #${(script.category || "").replace(/\s+/g,"")} #shorts #మహాభారతం #Telugu`,
             "",
-            `#Mahabharat #TeluguShorts #${script.character} #${script.category} #shorts #మహాభారతం #Telugu`,
-        ].filter(Boolean).join("\n");
+            script.hook,
+            "",
+            script.story,
+            "",
+            script.lesson,
+            "",
+            script.cta,
+            "",
+            "#TeluguMotivation #lifelessons #inspiration #viral #foryou",
+        ].filter(s => s !== undefined && s !== null).join("\n");
         const ytTags  = ["Mahabharat", "Telugu", "TeluguShorts", "shorts", script.character,
             script.category, "మహాభారతం", "inspirational", "motivation", "lifelessons"];
 
