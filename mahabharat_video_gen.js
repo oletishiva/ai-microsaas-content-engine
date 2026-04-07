@@ -233,7 +233,7 @@ async function generateDalleImage(prompt, outputPath) {
 async function compositeScene(imagePath, sceneIdx, script, epNumber, outputPath) {
     const { section, label, textColor, textSize } = SCENES[sceneIdx];
     const FONT_PATH = path.resolve(__dirname, "fonts", "NotoSansTelugu.ttf");
-    const TEXT_W    = W - 120;
+    const TEXT_W    = Math.round(W * 0.80); // 864px — 80% width, 10% padding each side
 
     // Base image
     const base = await sharp(imagePath)
@@ -304,7 +304,7 @@ async function compositeScene(imagePath, sceneIdx, script, epNumber, outputPath)
     }
 
     // Section text — render all lines top → down, no truncation
-    const maxChars = section === "hook" ? 22 : section === "cta" ? 26 : 28;
+    const maxChars = section === "hook" ? 28 : section === "cta" ? 32 : 34;
     const lines    = wrapText(script[section] || "", maxChars);
     const maxBottomY = H - BOTTOM_BRAND_H - 10;
     for (const line of lines) {

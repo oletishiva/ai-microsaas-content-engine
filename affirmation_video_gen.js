@@ -143,7 +143,7 @@ async function generateImage(prompt, imagePath) {
 async function compositeFrame(imagePath, quote, subtext, language, type, outputPath) {
     const isTelugu  = language === "telugu";
     const FONT_PATH = path.resolve(__dirname, "fonts", isTelugu ? "NotoSansTelugu.ttf" : "Caveat-Bold.ttf");
-    const TEXT_W    = W - 100;
+    const TEXT_W    = Math.round(W * 0.80); // 864px — 80% width, 10% padding each side
     const typeInfo  = TYPES[type] || TYPES.positive;
     const catLabel  = `${typeInfo.icon}  ${isTelugu ? typeInfo.te : typeInfo.en}`;
 
@@ -189,7 +189,7 @@ async function compositeFrame(imagePath, quote, subtext, language, type, outputP
     composites.push({ input: await sharp(Buffer.from(botSvg)).png().toBuffer(), top: H - botH, left: 0 });
 
     // ── Quote text — large, centered, starting from mid-gradient ─────────────
-    const maxChars = isTelugu ? 14 : 20;
+    const maxChars = isTelugu ? 20 : 28;
     const fontSize = isTelugu ? 50 : 68; // Caveat renders large — boost English
     const lines    = wrapText(quote, maxChars);
     let   textY    = H - botH + Math.floor(botH * 0.22);

@@ -229,7 +229,7 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     // Push text down so YouTube/Instagram top UI chrome doesn't cover the title
     const TOP_OFFSET = Math.floor(H * 0.04); // 4% = 77px @ 1920
     const CREAM_H    = Math.floor(H * 0.37); // 37% = 710px — cream ends above character area (DALL-E places figures in bottom 60%)
-    const TEXT_W     = W - 120;              // 960px usable text width with padding
+    const TEXT_W     = Math.round(W * 0.80); // 864px — 80% width, 10% padding each side
 
     // ── Resize + flatten base image ───────────────────────────────────────────
     const baseBuffer = await sharp(imagePath)
@@ -302,7 +302,7 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     y += 22;
 
     // ── H2: Proverb — very large, bold, near-black, centered ─────────────────
-    for (const line of wrapText(sameta, 16)) {
+    for (const line of wrapText(sameta, 22)) {
         const el = await pangoText(line, 62, "#1C0A0A", "900", y);
         composites.push(el);
         y += el._h + 6;
@@ -312,7 +312,7 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     // ── H3: Meaning — medium, regular, dark gray, centered ───────────────────
     // Truncate to max 2 lines (keeps text inside cream area, competitor style)
     const meaningTruncated = meaning.length > 80 ? meaning.slice(0, 78) + "..." : meaning;
-    const meaningLines = wrapText(`భావం: ${meaningTruncated}`, 22);
+    const meaningLines = wrapText(`భావం: ${meaningTruncated}`, 28);
     const maxLines = 3; // never overflow cream area
     for (let i = 0; i < Math.min(meaningLines.length, maxLines); i++) {
         const el = await pangoText(meaningLines[i], 34, "#2C1810", "normal", y);
