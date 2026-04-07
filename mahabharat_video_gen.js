@@ -213,13 +213,33 @@ async function generateDalleImage(prompt, outputPath) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error("OPENAI_API_KEY not set — no DALL-E fallback available");
     console.log(`   [DALL-E] Generating fallback image...`);
-    const openai   = new OpenAI.default({ apiKey });
-    const response = await openai.images.generate({
-        model: "dall-e-3",
-        prompt: `${prompt}. Portrait 9:16 vertical orientation, cinematic quality.`,
-        n: 1, size: "1024x1792", quality: "standard",
-    });
-    await downloadFile(response.data[0].url, outputPath);
+    const openai = new OpenAI.default({ apiKey });
+
+    async function tryGenerate(p) {
+        const response = await openai.images.generate({
+            model: "dall-e-3",
+            prompt: `${p}. Portrait 9:16 vertical orientation, cinematic quality.`,
+            n: 1, size: "1024x1792", quality: "standard",
+        });
+        await downloadFile(response.data[0].url, outputPath);
+    }
+
+    try {
+        await tryGenerate(prompt);
+    } catch (err) {
+        if (err?.status === 400 || err?.message?.includes("safety")) {
+            console.log(`   [DALL-E] Safety rejection — retrying with sanitized prompt...`);
+            const safe = prompt
+                .replace(/\b(war|battle|fight|warrior|soldier|weapon|sword|arrow|spear|blood|death|kill|dead|army|combat|violence|attack|destroy|enemy|defeat)\b/gi, "")
+                .replace(/\s{2,}/g, " ").trim();
+            const fallback = safe.length > 30
+                ? `${safe}, ancient Indian landscape, divine light, symbolic, cinematic`
+                : "ancient Indian temple at golden sunset, divine light, lotus flowers, dramatic sky, cinematic";
+            await tryGenerate(fallback);
+        } else {
+            throw err;
+        }
+    }
     console.log(`   [DALL-E] ✅ fallback image saved`);
 }
 

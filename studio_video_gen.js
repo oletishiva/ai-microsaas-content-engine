@@ -102,6 +102,7 @@ Rules:
 - Each prompt describes a single atmospheric, symbolic scene — NO text, NO readable words, NO borders, NO frames
 - Emotionally resonant, visually stunning, fills the full frame
 - Vary compositions across scenes (wide, medium, close-up, aerial, etc.)
+- DALL-E SAFETY (critical): never mention weapons, battles, fighting, war, violence, blood, death, injuries, killing, or armies. Convey war/conflict themes through symbolism — cracked earth, storm clouds, lone figures at dusk, scattered petals, a single flame, divine light breaking through darkness.
 - Return ONLY a JSON array of exactly ${scenes} prompt strings: ["...", ...]`,
             messages: [{ role: "user", content: `Create ${scenes} scene prompts for a video about:
 Hook: "${hook || ""}"
@@ -135,7 +136,8 @@ Return ONLY valid JSON — no markdown, no explanation:
 scenePrompts rules:
 - Each is a DALL-E 3 image generation prompt: ${styleMood}
 - NO text, NO readable words, NO people faces, NO borders — pure atmosphere and symbolism
-- Exactly ${scenes} prompts, varied compositions`,
+- Exactly ${scenes} prompts, varied compositions
+- DALL-E SAFETY (critical): never mention weapons, battles, fighting, war, violence, blood, death, injuries, killing, or armies. Convey conflict/epic themes through symbolism — lone silhouette at sunset, storm clouds parting, divine golden light, cracked ancient earth, scattered lotus petals, a single flame in darkness, grand temple at twilight.`,
             messages: [{ role: "user", content: userPrompt }],
         });
         const raw = resp.content[0].text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
@@ -165,13 +167,35 @@ async function generateGeminiImage(prompt, destPath) {
     }
 }
 
-// ── Step 2b: DALL-E 3 fallback ─────────────────────────────────────────────
+// ── Step 2b: DALL-E 3 (with safety-rejection retry) ───────────────────────
 async function generateDalleImage(prompt, destPath) {
-    const openai   = new OpenAI.default({ apiKey: process.env.OPENAI_API_KEY });
-    const response = await openai.images.generate({
-        model: "dall-e-3", prompt, n: 1, size: "1024x1792", quality: "hd",
-    });
-    await downloadFile(response.data[0].url, destPath);
+    const openai = new OpenAI.default({ apiKey: process.env.OPENAI_API_KEY });
+
+    async function tryGenerate(p) {
+        const response = await openai.images.generate({
+            model: "dall-e-3", prompt: p, n: 1, size: "1024x1792", quality: "hd",
+        });
+        await downloadFile(response.data[0].url, destPath);
+    }
+
+    try {
+        await tryGenerate(prompt);
+    } catch (err) {
+        // Safety rejection — strip conflict/epic terms and retry once with a safe fallback
+        if (err?.status === 400 || err?.message?.includes("safety")) {
+            console.log("   ⚠️ DALL-E safety rejection — retrying with sanitized prompt...");
+            const safe = prompt
+                .replace(/\b(war|battle|fight|warrior|soldier|weapon|sword|arrow|spear|blood|death|kill|dead|army|combat|violence|attack|destroy|enemy|defeat)\b/gi, "")
+                .replace(/\s{2,}/g, " ")
+                .trim();
+            const fallback = safe.length > 30
+                ? `${safe}, cinematic, atmospheric, symbolism, golden light, emotional depth, 9:16 portrait`
+                : "ancient Indian landscape at golden hour, divine light, lotus flowers, temple silhouette, dramatic sky, cinematic, 9:16 portrait";
+            await tryGenerate(fallback);
+        } else {
+            throw err;
+        }
+    }
 }
 
 // ── Step 3: Sharp — composite text overlay ────────────────────────────────
