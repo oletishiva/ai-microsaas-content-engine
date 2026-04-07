@@ -41,7 +41,7 @@ const FONTS = {
     telugu:   { file: "NotoSansTelugu.ttf",          family: "Noto Sans Telugu",   isLatin: false },
     hindi:    { file: "NotoSansDevanagari-Bold.ttf", family: "Noto Sans Devanagari", isLatin: false },
     tamil:    { file: "NotoSansTamil-Bold.ttf",        family: "Noto Sans Tamil",   isLatin: false },
-    kannada:  { file: "NotoSansTelugu.ttf",          family: "Noto Sans Telugu",   isLatin: false }, // fallback
+    kannada:  { file: "NotoSansKannada-Bold.ttf",     family: "Noto Sans Kannada", isLatin: false },
 };
 
 const MUSIC_DIR = path.resolve(__dirname, "../../music");
