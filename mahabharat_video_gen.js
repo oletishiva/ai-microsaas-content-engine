@@ -338,22 +338,27 @@ async function compositeScene(imagePath, sceneIdx, script, epNumber, outputPath)
 }
 
 // ── Step 4: FFmpeg — image → video clip ───────────────────────────────────────
-// Always uses Ken Burns zoom for cinematic motion (Veo-like feel).
-// Even scenes zoom in slowly, odd scenes zoom out — keeps visual variety.
-// Set MAHABHARAT_ZOOM=false to disable (faster, ~5s/clip vs ~30s/clip).
+// Smooth parallax pan using scale+crop with FFmpeg's 't' variable.
+// Much faster and smoother than zoompan (no frame-by-frame stuttering).
+// Scale to 1.12× then pan 120px across the clip duration.
+// Even scenes pan left→right, odd scenes pan right→left for visual variety.
+// Set MAHABHARAT_ZOOM=false to disable (static crop, fastest).
 function buildClip(imagePath, sceneIdx, duration, clipPath) {
     const skipZoom = process.env.MAHABHARAT_ZOOM === "false";
-    const frames   = Math.floor(duration * 30);
+
+    // Scale 12% larger than target so we have room to pan without black bars
+    const SW = Math.round(W * 1.12); // 1210
+    const SH = Math.round(H * 1.12); // 2150
+    const panX = SW - W;             // 130px total travel
+    const panY = Math.floor((SH - H) / 2); // centred vertically
 
     let vf;
     if (!skipZoom) {
-        // Alternate slow zoom-in / zoom-out across scenes for visual rhythm
-        const zoomIn  = `min(zoom+0.0008,1.20)`;
-        const zoomOut = `if(lte(zoom,1.0),1.20,max(zoom-0.0008,1.0))`;
-        const zExpr   = sceneIdx % 2 === 0 ? zoomIn : zoomOut;
-        // Slight horizontal drift on odd scenes for parallax feel
-        const xExpr   = sceneIdx % 2 === 0 ? `iw/2-(iw/zoom/2)` : `iw/2-(iw/zoom/2)+${sceneIdx * 8}`;
-        vf = `zoompan=z='${zExpr}':d=${frames}:x='${xExpr}':y='ih/2-(ih/zoom/2)':s=${W}x${H}:fps=30,`;
+        // t-based pan: smooth linear travel across the clip
+        const xExpr = sceneIdx % 2 === 0
+            ? `${panX}*(t/${duration})`           // left → right
+            : `${panX}*(1-t/${duration})`;         // right → left
+        vf = `scale=${SW}:${SH},crop=${W}:${H}:'${xExpr}':${panY},`;
     } else {
         vf = `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},`;
     }
@@ -371,7 +376,7 @@ function buildClip(imagePath, sceneIdx, duration, clipPath) {
     console.log(`   [FFmpeg] Building clip ${sceneIdx + 1}...`);
     const t0 = Date.now();
     try {
-        execSync(cmd, { stdio: "pipe", timeout: skipZoom ? 60000 : 180000 });
+        execSync(cmd, { stdio: "pipe", timeout: 60000 });
     } catch (err) {
         const stderr = err.stderr?.toString() || err.stdout?.toString() || "";
         console.error(`   [FFmpeg] Clip ${sceneIdx + 1} failed:\n${stderr.slice(-800)}`);
