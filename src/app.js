@@ -48,6 +48,7 @@ const sametaRouter         = require("./routes/sameta");
 const affirmationRouter    = require("./routes/affirmation");
 const socialRouter         = require("./routes/social");
 const mahabharatRouter     = require("./routes/mahabharat");
+const studioRouter         = require("./routes/studio");
 const { startScheduler }            = require("./services/scheduler");
 const { startMahabharatScheduler }  = require("./services/mahabharatScheduler");
 
@@ -111,6 +112,11 @@ app.get("/setup", (_, res) => {
 // Mahabharat generator page
 app.get("/mahabharat", (_, res) => {
     res.sendFile(path.join(publicDir, "mahabharat.html"));
+});
+
+// AI Video Studio page
+app.get("/studio", (_, res) => {
+    res.sendFile(path.join(publicDir, "studio.html"));
 });
 
 // API info (for devs / debugging)
@@ -249,6 +255,9 @@ app.use("/api", mahabharatRouter);
 
 // Affirmations / Positive Vibes (English + Telugu)
 app.use("/api", affirmationRouter);
+
+// AI Video Studio — flexible guided + prompt video generator
+app.use("/api", studioRouter);
 
 // Main pipeline route
 app.use("/api", generateVideoRouter);
