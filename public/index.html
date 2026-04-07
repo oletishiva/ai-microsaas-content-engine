@@ -420,32 +420,6 @@
   </div>
 </nav>
 
-<!-- ── Channel Status Cards ─────────────────────────────────────── -->
-<div class="channels-bar">
-  <div class="ch-card ch-motivation active-card" onclick="switchTab('motivation', document.querySelector('.nav-tab.active'))">
-    <div class="ch-name purple">Affirmations</div>
-    <div class="ch-sched">English + Telugu · Cinematic<br>5 types · Rich DALL-E backgrounds</div>
-    <div class="ch-badges">
-      <span class="ch-badge badge-yt" id="motYtBadge">YT —</span>
-    </div>
-  </div>
-  <div class="ch-card ch-mahabharat" onclick="switchTab('mahabharat', document.querySelectorAll('.nav-tab')[1])">
-    <div class="ch-name gold">Mahabharat</div>
-    <div class="ch-sched">2x daily — 10AM + 6PM IST<br>Telugu Shorts · Animated</div>
-    <div class="ch-badges">
-      <span class="ch-badge badge-yt" id="mbYtBadge">YT —</span>
-    </div>
-  </div>
-  <div class="ch-card ch-sameta" onclick="switchTab('sameta', document.querySelectorAll('.nav-tab')[2])">
-    <div class="ch-name warm">Sameta</div>
-    <div class="ch-sched">Manual · Telugu proverbs<br>Watercolor + text overlay</div>
-    <div class="ch-badges">
-      <span class="ch-badge badge-yt" id="sameYtBadge">YT —</span>
-      <span class="ch-badge badge-ig" id="sameIgBadge">IG —</span>
-      <span class="ch-badge badge-fb" id="sameFbBadge">FB —</span>
-    </div>
-  </div>
-</div>
 
 
 <!-- ══════════════════════════════════════════════════════════════ -->
@@ -459,14 +433,24 @@
     Cinematic full-bleed backgrounds · 15-second Shorts · English &amp; Telugu
   </p>
 
-  <!-- YouTube connect -->
+  <!-- YouTube connect (Affirmations channel) -->
   <div id="motYtConnect" class="auth-banner disconnected">
     <div class="auth-name">YouTube not connected</div>
-    <a href="/auth/youtube">Connect</a>
+    <a href="/auth/youtube?channel=affirmation">Connect YouTube</a>
   </div>
   <div id="motYtConnected" class="auth-banner connected" style="display:none">
-    <div class="auth-name">YouTube connected</div>
-    <button onclick="disconnectYouTube()">Disconnect</button>
+    <div class="auth-name" id="motYtName">YouTube connected</div>
+    <button onclick="disconnectService('youtube','affirmation','motYtConnect','motYtConnected')">Disconnect</button>
+  </div>
+
+  <!-- Meta connect (shared across services) -->
+  <div id="motMetaConnect" class="auth-banner disconnected">
+    <div class="auth-name">Instagram + Facebook not connected</div>
+    <a href="/auth/meta">Connect Meta</a>
+  </div>
+  <div id="motMetaConnected" class="auth-banner connected" style="display:none">
+    <div class="auth-name" id="motMetaName">Instagram + Facebook connected</div>
+    <button onclick="disconnectService('meta','','motMetaConnect','motMetaConnected')">Disconnect</button>
   </div>
 
   <!-- Language Toggle -->
@@ -496,12 +480,25 @@
     </div>
   </div>
 
-  <!-- Publish -->
+  <!-- Publish to -->
   <div class="card">
-    <div class="card-header">YouTube</div>
-    <div class="toggle-row">
-      <span class="toggle-label">Push to YouTube</span>
-      <input type="checkbox" class="toggle" id="affPushYT">
+    <div class="card-header">Publish to</div>
+    <div class="platform-row">
+      <label class="platform-label platform-yt">
+        <input type="checkbox" id="affPushYT" style="accent-color:#ff0000">
+        <svg viewBox="0 0 24 24" fill="#ff4444" width="14" height="14"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        YouTube
+      </label>
+      <label class="platform-label platform-ig">
+        <input type="checkbox" id="affPushIG" style="accent-color:#e1306c">
+        <svg viewBox="0 0 24 24" fill="#e1306c" width="14" height="14"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+        Instagram
+      </label>
+      <label class="platform-label platform-fb">
+        <input type="checkbox" id="affPushFB" style="accent-color:#1877f2">
+        <svg viewBox="0 0 24 24" fill="#1877f2" width="14" height="14"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        Facebook
+      </label>
     </div>
   </div>
 
@@ -593,11 +590,11 @@
   <!-- Platform connections -->
   <div id="sameYtConnect" class="auth-banner disconnected">
     <div class="auth-name">YouTube not connected</div>
-    <a href="/auth/youtube">Connect</a>
+    <a href="/auth/youtube?channel=sameta">Connect YouTube</a>
   </div>
   <div id="sameYtConnected" class="auth-banner connected" style="display:none">
-    <div class="auth-name">YouTube connected</div>
-    <button onclick="disconnectYouTube()">Disconnect</button>
+    <div class="auth-name" id="sameYtName">YouTube connected</div>
+    <button onclick="disconnectService('youtube','sameta','sameYtConnect','sameYtConnected')">Disconnect</button>
   </div>
   <div id="sameMetaConnect" class="auth-banner disconnected">
     <div class="auth-name">Instagram + Facebook not connected</div>
@@ -605,7 +602,7 @@
   </div>
   <div id="sameMetaConnected" class="auth-banner connected" style="display:none">
     <div class="auth-name" id="sameMetaName">Instagram + Facebook connected</div>
-    <button onclick="disconnectMeta()">Disconnect</button>
+    <button onclick="disconnectService('meta','','sameMetaConnect','sameMetaConnected')">Disconnect</button>
   </div>
 
   <!-- Mode selector -->
@@ -678,16 +675,12 @@ function switchTab(name, btn) {
   document.querySelectorAll('.ch-card').forEach(c => c.classList.remove('active-card'));
 
   document.getElementById('page-' + name).classList.add('active');
-  // If btn not provided, activate the correct nav tab by index
   if (btn) {
     btn.classList.add('active');
   } else {
     const tabIndex = { motivation: 0, mahabharat: 1, sameta: 2 };
     document.querySelectorAll('.nav-tab')[tabIndex[name]]?.classList.add('active');
   }
-
-  const cardMap = { motivation: 0, mahabharat: 1, sameta: 2 };
-  document.querySelectorAll('.ch-card')[cardMap[name]]?.classList.add('active-card');
 
   // Show/hide sticky bars
   Object.values(STICKY_BARS).forEach(id => {
@@ -742,54 +735,63 @@ function setAffType(type, btn) {
   btn.classList.add('active');
 }
 
-// ── Auth status check ─────────────────────────────────────────────
-// Real endpoints: /auth/youtube/status, /auth/meta/status
+// ── Auth status check — per service ──────────────────────────────
 async function checkAuthStatus() {
   try {
-    const [ytRes, mbRes, metaRes] = await Promise.all([
-      fetch('/auth/youtube/status'),
-      fetch('/auth/youtube/status?channel=mahabharat'),
+    const [affYt, sameYt, metaRes] = await Promise.all([
+      fetch('/auth/youtube/status?channel=affirmation'),
+      fetch('/auth/youtube/status?channel=sameta'),
       fetch('/auth/meta/status'),
     ]);
 
-    if (ytRes.ok) {
-      const yt = await ytRes.json();
-      if (yt.connected) {
-        document.getElementById('motYtConnect').style.display = 'none';
-        document.getElementById('motYtConnected').style.display = 'flex';
-        document.getElementById('sameYtConnect').style.display = 'none';
-        document.getElementById('sameYtConnected').style.display = 'flex';
-        document.getElementById('motYtBadge').textContent = 'YT ✓';
-        document.getElementById('sameYtBadge').textContent = 'YT ✓';
-      }
+    if (affYt.ok) {
+      const d = await affYt.json();
+      document.getElementById('motYtConnect').style.display   = d.connected ? 'none' : 'flex';
+      document.getElementById('motYtConnected').style.display = d.connected ? 'flex' : 'none';
+      if (d.connected && d.channelTitle)
+        document.getElementById('motYtName').textContent = '▶ ' + d.channelTitle;
     }
 
-    if (mbRes.ok) {
-      const mb = await mbRes.json();
-      if (mb.connected) {
-        document.getElementById('mbYtBadge').textContent = 'YT ✓';
-      }
+    if (sameYt.ok) {
+      const d = await sameYt.json();
+      document.getElementById('sameYtConnect').style.display   = d.connected ? 'none' : 'flex';
+      document.getElementById('sameYtConnected').style.display = d.connected ? 'flex' : 'none';
+      if (d.connected && d.channelTitle)
+        document.getElementById('sameYtName').textContent = '▶ ' + d.channelTitle;
     }
 
     if (metaRes.ok) {
       const meta = await metaRes.json();
       if (meta.connected) {
-        document.getElementById('sameMetaConnect').style.display = 'none';
-        document.getElementById('sameMetaConnected').style.display = 'flex';
-        const name = [meta.instagramUsername, meta.facebookPageName].filter(Boolean).join(' + ');
-        if (name) document.getElementById('sameMetaName').textContent = name;
-        document.getElementById('sameIgBadge').textContent = 'IG ✓';
-        document.getElementById('sameFbBadge').textContent = 'FB ✓';
+        const name = [meta.instagramUsername, meta.facebookPageName].filter(Boolean).join(' + ') || 'Instagram + Facebook';
+        // Show connected state on both Affirmations and Sameta tabs
+        ['motMeta','sameMeta'].forEach(prefix => {
+          document.getElementById(prefix + 'Connect').style.display    = 'none';
+          document.getElementById(prefix + 'Connected').style.display  = 'flex';
+          const nameEl = document.getElementById(prefix + 'Name');
+          if (nameEl) nameEl.textContent = name;
+        });
       }
     }
   } catch (_) {}
 }
 
-function disconnectYouTube() {
-  fetch('/auth/youtube/disconnect', { method: 'POST' }).then(() => location.reload()).catch(() => {});
-}
-function disconnectMeta() {
-  fetch('/auth/meta/disconnect', { method: 'POST' }).then(() => location.reload()).catch(() => {});
+// ── Unified disconnect helper ─────────────────────────────────────
+function disconnectService(type, channel, connectId, connectedId) {
+  const url = type === 'meta'
+    ? '/auth/meta/disconnect'
+    : `/auth/youtube/disconnect?channel=${channel}`;
+  fetch(url, { method: 'POST' }).then(() => {
+    document.getElementById(connectId).style.display   = 'flex';
+    document.getElementById(connectedId).style.display = 'none';
+    // If meta: update both tabs
+    if (type === 'meta') {
+      ['motMeta','sameMeta'].forEach(prefix => {
+        document.getElementById(prefix + 'Connect').style.display   = 'flex';
+        document.getElementById(prefix + 'Connected').style.display = 'none';
+      });
+    }
+  }).catch(() => {});
 }
 
 // ── Download helper ───────────────────────────────────────────────
@@ -854,10 +856,12 @@ async function generateAffirmation() {
   result.style.display = 'none';
 
   const payload = {
-    language:     _affLang,
-    type:         _affType,
+    language:        _affLang,
+    type:            _affType,
     custom,
-    pushToYouTube: document.getElementById('affPushYT').checked,
+    pushToYouTube:   document.getElementById('affPushYT').checked,
+    pushToInstagram: document.getElementById('affPushIG').checked,
+    pushToFacebook:  document.getElementById('affPushFB').checked,
   };
 
   try {
@@ -879,8 +883,10 @@ async function generateAffirmation() {
         if (d.subtext) html += `<p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem">${d.subtext}</p>`;
       }
       const links = [];
-      if (d.videoUrl)   links.push(`<a href="${d.videoUrl}" target="_blank">Watch Video</a>`);
-      if (d.youtubeUrl) links.push(`<a href="${d.youtubeUrl}" target="_blank">YouTube</a>`);
+      if (d.videoUrl)      links.push(`<a href="${d.videoUrl}" target="_blank">Watch Video</a>`);
+      if (d.youtubeUrl)    links.push(`<a href="${d.youtubeUrl}" target="_blank">YouTube</a>`);
+      if (d.instagramUrl)  links.push(`<a href="${d.instagramUrl}" target="_blank">Instagram</a>`);
+      if (d.facebookUrl)   links.push(`<a href="${d.facebookUrl}" target="_blank">Facebook</a>`);
       if (links.length) html += `<div class="result-links">${links.join('')}</div>`;
       html += waPack(caption, tags, d.videoUrl, d.imageUrl, `affirmation_${_affType}`);
       showResult(result, 'success', html);
@@ -1044,6 +1050,11 @@ function copyWapEl(id, btn) {
   const params  = new URLSearchParams(location.search);
   const savedTab = sessionStorage.getItem('activeTab') || 'motivation';
   switchTab(savedTab);
+
+  // If returning from per-service YouTube OAuth, restore that tab
+  const service = params.get('service');
+  if (service === 'affirmation') switchTab('motivation');
+  else if (service === 'sameta') switchTab('sameta');
 
   // Show success toast if returning from OAuth
   if (params.get('youtube') === 'connected') {
