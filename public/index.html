@@ -379,6 +379,20 @@
     .one-click-wrap { margin-top: 1rem; }
     .one-click-wrap .btn-primary { font-size: 1.1rem; padding: 1.1rem; }
 
+    /* Affirmation type chips */
+    .aff-chip {
+      padding: 0.45rem 0.85rem;
+      font-family: inherit; font-size: 0.82rem; font-weight: 600;
+      color: var(--muted); background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border); border-radius: 20px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .aff-chip:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+    .aff-chip.active {
+      color: #fff; background: rgba(124,58,237,0.2);
+      border-color: rgba(124,58,237,0.5);
+    }
+
     @media (max-width: 640px) {
       .channels-bar { grid-template-columns: 1fr; }
       .nav-tab span.label { display: none; }
@@ -395,7 +409,7 @@
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="switchTab('motivation', this)">
-      <span>Motivation</span>
+      <span>Affirmations</span>
     </button>
     <button class="nav-tab gold" onclick="switchTab('mahabharat', this)">
       <span>Mahabharat</span>
@@ -409,8 +423,8 @@
 <!-- ── Channel Status Cards ─────────────────────────────────────── -->
 <div class="channels-bar">
   <div class="ch-card ch-motivation active-card" onclick="switchTab('motivation', document.querySelector('.nav-tab.active'))">
-    <div class="ch-name purple">Motivation</div>
-    <div class="ch-sched">3x daily — 6AM, 3PM, 9PM UTC<br>Notebook aesthetic · English</div>
+    <div class="ch-name purple">Affirmations</div>
+    <div class="ch-sched">English + Telugu · Cinematic<br>5 types · Rich DALL-E backgrounds</div>
     <div class="ch-badges">
       <span class="ch-badge badge-yt" id="motYtBadge">YT —</span>
     </div>
@@ -435,12 +449,15 @@
 
 
 <!-- ══════════════════════════════════════════════════════════════ -->
-<!-- TAB 1: ENGLISH MOTIVATIONAL                                    -->
+<!-- TAB 1: AFFIRMATIONS & POSITIVE VIBES                          -->
 <!-- ══════════════════════════════════════════════════════════════ -->
 <div id="page-motivation" class="page active">
 <div class="container">
 
-  <div class="section-title">Motivation Video</div>
+  <div class="section-title">✨ Affirmations & Positive Vibes</div>
+  <p style="color:var(--muted);font-size:0.88rem;margin-bottom:1.5rem;line-height:1.6">
+    Cinematic full-bleed backgrounds · 15-second Shorts · English &amp; Telugu
+  </p>
 
   <!-- YouTube connect -->
   <div id="motYtConnect" class="auth-banner disconnected">
@@ -452,45 +469,39 @@
     <button onclick="disconnectYouTube()">Disconnect</button>
   </div>
 
-  <!-- Quick Generate -->
+  <!-- Language Toggle -->
   <div class="card">
-    <div class="card-header">Topic</div>
-    <div class="field">
-      <input type="text" id="motTopic" placeholder="e.g. stoic rules for morning success — or leave blank for AI pick">
+    <div class="card-header">Language</div>
+    <div class="mode-tabs" id="affLangTabs">
+      <button class="mode-tab active" id="affLangEn" onclick="setAffLang('english')">🇬🇧 English</button>
+      <button class="mode-tab" id="affLangTe" onclick="setAffLang('telugu')">🇮🇳 Telugu</button>
+    </div>
+
+    <!-- Type chips -->
+    <div class="card-header" style="margin-top:0.1rem">Type</div>
+    <div style="display:flex;flex-wrap:wrap;gap:0.45rem;margin-bottom:0.25rem" id="affTypeChips">
+      <button class="aff-chip active" data-type="morning"   onclick="setAffType('morning',   this)">🌅 Morning</button>
+      <button class="aff-chip"        data-type="positive"  onclick="setAffType('positive',  this)">✨ Positive Vibes</button>
+      <button class="aff-chip"        data-type="gratitude" onclick="setAffType('gratitude', this)">🙏 Gratitude</button>
+      <button class="aff-chip"        data-type="selflove"  onclick="setAffType('selflove',  this)">💚 Self Love</button>
+      <button class="aff-chip"        data-type="success"   onclick="setAffType('success',   this)">🏆 Success</button>
     </div>
   </div>
 
-  <!-- Advanced Settings (collapsible) -->
-  <button class="collapse-toggle" onclick="toggleCollapse('motAdvanced', this)">
-    Advanced settings
-    <svg class="chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
-  </button>
-  <div id="motAdvanced" class="collapse-body">
-    <div class="card">
-      <div class="field">
-        <label>Script (optional — AI generates if blank)</label>
-        <textarea id="motScript" placeholder="Paste your own script here..."></textarea>
-      </div>
-      <div class="field" style="display:flex;align-items:center;justify-content:space-between;">
-        <label style="margin:0">Length</label>
-        <select id="motMaxWords" style="width:180px">
-          <option value="35">Short (~15 sec)</option>
-          <option value="50">Long (~20 sec)</option>
-        </select>
-      </div>
+  <!-- Custom Quote (optional) -->
+  <div class="card">
+    <div class="card-header">Custom Quote <span style="font-weight:400;text-transform:none;font-size:0.75rem;color:var(--muted)">(optional — AI generates if blank)</span></div>
+    <div class="field">
+      <textarea id="affCustomQuote" placeholder="Type your own affirmation, or leave blank for AI…" style="min-height:64px"></textarea>
     </div>
-    <div class="card">
-      <div class="card-header">YouTube</div>
-      <div class="toggle-row">
-        <span class="toggle-label">Push to YouTube</span>
-        <input type="checkbox" class="toggle" id="motPushYT">
-      </div>
-      <div id="motYtExtra" style="display:none;">
-        <div class="field" style="margin-top:0.75rem">
-          <label>YouTube title (optional)</label>
-          <input type="text" id="motYtTitle" placeholder="AI will auto-generate if blank">
-        </div>
-      </div>
+  </div>
+
+  <!-- Publish -->
+  <div class="card">
+    <div class="card-header">YouTube</div>
+    <div class="toggle-row">
+      <span class="toggle-label">Push to YouTube</span>
+      <input type="checkbox" class="toggle" id="affPushYT">
     </div>
   </div>
 
@@ -498,12 +509,12 @@
   <div id="motResult" class="result-box"></div>
 
 </div>
-<!-- Sticky bar for motivation -->
+<!-- Sticky bar for affirmation -->
 <div class="sticky-bar" id="motStickyBar">
   <div class="sticky-inner">
-    <button class="btn-primary" id="motGenBtn" onclick="generateMotivation()">
+    <button class="btn-primary" id="motGenBtn" onclick="generateAffirmation()">
       <span class="spinner"></span>
-      <span class="btn-text">Generate Notebook Video</span>
+      <span class="btn-text">✨ Generate Affirmation Video</span>
     </button>
   </div>
 </div>
@@ -715,10 +726,21 @@ function setSametaMode(mode) {
   }
 }
 
-// ── YouTube push toggle ───────────────────────────────────────────
-document.getElementById('motPushYT').addEventListener('change', function () {
-  document.getElementById('motYtExtra').style.display = this.checked ? 'block' : 'none';
-});
+// ── Affirmation state ─────────────────────────────────────────────
+let _affLang = 'english';
+let _affType = 'morning';
+
+function setAffLang(lang) {
+  _affLang = lang;
+  document.getElementById('affLangEn').classList.toggle('active', lang === 'english');
+  document.getElementById('affLangTe').classList.toggle('active', lang === 'telugu');
+}
+
+function setAffType(type, btn) {
+  _affType = type;
+  document.querySelectorAll('.aff-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+}
 
 // ── Auth status check ─────────────────────────────────────────────
 // Real endpoints: /auth/youtube/status, /auth/meta/status
@@ -822,41 +844,45 @@ function imageForFlow(imageUrl, sceneDesc) {
     </div>`;
 }
 
-// ── English Motivational Generate ────────────────────────────────
-async function generateMotivation() {
-  const btn = document.getElementById('motGenBtn');
+// ── Affirmations Generate ─────────────────────────────────────────
+async function generateAffirmation() {
+  const btn    = document.getElementById('motGenBtn');
   const result = document.getElementById('motResult');
-  const topic = document.getElementById('motTopic').value.trim();
-  const script = document.getElementById('motScript').value.trim();
-
-  if (!topic && !script) {
-    showResult(result, 'error', 'Enter a topic or script.');
-    return;
-  }
+  const custom = document.getElementById('affCustomQuote').value.trim();
 
   setLoading(btn, true);
   result.style.display = 'none';
 
-  const body = new FormData();
-  if (topic)  body.append('topic', topic);
-  if (script) body.append('script', script);
-  body.append('maxWords', document.getElementById('motMaxWords').value);
-  body.append('pushToYouTube', document.getElementById('motPushYT').checked ? 'true' : 'false');
-  const ytTitle = document.getElementById('motYtTitle').value.trim();
-  if (ytTitle) body.append('youtubeTitle', ytTitle);
+  const payload = {
+    language:     _affLang,
+    type:         _affType,
+    custom,
+    pushToYouTube: document.getElementById('affPushYT').checked,
+  };
 
   try {
-    const r = await fetch('/api/generate-video', { method: 'POST', body });
+    const r = await fetch('/api/generate-affirmation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
     const d = await r.json();
     if (d.success) {
-      const topicVal = document.getElementById('motTopic').value.trim() || 'Motivational thought for today';
-      const motTags  = '#motivation #shorts #viral #trending #mindset #successmindset #motivationalvideo #dailymotivation #growthmindset #morningmotivation #youtubeshorts #inspire #success #focus #discipline';
-      let html = '<h3>Video ready!</h3>';
+      const isTelugu = _affLang === 'telugu';
+      const caption  = d.quote + (d.subtext ? '\n' + d.subtext : '');
+      const tags = isTelugu
+        ? '#affirmation #telugu #తెలుగు #positivevibes #shorts #viral #teluguaffirmation #dailyaffirmation #motivation #selfcare #foryou #trending'
+        : '#affirmation #shorts #viral #positivevibes #dailyaffirmation #morningaffirmation #selflove #mindset #growthmindset #inspire #motivation #foryou';
+      let html = `<h3>✨ Affirmation ready!</h3>`;
+      if (d.quote) {
+        html += `<p style="font-size:0.95rem;font-style:italic;color:var(--text);margin:0.5rem 0 0.25rem;line-height:1.6">"${d.quote}"</p>`;
+        if (d.subtext) html += `<p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem">${d.subtext}</p>`;
+      }
       const links = [];
-      if (d.videoUrl)  links.push(`<a href="${d.videoUrl}" target="_blank">Watch Video</a>`);
+      if (d.videoUrl)   links.push(`<a href="${d.videoUrl}" target="_blank">Watch Video</a>`);
       if (d.youtubeUrl) links.push(`<a href="${d.youtubeUrl}" target="_blank">YouTube</a>`);
       if (links.length) html += `<div class="result-links">${links.join('')}</div>`;
-      html += waPack(topicVal, motTags, d.videoUrl, null, 'motivation_video');
+      html += waPack(caption, tags, d.videoUrl, d.imageUrl, `affirmation_${_affType}`);
       showResult(result, 'success', html);
     } else {
       showResult(result, 'error', d.error || 'Generation failed.');

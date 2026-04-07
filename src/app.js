@@ -45,6 +45,7 @@ try {
 const generateVideoRouter  = require("./routes/generateVideo");
 const authRouter           = require("./routes/auth");
 const sametaRouter         = require("./routes/sameta");
+const affirmationRouter    = require("./routes/affirmation");
 const socialRouter         = require("./routes/social");
 const mahabharatRouter     = require("./routes/mahabharat");
 const { startScheduler }            = require("./services/scheduler");
@@ -245,6 +246,9 @@ app.use("/api",  socialRouter);
 
 // Mahabharat Shorts script generator
 app.use("/api", mahabharatRouter);
+
+// Affirmations / Positive Vibes (English + Telugu)
+app.use("/api", affirmationRouter);
 
 // Main pipeline route
 app.use("/api", generateVideoRouter);
