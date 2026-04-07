@@ -139,7 +139,8 @@ async function pickRandomSameta() {
         "pride / ego / humility / knowing your limits",
         "friendship / trust / betrayal / choosing right people",
     ];
-    const category = CATEGORIES[used.length % CATEGORIES.length];
+    // Random category — sequential was always index 0 after Railway redeploy wipes used list
+    const category = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
 
     const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
     const response = await client.messages.create({
@@ -154,7 +155,7 @@ Rules:
 - Today's category: ${category} — pick a sameta fitting this theme
 - Strongly prefer proverbs about hard work, courage, never giving up, patience, wisdom, and success over passive/negative ones
 - Prefer lesser-known regional gems and vivid imagery over famous/overused ones${avoidSection}`,
-        messages: [{ role: "user", content: "Give me one fresh Telugu Sameta from today's category that is NOT in the avoid list." }],
+        messages: [{ role: "user", content: "Give me one fresh Telugu Sameta from today's category that is NOT in the avoid list. It must be on a completely different topic/theme than any sameta in the avoid list." }],
     });
 
     const raw = response.content[0].text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
@@ -310,25 +311,20 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     }
     y += 22;
 
-    // ── H3: Meaning — medium, regular, dark gray, centered ───────────────────
-    // Strip newlines, take only first sentence so it stays inside the cream area.
-    // Long custom meanings (with \n\n explanations) must not bleed into watercolor.
+    // ── H3: Meaning — fill cream area with full text, hard Y clamp ──────────
+    // Flatten newlines but keep ALL content — full meaning text drives engagement.
     const meaningClean = meaning
-        .replace(/[\r\n]+/g, " ")   // flatten multi-line input to single line
-        .replace(/\s{2,}/g, " ")    // collapse multiple spaces
+        .replace(/[\r\n]+/g, " ")
+        .replace(/\s{2,}/g, " ")
         .trim();
-    // Use only first sentence (up to first । ।  or . or "...") — keep it punchy
-    const firstSentence = meaningClean.split(/(?<=[.।])\s/)[0] || meaningClean;
-    const meaningShort  = firstSentence.length > 72 ? firstSentence.slice(0, 70) + "..." : firstSentence;
-    const meaningLines  = wrapText(`భావం: ${meaningShort}`, 28);
-    const maxLines      = 3; // hard cap — never overflow cream area
-    const maxY          = CREAM_H - 30; // bottom boundary — stay inside cream
-    for (let i = 0; i < Math.min(meaningLines.length, maxLines); i++) {
-        if (y >= maxY) break; // clamp — no text in watercolor zone
-        const el = await pangoText(meaningLines[i], 34, "#2C1810", "normal", y);
+    const meaningLines = wrapText(`భావం: ${meaningClean}`, 26);
+    const maxY = CREAM_H - 20; // hard clamp — nothing bleeds into watercolor
+    for (const line of meaningLines) {
+        if (y >= maxY) break;
+        const el = await pangoText(line, 32, "#2C1810", "normal", y);
         if (y + el._h > maxY) break;
         composites.push(el);
-        y += el._h + 5;
+        y += el._h + 4;
     }
 
     // ── Composite all layers onto base image ──────────────────────────────────
