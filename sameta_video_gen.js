@@ -124,20 +124,20 @@ async function pickRandomSameta() {
         ? `\n\nSTRICTLY AVOID — already used (do NOT repeat any of these):\n${recent.map((s, i) => `${i + 1}. ${s}`).join("\n")}`
         : "";
 
-    // Rotate through categories so content stays diverse
+    // Rotate through categories — heavy motivational weighting for Telugu motivational channel
     const CATEGORIES = [
-        "motivational / hardwork / perseverance",
-        "wisdom / life lessons / experience",
-        "karma / justice / what goes around",
-        "family / relationships / love",
-        "village life / farming / nature / seasons",
-        "character / honesty / integrity",
-        "money / wealth / greed",
-        "friendship / trust / betrayal",
-        "food / hunger / hospitality",
-        "patience / timing / opportunity",
-        "pride / ego / humility",
-        "knowledge / education / foolishness",
+        "motivational / hardwork / perseverance / never give up",
+        "success / ambition / achieving goals / winning mindset",
+        "motivational / courage / facing fears / taking action",
+        "wisdom / life lessons / experience / self-improvement",
+        "motivational / patience / timing / opportunity / waiting for right moment",
+        "karma / justice / what goes around / reaping what you sow",
+        "motivational / character / honesty / integrity / doing right thing",
+        "motivational / knowledge / education / learning / growth",
+        "family / relationships / love / trust / loyalty",
+        "motivational / resilience / rising after failure / comeback",
+        "pride / ego / humility / knowing your limits",
+        "friendship / trust / betrayal / choosing right people",
     ];
     const category = CATEGORIES[used.length % CATEGORIES.length];
 
@@ -145,13 +145,14 @@ async function pickRandomSameta() {
     const response = await client.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 300,
-        system: `You are an expert in Telugu literature and proverbs (సామెతలు) with knowledge of thousands of ancient and regional Telugu sayings.
+        system: `You are an expert in Telugu literature and proverbs (సామెతలు) with knowledge of thousands of ancient and regional Telugu sayings. This is a MOTIVATIONAL Telugu channel — prioritize proverbs that inspire action, courage, perseverance, and self-improvement.
 Return ONLY valid JSON — no markdown, no explanation.
 Format: {"sameta": "Telugu proverb here", "meaning": "Telugu meaning here"}
 Rules:
 - Both sameta and meaning MUST be in Telugu script
-- Meaning: MAX 15 words — one punchy sentence, no long explanations
+- Meaning: MAX 15 words — one punchy, inspiring sentence. Make it feel like motivation, not just a definition
 - Today's category: ${category} — pick a sameta fitting this theme
+- Strongly prefer proverbs about hard work, courage, never giving up, patience, wisdom, and success over passive/negative ones
 - Prefer lesser-known regional gems and vivid imagery over famous/overused ones${avoidSection}`,
         messages: [{ role: "user", content: "Give me one fresh Telugu Sameta from today's category that is NOT in the avoid list." }],
     });
