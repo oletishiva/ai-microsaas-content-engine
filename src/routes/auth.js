@@ -28,8 +28,9 @@ function tokenFileFor(channel) {
     return TOKEN_FILE; // default / legacy
 }
 
-// Channels that live in the main UI (/) — not the /setup page
-const MAIN_UI_CHANNELS = ["affirmation", "sameta"];
+// Channels that live in the main UI — not the /setup page
+// studio → /studio, affirmation/sameta → /
+const MAIN_UI_CHANNELS = ["affirmation", "sameta", "studio"];
 
 function saveTokenToFile(token, channel) {
     try { fs.writeFileSync(tokenFileFor(channel), token, "utf8"); } catch (_) {}
@@ -138,10 +139,12 @@ router.get("/youtube/callback", async (req, res) => {
         if (channel && channel !== "default") {
             saveTokenToFile(refreshToken, channel);
             req.session[sessionKeyFor(channel)] = refreshToken;
-            // Main-UI channels (affirmation, sameta) go back to /; setup-only channels go to /setup
-            const dest = MAIN_UI_CHANNELS.includes(channel)
-                ? `/?youtube=connected&service=${encodeURIComponent(channel)}`
-                : `/setup?connected=${encodeURIComponent(channel)}&token=${encodeURIComponent(refreshToken)}`;
+            // studio → /studio, affirmation/sameta → /, others → /setup
+            const dest = channel === "studio"
+                ? `/studio?youtube=connected`
+                : MAIN_UI_CHANNELS.includes(channel)
+                    ? `/?youtube=connected&service=${encodeURIComponent(channel)}`
+                    : `/setup?connected=${encodeURIComponent(channel)}&token=${encodeURIComponent(refreshToken)}`;
             return req.session.save(() => res.redirect(dest));
         }
 

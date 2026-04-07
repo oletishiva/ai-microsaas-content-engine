@@ -234,7 +234,7 @@ async function compositeScene(imagePath, sceneIdx, totalScenes, content, languag
 
     // ── Hook — only on scene 0, large at top ──────────────────────────────
     if (sceneIdx === 0 && hook) {
-        let hookY = 44;
+        let hookY = Math.floor(H * 0.05); // 5% from top (~96px) — avoids top crop on Shorts
         for (const line of wrapText(hook, maxChars)) {
             const { buf, w, h } = await rt(line, lang.isLatin ? 44 : 38, "#FFFFFF", "bold");
             composites.push({ input: buf, top: hookY, left: Math.floor((W - w) / 2) });
