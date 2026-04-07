@@ -49,6 +49,7 @@ const affirmationRouter    = require("./routes/affirmation");
 const socialRouter         = require("./routes/social");
 const mahabharatRouter     = require("./routes/mahabharat");
 const studioRouter         = require("./routes/studio");
+const renderVideoRouter    = require("./routes/renderVideo");
 const { startScheduler }            = require("./services/scheduler");
 const { startMahabharatScheduler }  = require("./services/mahabharatScheduler");
 const { startSametaScheduler }      = require("./services/sametaScheduler");
@@ -265,6 +266,9 @@ app.use("/api", generateVideoRouter);
 
 // Telugu Sameta video route
 app.use("/api", sametaRouter);
+
+// n8n render-video endpoint (replaces Shotstack)
+app.use("/api", renderVideoRouter);
 
 // ── 6. Global error handler ───────────────────────────────────────────────
 // Catches any unhandled errors thrown in route handlers
