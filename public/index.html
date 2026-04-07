@@ -647,6 +647,41 @@
     </div>
   </div>
 
+  <!-- Manual cron trigger -->
+  <div class="card" style="margin-top:1rem">
+    <div class="card-header">Manual Trigger</div>
+    <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem">
+      Fires the scheduled job immediately — picks a fresh motivational Sameta and posts to YouTube.
+    </p>
+    <div class="field">
+      <label>Admin Secret</label>
+      <input type="password" id="sameAdminSecret" placeholder="ADMIN_SECRET env variable">
+    </div>
+    <button class="btn-primary warm-btn" id="sameTriggerBtn" onclick="triggerSametaCron()" style="max-width:260px">
+      <span class="spinner"></span>
+      <span class="btn-text">Trigger Cron Job</span>
+    </button>
+    <div id="sameTriggerResult" style="font-size:0.85rem;margin-top:0.75rem;color:var(--muted)"></div>
+  </div>
+
+  <!-- Schedule info -->
+  <div class="card" style="margin-top:0">
+    <div class="card-header">Auto-Schedule</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+      <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:0.85rem;text-align:center">
+        <div style="font-size:1.2rem;font-weight:800;color:#f97316">7:00 AM</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:2px">IST daily</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:0.85rem;text-align:center">
+        <div style="font-size:1.2rem;font-weight:800;color:#f97316">6:00 PM</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:2px">IST daily</div>
+      </div>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);margin-top:0.75rem">
+      Enable with <code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px">SAMETA_AUTO_PUBLISH=true</code> in Railway Variables.
+    </p>
+  </div>
+
   <!-- Result -->
   <div id="sameResult" class="result-box"></div>
 
@@ -978,6 +1013,29 @@ async function triggerMahabharatCron() {
     const d = await r.json();
     result.style.color = d.success ? 'var(--success)' : 'var(--error)';
     result.textContent = d.success ? 'Job triggered — check Railway logs.' : (d.error || 'Failed.');
+  } catch (e) {
+    result.style.color = 'var(--error)';
+    result.textContent = e.message;
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+// ── Sameta cron trigger ───────────────────────────────────────────
+async function triggerSametaCron() {
+  const btn    = document.getElementById('sameTriggerBtn');
+  const result = document.getElementById('sameTriggerResult');
+  const secret = document.getElementById('sameAdminSecret').value.trim();
+  if (!secret) { result.textContent = 'Enter admin secret.'; return; }
+
+  setLoading(btn, true);
+  result.textContent = 'Triggering...';
+
+  try {
+    const r = await fetch(`/api/trigger-sameta-cron?secret=${encodeURIComponent(secret)}`, { method: 'POST' });
+    const d = await r.json();
+    result.style.color = d.success ? 'var(--success)' : 'var(--error)';
+    result.textContent = d.success ? 'Job triggered — check Railway logs for progress.' : (d.error || 'Failed.');
   } catch (e) {
     result.style.color = 'var(--error)';
     result.textContent = e.message;

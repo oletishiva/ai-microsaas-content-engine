@@ -200,4 +200,18 @@ router.post("/generate-sameta", async (req, res) => {
     }
 });
 
+// ── POST /api/trigger-sameta-cron ────────────────────────────────────────────
+// Manually fires the scheduled job — same as the 7 AM / 6 PM cron.
+// Protected by ADMIN_SECRET query param.
+router.post("/trigger-sameta-cron", async (req, res) => {
+    const secret      = req.query.secret || req.body?.secret || "";
+    const adminSecret = process.env.ADMIN_SECRET || "";
+    if (!adminSecret || secret !== adminSecret) {
+        return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+    res.json({ success: true, message: "Sameta cron job triggered — check logs for progress." });
+    const { runSametaJob } = require("../services/sametaScheduler");
+    runSametaJob().catch(err => logger.error("Sameta", "Manual trigger failed:", err.message));
+});
+
 module.exports = router;
