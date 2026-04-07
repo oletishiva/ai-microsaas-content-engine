@@ -849,12 +849,14 @@ async function generateMotivation() {
     const r = await fetch('/api/generate-video', { method: 'POST', body });
     const d = await r.json();
     if (d.success) {
+      const topicVal = document.getElementById('motTopic').value.trim() || 'Motivational thought for today';
+      const motTags  = '#motivation #shorts #viral #trending #mindset #successmindset #motivationalvideo #dailymotivation #growthmindset #morningmotivation #youtubeshorts #inspire #success #focus #discipline';
       let html = '<h3>Video ready!</h3>';
       const links = [];
-      if (d.videoUrl) links.push(`<a href="${d.videoUrl}" target="_blank">Watch Video</a>`);
+      if (d.videoUrl)  links.push(`<a href="${d.videoUrl}" target="_blank">Watch Video</a>`);
       if (d.youtubeUrl) links.push(`<a href="${d.youtubeUrl}" target="_blank">YouTube</a>`);
-      if (d.videoUrl) links.push(downloadLink(d.videoUrl));
       if (links.length) html += `<div class="result-links">${links.join('')}</div>`;
+      html += waPack(topicVal, motTags, d.videoUrl, null, 'motivation_video');
       showResult(result, 'success', html);
     } else {
       showResult(result, 'error', d.error || 'Generation failed.');
@@ -894,15 +896,17 @@ async function generateSameta() {
     });
     const d = await r.json();
     if (d.success) {
+      const sametaVal = document.getElementById('sametaText').value.trim() || 'తెలుగు సామెత — Telugu Proverb';
+      const sameTags  = '#TeluguSameta #Telugu #Sameta #TeluguQuotes #TeluguShorts #తెలుగు #viral #shorts #trending #TeluguMotivation #proverb #wisdom';
       let html = '<h3>Video ready!</h3>';
       const links = [];
-      if (d.videoUrl) links.push(`<a href="${d.videoUrl}" target="_blank">Watch Video</a>`);
-      if (d.youtubeUrl) links.push(`<a href="${d.youtubeUrl}" target="_blank">YouTube</a>`);
+      if (d.videoUrl)    links.push(`<a href="${d.videoUrl}" target="_blank">Watch Video</a>`);
+      if (d.youtubeUrl)  links.push(`<a href="${d.youtubeUrl}" target="_blank">YouTube</a>`);
       if (d.instagramUrl) links.push(`<a href="${d.instagramUrl}" target="_blank">Instagram</a>`);
-      if (d.facebookUrl) links.push(`<a href="${d.facebookUrl}" target="_blank">Facebook</a>`);
-      if (d.videoUrl) links.push(downloadLink(d.videoUrl));
+      if (d.facebookUrl)  links.push(`<a href="${d.facebookUrl}" target="_blank">Facebook</a>`);
       if (links.length) html += `<div class="result-links">${links.join('')}</div>`;
       if (d.imageUrl) html += imageForFlow(d.imageUrl, d.imagePrompt);
+      html += waPack(sametaVal, sameTags, d.videoUrl, d.imageUrl, 'sameta_video');
       showResult(result, 'success', html);
     } else {
       showResult(result, 'error', d.error || 'Generation failed.');
@@ -951,6 +955,61 @@ function showResult(el, type, html) {
   el.innerHTML = html;
   el.style.display = 'block';
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ── WhatsApp Content Pack ─────────────────────────────────────────
+// Reusable widget: copy caption, copy tags, save image/video to phone
+function waPack(caption, tags, videoUrl, imageUrl, filename) {
+  const uid  = Math.random().toString(36).slice(2, 8);
+  const safe = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const dlBtn = (url, fname, icon, label) =>
+    url ? `<a href="/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(fname)}" download
+      style="display:flex;align-items:center;justify-content:center;gap:0.4rem;padding:0.7rem 0.5rem;
+             border-radius:9px;border:1px solid rgba(37,211,102,0.35);background:rgba(37,211,102,0.07);
+             color:#25d366;text-decoration:none;font-size:0.8rem;font-weight:600;">${icon} ${label}</a>` : '';
+  return `
+<div style="margin-top:1rem;padding:1rem 1rem 0.85rem;background:rgba(37,211,102,0.05);
+     border:1px solid rgba(37,211,102,0.2);border-radius:12px;">
+  <div style="font-size:0.7rem;font-weight:700;color:#25d366;letter-spacing:0.07em;margin-bottom:0.85rem;">
+    📱 WHATSAPP CONTENT PACK
+  </div>
+
+  <div style="margin-bottom:0.65rem;">
+    <div style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.3rem;">💬 Caption</div>
+    <div id="wapCap_${uid}" style="font-size:0.78rem;line-height:1.65;background:rgba(0,0,0,0.3);padding:0.65rem 0.8rem;
+         border-radius:8px;color:rgba(255,255,255,0.82);white-space:pre-wrap;word-break:break-word;">${safe(caption)}</div>
+    <button onclick="copyWapEl('wapCap_${uid}',this)"
+      style="margin-top:0.35rem;width:100%;padding:0.6rem;border-radius:8px;
+             border:1px solid rgba(37,211,102,0.35);background:rgba(37,211,102,0.07);
+             color:#25d366;font-size:0.8rem;font-weight:600;cursor:pointer;">📋 Copy Caption</button>
+  </div>
+
+  <div style="margin-bottom:0.85rem;">
+    <div style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.3rem;"># Viral Tags</div>
+    <div id="wapTags_${uid}" style="font-size:0.7rem;line-height:1.75;background:rgba(0,0,0,0.3);padding:0.5rem 0.8rem;
+         border-radius:8px;color:rgba(255,255,255,0.45);">${safe(tags)}</div>
+    <button onclick="copyWapEl('wapTags_${uid}',this)"
+      style="margin-top:0.35rem;width:100%;padding:0.6rem;border-radius:8px;
+             border:1px solid rgba(37,211,102,0.35);background:rgba(37,211,102,0.07);
+             color:#25d366;font-size:0.8rem;font-weight:600;cursor:pointer;">📋 Copy Tags</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.15rem;">
+    ${dlBtn(imageUrl, filename+'_image.jpg', '📸', 'Save Image')}
+    ${dlBtn(videoUrl, filename+'.mp4',       '🎬', 'Save Video')}
+  </div>
+</div>`;
+}
+
+function copyWapEl(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent.trim()).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✅ Copied!';
+    btn.style.background = 'rgba(37,211,102,0.18)';
+    setTimeout(() => { btn.textContent = orig; btn.style.background = 'rgba(37,211,102,0.07)'; }, 1800);
+  });
 }
 
 // ── Init ──────────────────────────────────────────────────────────

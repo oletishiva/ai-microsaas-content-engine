@@ -1115,6 +1115,14 @@
           </div>`;
         resultDiv.appendChild(flowDiv);
       }
+
+      // WhatsApp content pack
+      if (data.script) {
+        const packEl = document.createElement("div");
+        packEl.innerHTML = mbWaPack(data);
+        resultDiv.appendChild(packEl);
+      }
+
     } catch (e) {
       statusEl.style.color = "var(--red)";
       clearTimeout(timeoutId);
@@ -1273,6 +1281,13 @@
       note.style.cssText = "color:var(--muted2);font-size:0.8rem;";
       linksEl.appendChild(note);
     }
+
+    // WhatsApp content pack
+    if (data.script) {
+      const packEl = document.createElement("div");
+      packEl.innerHTML = mbWaPack(data);
+      resultDiv.appendChild(packEl);
+    }
   }
 
   // ── Save video to device (Camera Roll on iOS, download on desktop) ──────
@@ -1300,6 +1315,63 @@
     } finally {
       if (btnEl) { btnEl.disabled = false; btnEl.textContent = orig; }
     }
+  }
+
+  // ── WhatsApp Content Pack ──────────────────────────────────────────────
+  function mbWaPack(data) {
+    const s   = data.script || {};
+    const ep  = String(data.epNumber || epNumber).padStart(2, "0");
+    const cap = [s.hook, s.lesson, s.cta].filter(Boolean).join("\n\n");
+    const tags = [
+      "#Mahabharat", "#TeluguShorts", "#TeluguMotivation",
+      s.character ? `#${s.character}` : "",
+      s.category  ? `#${s.category.replace(/\s+/g, "")}` : "",
+      "#మహాభారతం", "#shorts", "#viral", "#trending", "#motivation", "#lifelessons",
+    ].filter(Boolean).join(" ");
+
+    const uid = Math.random().toString(36).slice(2, 8);
+    const safe = t => String(t || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const dlBtn = (url, fname, icon, lbl) => url
+      ? `<a href="/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(fname)}" download
+           style="display:flex;align-items:center;justify-content:center;gap:0.4rem;padding:0.7rem 0.5rem;
+                  border-radius:9px;border:1px solid rgba(37,211,102,0.35);background:rgba(37,211,102,0.07);
+                  color:#25d366;text-decoration:none;font-size:0.8rem;font-weight:600;">${icon} ${lbl}</a>` : "";
+
+    return `<div style="margin-top:1rem;padding:1rem 1rem 0.85rem;background:rgba(37,211,102,0.05);
+      border:1px solid rgba(37,211,102,0.2);border-radius:12px;">
+      <div style="font-size:0.7rem;font-weight:700;color:#25d366;letter-spacing:0.07em;margin-bottom:0.85rem;">📱 WHATSAPP CONTENT PACK</div>
+      <div style="margin-bottom:0.65rem;">
+        <div style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.3rem;">💬 Caption</div>
+        <div id="wapCap_${uid}" style="font-size:0.78rem;line-height:1.65;background:rgba(0,0,0,0.3);padding:0.65rem 0.8rem;
+             border-radius:8px;color:rgba(255,255,255,0.82);white-space:pre-wrap;word-break:break-word;">${safe(cap)}</div>
+        <button onclick="mbCopyWap('wapCap_${uid}',this)" style="margin-top:0.35rem;width:100%;padding:0.6rem;border-radius:8px;
+             border:1px solid rgba(37,211,102,0.35);background:rgba(37,211,102,0.07);
+             color:#25d366;font-size:0.8rem;font-weight:600;cursor:pointer;">📋 Copy Caption</button>
+      </div>
+      <div style="margin-bottom:0.85rem;">
+        <div style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.3rem;"># Viral Tags</div>
+        <div id="wapTags_${uid}" style="font-size:0.7rem;line-height:1.75;background:rgba(0,0,0,0.3);padding:0.5rem 0.8rem;
+             border-radius:8px;color:rgba(255,255,255,0.45);">${safe(tags)}</div>
+        <button onclick="mbCopyWap('wapTags_${uid}',this)" style="margin-top:0.35rem;width:100%;padding:0.6rem;border-radius:8px;
+             border:1px solid rgba(37,211,102,0.35);background:rgba(37,211,102,0.07);
+             color:#25d366;font-size:0.8rem;font-weight:600;cursor:pointer;">📋 Copy Tags</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+        ${dlBtn(data.imageUrl, `mahabharat_ep${ep}_scene1.jpg`, "📸", "Save Image")}
+        ${dlBtn(data.videoUrl, `mahabharat_ep${ep}.mp4`,        "🎬", "Save Video")}
+      </div>
+    </div>`;
+  }
+
+  function mbCopyWap(id, btn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent.trim()).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = "✅ Copied!";
+      btn.style.background = "rgba(37,211,102,0.18)";
+      setTimeout(() => { btn.textContent = orig; btn.style.background = "rgba(37,211,102,0.07)"; }, 1800);
+    });
   }
 
   // ── History ────────────────────────────────────────────────────────────
