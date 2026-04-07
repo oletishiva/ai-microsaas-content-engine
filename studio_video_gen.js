@@ -221,20 +221,23 @@ async function compositeScene(imagePath, sceneIdx, totalScenes, content, languag
         return { buf, w: w || TEXT_W, h: h || 0 };
     }
 
-    // ── Top gradient ──────────────────────────────────────────────────────
-    const topH   = 220;
+    // ── Top gradient — must cover the hook text area ─────────────────────
+    const topH   = 340; // taller to cover hook sitting inside 12% safe-zone
     const topSvg = `<svg width="${W}" height="${topH}" xmlns="http://www.w3.org/2000/svg">
       <defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%"   stop-color="#000" stop-opacity="0.85"/>
+        <stop offset="0%"   stop-color="#000" stop-opacity="0.90"/>
+        <stop offset="70%"  stop-color="#000" stop-opacity="0.40"/>
         <stop offset="100%" stop-color="#000" stop-opacity="0"/>
       </linearGradient></defs>
       <rect width="${W}" height="${topH}" fill="url(#tg)"/>
     </svg>`;
     composites.push({ input: await sharp(Buffer.from(topSvg)).png().toBuffer(), top: 0, left: 0 });
 
-    // ── Hook — only on scene 0, large at top ──────────────────────────────
+    // ── Hook — only on scene 0, placed inside YouTube Shorts safe zone ────
+    // YouTube Shorts top chrome (progress bar + back btn) covers ~10% = 192px.
+    // Start hook at 12% (~230px) so it is never clipped by the player UI.
     if (sceneIdx === 0 && hook) {
-        let hookY = Math.floor(H * 0.05); // 5% from top (~96px) — avoids top crop on Shorts
+        let hookY = Math.floor(H * 0.12); // 12% from top (~230px) — safely below Shorts chrome
         for (const line of wrapText(hook, maxChars)) {
             const { buf, w, h } = await rt(line, lang.isLatin ? 44 : 38, "#FFFFFF", "bold");
             composites.push({ input: buf, top: hookY, left: Math.floor((W - w) / 2) });
