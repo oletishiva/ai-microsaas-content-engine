@@ -22,6 +22,11 @@ const { OUTPUT_DIR } = require("../../config/paths");
 const apiKeys = require("../../config/apiKeys");
 const logger = require("../../utils/logger");
 const { generateNotebookVideo } = require("../../notebook_video_gen");
+const fs = require("fs");
+
+function cleanup(...paths) {
+    paths.forEach(p => { if (p) try { fs.unlinkSync(p); } catch (_) {} });
+}
 
 const SCHEDULES = [
     // ── Core 6 — UTC times hit USA + UK + Germany + India simultaneously ──

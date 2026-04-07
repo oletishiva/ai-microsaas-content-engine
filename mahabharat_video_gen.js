@@ -25,12 +25,9 @@
 
 require("dotenv").config();
 const Anthropic    = require("@anthropic-ai/sdk");
-const OpenAI       = require("openai");
 const sharp        = require("sharp");
 const fs           = require("fs");
 const path         = require("path");
-const https        = require("https");
-const http         = require("http");
 const { execSync } = require("child_process");
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -39,7 +36,6 @@ const GOLD  = "#C9A84C";
 const WHITE = "#FFFFFF";
 
 const CLIP_DUR    = 7.5;    // seconds per scene (4 × 7.5 = 30s)
-const FADE_DUR    = 0.5;    // xfade crossfade duration
 const TOTAL_CLIPS = 4;
 
 // Scene → script section mapping
@@ -59,20 +55,6 @@ function pickMusic() {
     return path.join(dir, files[Math.floor(Math.random() * files.length)]);
 }
 
-function downloadFile(url, dest) {
-    return new Promise((resolve, reject) => {
-        const file = fs.createWriteStream(dest);
-        const get  = url.startsWith("https") ? https.get : http.get;
-        get(url, (res) => {
-            if ([301, 302].includes(res.statusCode))
-                return downloadFile(res.headers.location, dest).then(resolve).catch(reject);
-            if (res.statusCode !== 200)
-                return reject(new Error(`HTTP ${res.statusCode} downloading image`));
-            res.pipe(file);
-            file.on("finish", () => { file.close(); resolve(); });
-        }).on("error", reject);
-    });
-}
 
 function escapeXml(str) {
     return String(str || "")
@@ -206,33 +188,6 @@ async function generateGeminiImage(prompt, outputPath) {
     throw lastErr || new Error("All Gemini image models failed");
 }
 
-// ── Step 2b: DALL-E 3 fallback ────────────────────────────────────────────────
-async function generateDalleImage(prompt, outputPath, character) {
-    const openai = new OpenAI.default({ apiKey: process.env.OPENAI_API_KEY });
-
-    const tryGen = async (p) => {
-        const r = await openai.images.generate({
-            model: "dall-e-3", prompt: p, n: 1,
-            size: "1024x1792", quality: "hd",
-        });
-        return r.data[0].url;
-    };
-
-    let url;
-    try {
-        url = await tryGen(prompt);
-    } catch (err) {
-        if (err.status === 400 && err.message?.includes("safety")) {
-            console.warn("   DALL-E safety hit — using safe fallback prompt");
-            url = await tryGen(
-                `Premium Mahabharat illustration, ${character || "ancient sage"} in golden light, ` +
-                `ornate ancient Indian royal attire, dramatic saffron sky, Amar Chitra Katha art style, ` +
-                `emotional intensity, no text, no borders, 9:16 portrait`
-            );
-        } else throw err;
-    }
-    await downloadFile(url, outputPath);
-}
 
 // ── Step 3: Sharp — cinematic text overlay ────────────────────────────────────
 //
@@ -385,41 +340,32 @@ function buildClip(imagePath, sceneIdx, duration, clipPath) {
     console.log(`   ✅ Clip ${sceneIdx + 1} built (${Date.now() - t0}ms)`);
 }
 
-// ── Step 5: xfade merge + music ───────────────────────────────────────────────
+// ── Step 5: concat merge + music ─────────────────────────────────────────────
+// Uses concat demuxer (not filter_complex xfade) to avoid loading all 4 streams
+// into memory simultaneously — prevents OOM kill on Railway's constrained memory.
+// Clips already have smooth pan motion so hard cuts between scenes look fine.
 function mergeClips(clipPaths, musicPath, videoPath) {
     const n        = clipPaths.length;
-    const stepDur  = CLIP_DUR - FADE_DUR;            // 7.0s between xfade offsets
-    const totalDur = n * CLIP_DUR - (n - 1) * FADE_DUR; // 28.5s
+    const totalDur = n * CLIP_DUR; // 30s exact (no xfade overlap)
 
-    const inputs = clipPaths.map(p => `-i "${p}"`).join(" ");
-
-    // Build xfade chain: [0][1]xfade→[v1], [v1][2]xfade→[v2], [v2][3]xfade→[vcross]
-    let filter = "";
-    let prev   = "0:v";
-    for (let i = 1; i < n; i++) {
-        const offset = i * stepDur;
-        const out    = i === n - 1 ? "vcross" : `v${i}`;
-        filter      += `[${prev}][${i}:v]xfade=transition=fade:duration=${FADE_DUR}:offset=${offset}[${out}];`;
-        prev         = out;
-    }
-    // Final global fade in/out
-    filter += `[vcross]fade=t=in:st=0:d=0.5,fade=t=out:st=${totalDur - 1.2}:d=1.0[vout]`;
+    // Write a concat list file next to the output
+    const concatList = videoPath.replace(/\.mp4$/, "_concat.txt");
+    fs.writeFileSync(concatList, clipPaths.map(p => `file '${p}'`).join("\n"));
 
     const cmd = [
         "ffmpeg -y",
-        inputs,
+        `-f concat -safe 0 -i "${concatList}"`,
         `-i "${musicPath}"`,
-        `-filter_complex "${filter}"`,
-        `-map "[vout]" -map ${n}:a`,
+        `-vf "fade=t=in:st=0:d=0.5,fade=t=out:st=${totalDur - 1.2}:d=1.0"`,
+        `-map 0:v -map 1:a`,
         `-t ${totalDur}`,
-        `-c:v libx264 -preset fast -profile:v baseline -level 3.1 -crf 22 -pix_fmt yuv420p -r 30 -threads 2`,
+        `-c:v libx264 -preset fast -profile:v baseline -level 3.1 -crf 22 -pix_fmt yuv420p -r 30 -threads 1`,
         `-c:a aac -b:a 128k -ar 44100 -ac 2 -shortest`,
         `-movflags +faststart`,
         `"${videoPath}"`,
     ].join(" ");
 
-    console.log(`   [FFmpeg] Merging ${n} clips with xfade...`);
-    console.log(`   [FFmpeg] Filter: ${filter}`);
+    console.log(`   [FFmpeg] Merging ${n} clips with concat...`);
     const t0 = Date.now();
     try {
         execSync(cmd, { stdio: "pipe", timeout: 300000 });
@@ -427,6 +373,8 @@ function mergeClips(clipPaths, musicPath, videoPath) {
         const stderr = err.stderr?.toString() || err.stdout?.toString() || "";
         console.error(`   [FFmpeg] Merge failed:\n${stderr.slice(-1000)}`);
         throw new Error(`FFmpeg merge failed: ${stderr.slice(-400)}`);
+    } finally {
+        try { fs.unlinkSync(concatList); } catch (_) {}
     }
     console.log(`✅ Final video: ${path.basename(videoPath)} (${totalDur.toFixed(1)}s, ${Date.now() - t0}ms)`);
 }
@@ -466,24 +414,11 @@ async function generateMahabharatVideo({ script, epNumber = 1, outputDir = __dir
 
         console.log(`\n🔄 Scene ${i + 1}/4 [${scene.section}]`);
 
-        // Generate image — try Gemini first, then DALL-E
-        try {
-            if (useGemini) {
-                await generateGeminiImage(scenePrompts[i], imgPath);
-                console.log(`   ✅ Gemini image ${i + 1}`);
-            } else {
-                await generateDalleImage(scenePrompts[i], imgPath, script.character);
-                console.log(`   ✅ DALL-E image ${i + 1}`);
-            }
-        } catch (err) {
-            if (useGemini && process.env.OPENAI_API_KEY) {
-                console.warn(`   Gemini failed: ${err.message} — falling back to DALL-E`);
-                await generateDalleImage(scenePrompts[i], imgPath, script.character);
-                console.log(`   ✅ DALL-E fallback image ${i + 1}`);
-            } else {
-                throw err;
-            }
-        }
+        // Generate image via Gemini only — no DALL-E fallback (cost control)
+        // If Gemini quota exceeded, use the manual image flow instead.
+        if (!useGemini) throw new Error("GEMINI_API_KEY not set — use the manual image flow");
+        await generateGeminiImage(scenePrompts[i], imgPath);
+        console.log(`   ✅ Gemini image ${i + 1}`);
 
         if (i === 0) firstImgPath = imgPath; // keep first raw image for Cloudinary/Flow
         rawImages.push(imgPath);
