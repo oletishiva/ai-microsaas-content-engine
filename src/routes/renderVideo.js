@@ -213,14 +213,14 @@ router.post("/render-video", async (req, res) => {
         const videoFlags = `-c:v libx264 -preset fast -profile:v baseline -level 3.1 -crf 23 -pix_fmt yuv420p -r 30 -threads 2`;
 
         if (hasHook) {
-            // Render hook clip (2s, no audio)
+            // Render hook clip (2s) — with silent audio so concat streams match
             execSync([
-                `ffmpeg -y -loop 1 -framerate 30 -t ${HOOK_DUR} -i "${hookComp}"`,
+                `ffmpeg -y -loop 1 -framerate 30 -t ${HOOK_DUR} -i "${hookComp}" -f lavfi -i anullsrc=r=44100:cl=stereo`,
                 `-vf "scale=${SW}:${SH},crop=${W}:${H}:'(${SW}-${W})/2':'(${SH}-${H})/2',fade=t=in:st=0:d=0.5"`,
-                `-t ${HOOK_DUR} ${videoFlags} -an "${hookClip}"`,
+                `-t ${HOOK_DUR} ${videoFlags} -c:a aac -b:a 128k -ar 44100 -ac 2 -shortest "${hookClip}"`,
             ].join(" "), { stdio: "pipe" });
 
-            // Render quote clip with music
+            // Render quote clip with music (or silent audio)
             if (musicPath) {
                 execSync([
                     `ffmpeg -y -loop 1 -framerate 30 -t ${QUOTE_DUR} -i "${quoteComp}" -i "${musicPath}"`,
@@ -229,19 +229,18 @@ router.post("/render-video", async (req, res) => {
                 ].join(" "), { stdio: "pipe" });
             } else {
                 execSync([
-                    `ffmpeg -y -loop 1 -framerate 30 -t ${QUOTE_DUR} -i "${quoteComp}"`,
+                    `ffmpeg -y -loop 1 -framerate 30 -t ${QUOTE_DUR} -i "${quoteComp}" -f lavfi -i anullsrc=r=44100:cl=stereo`,
                     `-vf "scale=${SW}:${SH},crop=${W}:${H}:'(${SW}-${W})*t/${QUOTE_DUR}':'(${SH}-${H})/2',fade=t=out:st=${QUOTE_DUR-1}:d=1"`,
-                    `-t ${QUOTE_DUR} ${videoFlags} -an "${quoteClip}"`,
+                    `-t ${QUOTE_DUR} ${videoFlags} -c:a aac -b:a 128k -ar 44100 -ac 2 -shortest "${quoteClip}"`,
                 ].join(" "), { stdio: "pipe" });
             }
 
-            // Concat hook + quote with xfade
-            execSync([
-                `ffmpeg -y -i "${hookClip}" -i "${quoteClip}"`,
-                `-filter_complex "[0:v][1:v]xfade=transition=fade:duration=0.4:offset=${HOOK_DUR - 0.4}[v]`,
-                musicPath ? `;[1:a]adelay=${Math.round(HOOK_DUR*1000)}|${Math.round(HOOK_DUR*1000)}[a]" -map "[v]" -map "[a]"` : `" -map "[v]"`,
-                `-movflags +faststart "${vidPath}"`,
-            ].join(" "), { stdio: "pipe" });
+            // Concat hook + quote using demuxer (sequential, no OOM)
+            fs.writeFileSync(concatList, `file '${hookClip}'\nfile '${quoteClip}'\n`);
+            execSync(
+                `ffmpeg -y -f concat -safe 0 -i "${concatList}" -c copy -movflags +faststart "${vidPath}"`,
+                { stdio: "pipe" }
+            );
 
         } else {
             // No hook — single quote clip
