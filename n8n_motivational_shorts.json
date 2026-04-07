@@ -1,0 +1,209 @@
+{
+  "name": "Motivational Shorts - Railway FFmpeg",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a81b0848-b4a9-4741-82fd-0c55f1933ec1",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [-656, 16],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-20250514",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are a viral YouTube Shorts content creator who deeply understands human psychology, pain points, and what makes people stop scrolling.\n\nYour goal: Create content that hits someone so hard they share it immediately.\n\nTrigger emotions like: regret, silent struggle, hidden pain, suppressed ambition, fear of mediocrity, late-night loneliness, the cost of giving up.\n\nReturn ONLY valid JSON (no markdown, no explanation):\n\n{\n  \"hook\": \"Max 7 words. Must feel like someone is reading your mind. Use 'You', 'They', 'Nobody', 'Stop', 'This is why' style openers. Create instant emotional shock or curiosity.\",\n\n  \"quote\": \"20-25 words. Raw, painful truth or hard-won realization. Should feel like advice from someone who failed 100 times before succeeding. Avoid generic lines like 'believe in yourself'. Go deeper.\",\n\n  \"imagePrompt\": \"Ultra cinematic 9:16 portrait. ONE powerful visual metaphor that matches the quote emotion — e.g.: lone figure standing at edge of storm, broken shackles at sunrise, man carrying mountain on back, single candle in absolute darkness, seed cracking concrete, hands releasing a bird. Dramatic chiaroscuro lighting, rich depth, atmospheric fog or golden rays. Hyper-detailed, museum quality, emotionally overwhelming. No text, no watermarks.\",\n\n  \"youtubeTitle\": \"Short curiosity-gap title under 60 chars that forces a click | #Shorts\",\n\n  \"youtubeTags\": [\"Motivation\", \"Success\", \"Mindset\", \"Discipline\", \"Growth\", \"Shorts\", \"ViralMotivation\", \"HardTruths\", \"SelfImprovement\", \"Hustle\"]\n}\n\nRules:\n- Hook = the first 2 seconds that decide if they stay or scroll\n- Quote = the line they screenshot and send to someone\n- Image = the visual that makes them pause before they even read\n- No clichés. No 'believe in yourself'. No 'never give up' without a twist\n- Strict JSON only"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [-368, 16],
+      "id": "d5741f27-01f2-415a-9d81-f231cf7ceb27",
+      "name": "Generate Content (Claude)",
+      "credentials": {
+        "anthropicApi": {
+          "id": "d5piYDLpw8vU1hLA",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  let raw = item.json.content?.[0]?.text || item.json.text || '';\n  raw = raw.replace(/```json/g, '').replace(/```/g, '').trim();\n  let parsed = {};\n  try { parsed = JSON.parse(raw); } catch (e) { console.error('JSON parse failed:', e.message); }\n  return {\n    json: {\n      hook:         parsed.hook         || 'This will change your life',\n      prompt:       parsed.imagePrompt  || 'Cinematic lone figure at sunrise, dramatic lighting, 9:16 portrait',\n      quote:        parsed.quote        || 'The cost of doing nothing is higher than the cost of trying.',\n      youtubeTitle: parsed.youtubeTitle || 'Hard Truth #Shorts',\n      youtubeTags:  (parsed.youtubeTags || ['Motivation','Shorts']).join(',')\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-100, 16],
+      "id": "b6a04eaa-83d7-46b6-8823-cbbc0098868c",
+      "name": "Parse Response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/generations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_OPENAI_API_KEY_HERE"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "model",  "value": "dall-e-3" },
+            { "name": "prompt", "value": "={{ $json.prompt }}" },
+            { "name": "size",   "value": "1024x1792" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "61aa3f02-1d24-4cd8-881f-78ff3fdc6933",
+      "name": "Generate Image (DALL-E 3)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [160, 16],
+      "typeVersion": 4.4
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => ({\n  json: { dalleUrl: item.json.data[0].url }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [370, 16],
+      "id": "8614d593-1f39-40c2-ac8c-fd994b66ff59",
+      "name": "Extract Image URL"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudinary.com/v1_1/djv4gwrdu/image/upload",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "file",          "value": "={{ $json.dalleUrl }}" },
+            { "name": "upload_preset", "value": "default" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c7f0d17e-ffc2-44c8-8021-83b858ea6d99",
+      "name": "Upload Image to Cloudinary",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [580, 16],
+      "typeVersion": 4.4
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ai-microsaas-content-engine-production.up.railway.app/api/render-video",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "imageUrl", "value": "={{ $json.secure_url }}" },
+            { "name": "hook",     "value": "={{ $('Parse Response').first().json.hook }}" },
+            { "name": "quote",    "value": "={{ $('Parse Response').first().json.quote }}" },
+            { "name": "music",    "value": "true" }
+          ]
+        },
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "a2e31700-2979-4a92-b8c2-6b558c02705b",
+      "name": "Render Video (Railway FFmpeg)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [790, 16],
+      "typeVersion": 4.4
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.videoUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "e2648e05-6490-46c2-9a14-efc5ab407224",
+      "name": "Download Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1000, 16],
+      "typeVersion": 4.4
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $('Parse Response').first().json.youtubeTitle }}",
+        "options": {
+          "description": "={{ $('Parse Response').first().json.hook + '\\n\\n' + $('Parse Response').first().json.quote + '\\n\\n#Motivation #Shorts #Success #Mindset #Discipline #Growth #SelfImprovement #Hustle #HardTruths #ViralMotivation' }}",
+          "tags": "={{ $('Parse Response').first().json.youtubeTags }}",
+          "privacyStatus": "public",
+          "categoryId": "27"
+        }
+      },
+      "id": "d49aafa2-5055-4d3a-aa0a-34af10acce8c",
+      "name": "Upload to YouTube",
+      "type": "n8n-nodes-base.youTube",
+      "position": [1210, 16],
+      "typeVersion": 1,
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "r5sQJvlrz3W1AgYH",
+          "name": "YouTube account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start": {
+      "main": [[{ "node": "Generate Content (Claude)", "type": "main", "index": 0 }]]
+    },
+    "Generate Content (Claude)": {
+      "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Response": {
+      "main": [[{ "node": "Generate Image (DALL-E 3)", "type": "main", "index": 0 }]]
+    },
+    "Generate Image (DALL-E 3)": {
+      "main": [[{ "node": "Extract Image URL", "type": "main", "index": 0 }]]
+    },
+    "Extract Image URL": {
+      "main": [[{ "node": "Upload Image to Cloudinary", "type": "main", "index": 0 }]]
+    },
+    "Upload Image to Cloudinary": {
+      "main": [[{ "node": "Render Video (Railway FFmpeg)", "type": "main", "index": 0 }]]
+    },
+    "Render Video (Railway FFmpeg)": {
+      "main": [[{ "node": "Download Video", "type": "main", "index": 0 }]]
+    },
+    "Download Video": {
+      "main": [[{ "node": "Upload to YouTube", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "instanceId": "70502d0b69e1219941ba78b24a740a42e1947138a2276f152b08e18cdd2d0590"
+  },
+  "tags": []
+}
