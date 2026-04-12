@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>AI Video Studio</title>
+  <style>
+    :root {
+      --bg:       #0b0b10;
+      --surface:  #131318;
+      --card:     #1a1a22;
+      --card2:    #1e1e28;
+      --border:   rgba(255,255,255,0.07);
+      --text:     #e8e8f2;
+      --muted:    #7878a0;
+      --accent:   #7c3aed;
+      --accent2:  #6d28d9;
+      --accentRg: rgba(124,58,237,0.15);
+      --gold:     #fcd34d;
+      --green:    #10b981;
+      --wa:       #25d366;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh; -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    .hdr {
+      background: linear-gradient(135deg, #130a22 0%, #0b0b10 70%);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 40;
+      backdrop-filter: blur(12px);
+    }
+    .hdr-logo { display: flex; align-items: center; gap: 0.75rem; }
+    .hdr-icon {
+      width: 38px; height: 38px; flex-shrink: 0;
+      background: linear-gradient(135deg, #7c3aed, #3b82f6);
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+    }
+    .hdr-title { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.01em; }
+    .hdr-sub   { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+    .back-link {
+      display: flex; align-items: center; gap: 0.4rem;
+      color: var(--muted); text-decoration: none; font-size: 0.82rem;
+      padding: 0.45rem 0.9rem; border: 1px solid var(--border); border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .back-link:hover { color: var(--text); border-color: rgba(124,58,237,0.5); }
+
+    /* ── Body ────────────────────────────────────────────────────────── */
+    .body { max-width: 860px; margin: 0 auto; padding: 1.5rem 1.25rem 7rem; }
+
+    /* ── Section cards ────────────────────────────────────────────────── */
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; margin-bottom: 1rem; overflow: hidden;
+    }
+    .card-hdr {
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0.9rem 1.25rem; border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.018);
+    }
+    .card-num {
+      width: 24px; height: 24px; flex-shrink: 0;
+      background: var(--accent); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 800; color: #fff;
+    }
+    .card-title { font-size: 0.9rem; font-weight: 600; }
+    .card-body  { padding: 1.25rem; }
+
+    /* ── Field groups ─────────────────────────────────────────────────── */
+    .fg { margin-bottom: 1rem; }
+    .fg:last-child { margin-bottom: 0; }
+    .fl {
+      font-size: 0.72rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      margin-bottom: 0.45rem; display: flex; align-items: center; gap: 0.4rem;
+    }
+    .badge {
+      font-size: 0.64rem; font-weight: 600; letter-spacing: 0;
+      text-transform: none; padding: 2px 6px; border-radius: 4px;
+      background: var(--accentRg); color: #a78bfa;
+    }
+    .badge.req { background: rgba(16,185,129,0.12); color: #34d399; }
+
+    input[type=text], textarea {
+      width: 100%; background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.75rem 1rem; color: var(--text);
+      font-family: inherit; font-size: 0.9rem; outline: none;
+      transition: border-color 0.2s; resize: vertical;
+    }
+    input[type=text]:focus, textarea:focus { border-color: var(--accent); }
+    input::placeholder, textarea::placeholder { color: var(--muted); }
+    textarea { min-height: 130px; line-height: 1.6; }
+
+    /* ── Language pills ───────────────────────────────────────────────── */
+    .pills { display: flex; gap: 0.45rem; flex-wrap: wrap; }
+    .pill {
+      padding: 0.38rem 0.9rem; border-radius: 20px; font-size: 0.82rem; font-weight: 500;
+      border: 1.5px solid var(--border); background: transparent; color: var(--muted);
+      cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .pill.active  { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .pill:hover:not(.active) { border-color: rgba(124,58,237,0.5); color: var(--text); }
+
+    /* ── Mode toggle ──────────────────────────────────────────────────── */
+    .mode-wrap { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; }
+    .mode-card {
+      flex: 1; padding: 1rem; border-radius: 12px; cursor: pointer;
+      border: 2px solid var(--border); background: var(--surface);
+      transition: all 0.2s; text-align: center;
+    }
+    .mode-card.active { border-color: var(--accent); background: var(--accentRg); }
+    .mode-card:hover:not(.active) { border-color: rgba(124,58,237,0.35); }
+    .mode-icon  { font-size: 1.5rem; margin-bottom: 0.35rem; }
+    .mode-label { font-size: 0.88rem; font-weight: 700; }
+    .mode-desc  { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; line-height: 1.4; }
+
+    /* ── Chips (scenes / duration / style) ───────────────────────────── */
+    .chips { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .chip {
+      padding: 0.42rem 1rem; border-radius: 8px; font-size: 0.84rem; font-weight: 500;
+      border: 1.5px solid var(--border); background: transparent; color: var(--muted);
+      cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .chip.active  { background: var(--accentRg); border-color: var(--accent); color: #c4b5fd; }
+    .chip:hover:not(.active) { border-color: rgba(255,255,255,0.18); color: var(--text); }
+
+    /* ── Image upload grid ────────────────────────────────────────────── */
+    .img-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.7rem;
+      margin-top: 0.8rem;
+    }
+    .img-slot {
+      aspect-ratio: 9/16; border: 2px dashed var(--border); border-radius: 12px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.25s; position: relative; overflow: hidden;
+      background: var(--surface);
+    }
+    .img-slot:hover { border-color: var(--accent); background: rgba(124,58,237,0.05); }
+    .img-slot.filled { border-style: solid; border-color: var(--accent); }
+    .img-slot input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .slot-num   { position: absolute; top: 6px; left: 8px; font-size: 0.62rem; font-weight: 800; color: var(--muted); }
+    .slot-icon  { font-size: 1.4rem; margin-bottom: 0.25rem; color: var(--muted); pointer-events: none; }
+    .slot-lbl   { font-size: 0.65rem; color: var(--muted); text-align: center; line-height: 1.4; pointer-events: none; }
+    .slot-img   { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 10px; pointer-events: none; }
+    .slot-rm {
+      position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; display: none;
+      background: rgba(0,0,0,0.75); border: none; border-radius: 50%;
+      color: #fff; font-size: 0.65rem; cursor: pointer; z-index: 2;
+      align-items: center; justify-content: center;
+    }
+    .img-slot.filled .slot-rm { display: flex; }
+    .img-hint { font-size: 0.72rem; color: var(--muted); margin-top: 0.6rem; line-height: 1.5; }
+
+    /* ── Music toggle ─────────────────────────────────────────────────── */
+    .toggle-row { display: flex; align-items: center; gap: 0.75rem; }
+    .toggle-lbl { font-size: 0.88rem; }
+    .toggle {
+      appearance: none; width: 42px; height: 23px; flex-shrink: 0;
+      background: rgba(255,255,255,0.1); border-radius: 999px; border: none;
+      position: relative; cursor: pointer; transition: background 0.25s;
+    }
+    .toggle::after {
+      content: ""; position: absolute; top: 2px; left: 2px;
+      width: 19px; height: 19px; background: #fff; border-radius: 50%; transition: transform 0.25s;
+    }
+    .toggle:checked { background: var(--accent); }
+    .toggle:checked::after { transform: translateX(19px); }
+
+    /* ── Auth banners ─────────────────────────────────────────────────── */
+    .auth-banner {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.75rem; padding: 0.75rem 1rem; border-radius: 10px;
+      font-size: 0.82rem; margin-bottom: 0.6rem; flex-wrap: wrap;
+    }
+    .auth-banner.disconnected {
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--muted);
+    }
+    .auth-banner.connected {
+      background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); color: #34d399;
+      display: none;
+    }
+    .auth-banner .auth-name { font-weight: 600; }
+    .auth-banner a, .auth-banner button {
+      padding: 0.35rem 0.85rem; border-radius: 7px; font-size: 0.78rem; font-weight: 700;
+      text-decoration: none; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .auth-banner.disconnected a {
+      background: var(--accent); color: #fff; border: none;
+    }
+    .auth-banner.disconnected a:hover { background: var(--accent2); }
+    .auth-banner.connected button {
+      background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+      color: var(--muted); font-family: inherit;
+    }
+    .auth-banner.connected button:hover { color: var(--text); }
+
+    /* ── Platform selectors ───────────────────────────────────────────── */
+    .platform-row { display: flex; gap: 0.65rem; flex-wrap: wrap; }
+    .plat {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 0.55rem 0.95rem; cursor: pointer; transition: all 0.2s; user-select: none;
+    }
+    .plat.on { border-color: var(--accent); background: var(--accentRg); }
+    .plat input { display: none; }
+    .plat-name  { font-size: 0.84rem; font-weight: 600; }
+    .plat-box {
+      width: 16px; height: 16px; border: 2px solid var(--border); border-radius: 4px;
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0;
+    }
+    .plat.on .plat-box { background: var(--accent); border-color: var(--accent); }
+    .plat.on .plat-box::after { content: "✓"; font-size: 0.65rem; color: #fff; font-weight: 900; }
+
+    /* ── Progress card ────────────────────────────────────────────────── */
+    .prog-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 1.5rem; margin-bottom: 1rem; display: none;
+    }
+    .prog-title {
+      font-size: 0.9rem; font-weight: 600; margin-bottom: 1.1rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    /* Bar track */
+    .prog-bar-track {
+      height: 8px; background: rgba(255,255,255,0.07);
+      border-radius: 999px; overflow: hidden; margin-bottom: 0.7rem;
+    }
+    .prog-bar-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #7c3aed, #3b82f6);
+      border-radius: 999px;
+      transition: width 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative; overflow: hidden;
+    }
+    .prog-bar-fill::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%);
+      animation: shimmer 1.6s infinite;
+    }
+    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+    /* Bar meta row */
+    .prog-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem; gap: 0.75rem;
+    }
+    .prog-label { font-size: 0.82rem; color: var(--text); flex: 1; min-width: 0; }
+    .prog-pct   { font-size: 0.82rem; font-weight: 700; color: #a78bfa; flex-shrink: 0; }
+    .prog-elapsed { font-size: 0.72rem; color: var(--muted); flex-shrink: 0; }
+    /* Step list */
+    .prog-list  { list-style: none; border-top: 1px solid var(--border); padding-top: 0.85rem; }
+    .prog-item  {
+      display: flex; align-items: center; gap: 0.55rem;
+      padding: 0.28rem 0; font-size: 0.8rem; color: var(--muted);
+    }
+    .prog-item.done   { color: var(--green); }
+    .prog-item.active { color: var(--text); font-weight: 600; }
+    .prog-step { font-size: 0.78rem; min-width: 1rem; flex-shrink: 0; }
+    .spinner   {
+      width: 13px; height: 13px; flex-shrink: 0;
+      border: 2px solid rgba(124,58,237,0.3); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result card ──────────────────────────────────────────────────── */
+    .result-card {
+      background: var(--card); border: 1px solid rgba(124,58,237,0.3);
+      border-radius: 16px; overflow: hidden; margin-bottom: 1rem; display: none;
+    }
+    .result-hdr {
+      padding: 0.9rem 1.25rem; background: rgba(124,58,237,0.1);
+      border-bottom: 1px solid rgba(124,58,237,0.2);
+      display: flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.9rem;
+    }
+    .result-body { padding: 1.25rem; }
+    .result-grid { display: grid; grid-template-columns: 130px 1fr; gap: 1.25rem; align-items: start; }
+    .result-video video { width: 130px; border-radius: 12px; display: block; background: #000; }
+    .script-block { font-size: 0.84rem; }
+    .script-row   { margin-bottom: 0.6rem; }
+    .script-lbl   { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+    .script-val   { color: var(--text); line-height: 1.5; }
+
+    /* ── Action buttons ───────────────────────────────────────────────── */
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 1rem; }
+    .act {
+      display: flex; align-items: center; justify-content: center; gap: 0.45rem;
+      padding: 0.75rem; border-radius: 10px; font-size: 0.82rem; font-weight: 600;
+      text-decoration: none; border: none; cursor: pointer; transition: all 0.2s;
+    }
+    .act-dl  { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: #34d399; }
+    .act-dl:hover  { background: rgba(16,185,129,0.22); }
+    .act-cp  { background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--text); }
+    .act-cp:hover  { background: rgba(255,255,255,0.08); }
+
+    /* ── WhatsApp pack ────────────────────────────────────────────────── */
+    .wa-pack {
+      background: rgba(37,211,102,0.06); border: 1px solid rgba(37,211,102,0.2);
+      border-radius: 12px; padding: 1rem; margin-top: 0.85rem;
+    }
+    .wa-title { font-size: 0.76rem; font-weight: 700; color: var(--wa); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.35rem; }
+    .wa-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+    .wa-btn {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.55rem 0.75rem; background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(37,211,102,0.18); border-radius: 8px;
+      font-size: 0.76rem; color: var(--text); cursor: pointer; text-decoration: none;
+      transition: all 0.2s;
+    }
+    .wa-btn:hover { background: rgba(37,211,102,0.1); border-color: rgba(37,211,102,0.4); }
+
+    /* ── Social links in result ───────────────────────────────────────── */
+    .social-links { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    .soc-link {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.35rem 0.7rem; border-radius: 6px; font-size: 0.76rem; font-weight: 600;
+      text-decoration: none; border: 1px solid; transition: opacity 0.2s;
+    }
+    .soc-link:hover { opacity: 0.8; }
+    .soc-yt { background: rgba(255,68,68,0.1); border-color: rgba(255,68,68,0.3); color: #ff7070; }
+    .soc-ig { background: rgba(225,48,108,0.1); border-color: rgba(225,48,108,0.3); color: #f06292; }
+    .soc-fb { background: rgba(24,119,242,0.1); border-color: rgba(24,119,242,0.3); color: #6ea8fe; }
+
+    /* ── Sticky CTA ───────────────────────────────────────────────────── */
+    .sticky {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+      background: linear-gradient(to top, var(--bg) 55%, transparent);
+      padding: 1.2rem 1.25rem 1.4rem;
+    }
+    .sticky-inner { max-width: 860px; margin: 0 auto; }
+    .gen-btn {
+      width: 100%; padding: 1.05rem; border-radius: 14px; border: none; cursor: pointer;
+      background: linear-gradient(135deg, #7c3aed, #5b21b6);
+      color: #fff; font-size: 1rem; font-weight: 700; letter-spacing: 0.02em;
+      display: flex; align-items: center; justify-content: center; gap: 0.7rem;
+      transition: all 0.2s; box-shadow: 0 4px 24px rgba(124,58,237,0.4);
+    }
+    .gen-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 30px rgba(124,58,237,0.55); }
+    .gen-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    /* ── Toast ────────────────────────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 5.5rem; left: 50%; transform: translateX(-50%) translateY(10px);
+      background: var(--card2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 0.55rem 1.2rem; font-size: 0.8rem; opacity: 0; pointer-events: none;
+      transition: all 0.3s; z-index: 100; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Divider ─────────────────────────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 1rem 0; }
+
+    /* ── Responsive ───────────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .body { padding: 1rem 1rem 7rem; }
+      .card-body { padding: 1rem; }
+      .img-grid { grid-template-columns: repeat(2, 1fr); }
+      .result-grid { grid-template-columns: 1fr; }
+      .result-video video { width: 100%; max-width: 220px; }
+      .action-grid { grid-template-columns: 1fr; }
+      .wa-grid { grid-template-columns: 1fr; }
+      .mode-wrap { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<header class="hdr">
+  <div class="hdr-logo">
+    <div class="hdr-icon">🎬</div>
+    <div>
+      <div class="hdr-title">AI Video Studio</div>
+      <div class="hdr-sub">Custom videos — guided or free-form prompt</div>
+    </div>
+  </div>
+  <a href="/" class="back-link">← Dashboard</a>
+</header>
+
+<div class="body">
+
+  <!-- ── Progress ─────────────────────────────────────────────────────── -->
+  <div class="prog-card" id="progCard">
+    <div class="prog-title"><div class="spinner"></div> Generating your video...</div>
+
+    <!-- Progress bar -->
+    <div class="prog-bar-track">
+      <div class="prog-bar-fill" id="progBarFill"></div>
+    </div>
+    <div class="prog-meta">
+      <span class="prog-label" id="progLabel">Starting...</span>
+      <span class="prog-pct"   id="progPct">0%</span>
+      <span class="prog-elapsed" id="progElapsed">0s</span>
+    </div>
+
+    <!-- Step breakdown -->
+    <ul class="prog-list" id="progList">
+      <li class="prog-item" id="pStep1"><span class="prog-step">⏳</span> Interpreting content</li>
+      <li class="prog-item" id="pStep2"><span class="prog-step">⏳</span> Generating images</li>
+      <li class="prog-item" id="pStep3"><span class="prog-step">⏳</span> Compositing text</li>
+      <li class="prog-item" id="pStep4"><span class="prog-step">⏳</span> Rendering clips</li>
+      <li class="prog-item" id="pStep5"><span class="prog-step">⏳</span> Stitching video</li>
+      <li class="prog-item" id="pStep6"><span class="prog-step">⏳</span> Uploading</li>
+    </ul>
+  </div>
+
+  <!-- ── Result ────────────────────────────────────────────────────────── -->
+  <div class="result-card" id="resultCard">
+    <div class="result-hdr">✅ Video Ready</div>
+    <div class="result-body" id="resultBody"></div>
+  </div>
+
+  <!-- ── 1. Content ─────────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-hdr"><div class="card-num">1</div><span class="card-title">Content</span></div>
+    <div class="card-body">
+
+      <!-- Language -->
+      <div class="fg">
+        <div class="fl">Language</div>
+        <div class="pills" id="langPills">
+          <button class="pill active" onclick="setLang('english',this)">🇺🇸 English</button>
+          <button class="pill" onclick="setLang('telugu',this)">తె Telugu</button>
+          <button class="pill" onclick="setLang('hindi',this)">हि Hindi</button>
+          <button class="pill" onclick="setLang('tamil',this)">த Tamil</button>
+          <button class="pill" onclick="setLang('kannada',this)">ಕ Kannada</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Mode toggle -->
+      <div class="fg">
+        <div class="fl">Mode</div>
+        <div class="mode-wrap">
+          <div class="mode-card active" id="modeGuided" onclick="setMode('guided')">
+            <div class="mode-icon">✏️</div>
+            <div class="mode-label">Guided</div>
+            <div class="mode-desc">You write the Hook &amp; Quote — AI handles images &amp; scene layout</div>
+          </div>
+          <div class="mode-card" id="modePrompt" onclick="setMode('prompt')">
+            <div class="mode-icon">💬</div>
+            <div class="mode-label">Prompt</div>
+            <div class="mode-desc">Describe your vision in plain language — AI generates everything</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Guided fields -->
+      <div id="guidedFields">
+        <div class="fg">
+          <div class="fl">Hook <span class="badge">scroll-stopper opening line</span></div>
+          <input type="text" id="hook" placeholder="e.g. The one habit that changed everything for me...">
+        </div>
+        <div class="fg">
+          <div class="fl">Quote / Main Text <span class="badge req">required</span></div>
+          <input type="text" id="quote" placeholder="e.g. Every small step you take today shapes the person you become tomorrow">
+        </div>
+        <div class="fg">
+          <div class="fl">Subtext <span class="badge">optional supporting thought</span></div>
+          <input type="text" id="subtext" placeholder="e.g. Keep going. Progress over perfection.">
+        </div>
+      </div>
+
+      <!-- Prompt field -->
+      <div id="promptField" style="display:none">
+        <div class="fg">
+          <div class="fl">Your Prompt <span class="badge req">required</span></div>
+          <textarea id="promptInput" placeholder="Describe exactly what you want — theme, message, tone, visuals, audience, language...
+
+Example: Create a powerful Telugu video about a student who failed 3 times but never gave up. Open with a hook about failure, show 4 scenes — dark study nights, tears, a breakthrough moment, and finally success. End with an inspiring quote about persistence. Use cultural South Indian imagery."></textarea>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── 2. Visuals ─────────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-hdr"><div class="card-num">2</div><span class="card-title">Visuals</span></div>
+    <div class="card-body">
+
+      <div class="fg">
+        <div class="fl">Number of Scenes</div>
+        <div class="chips" id="sceneChips">
+          <button class="chip" onclick="setScenes(1,this)">1 Scene</button>
+          <button class="chip active" onclick="setScenes(2,this)">2 Scenes</button>
+          <button class="chip" onclick="setScenes(3,this)">3 Scenes</button>
+          <button class="chip" onclick="setScenes(4,this)">4 Scenes</button>
+        </div>
+      </div>
+
+      <div class="fg">
+        <div class="fl">Visual Style</div>
+        <div class="chips" id="styleChips">
+          <button class="chip active" onclick="setStyle('cinematic',this)">🎥 Cinematic</button>
+          <button class="chip" onclick="setStyle('cultural',this)">🏛️ Cultural</button>
+          <button class="chip" onclick="setStyle('illustrated',this)">🎨 Illustrated</button>
+          <button class="chip" onclick="setStyle('minimal',this)">✦ Minimal</button>
+          <button class="chip" onclick="setStyle('nature',this)">🌿 Nature</button>
+        </div>
+      </div>
+
+      <div class="fg">
+        <div class="fl">Images <span class="badge">optional — AI generates if left empty</span></div>
+        <div class="img-grid" id="imgGrid"></div>
+        <div class="img-hint">📎 Upload your own images to skip AI generation for that scene.<br>Supports JPG, PNG, WebP — max 25 MB each. Leave empty to let AI create the visuals.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── 3. Video Settings ───────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-hdr"><div class="card-num">3</div><span class="card-title">Video Settings</span></div>
+    <div class="card-body">
+
+      <div class="fg">
+        <div class="fl">Duration</div>
+        <div class="chips" id="durChips">
+          <button class="chip" onclick="setDur(15,this)">15s</button>
+          <button class="chip active" onclick="setDur(30,this)">30s</button>
+          <button class="chip" onclick="setDur(45,this)">45s</button>
+          <button class="chip" onclick="setDur(60,this)">60s</button>
+        </div>
+      </div>
+
+      <div class="fg">
+        <div class="fl">Background Music</div>
+        <div class="toggle-row">
+          <input type="checkbox" class="toggle" id="musicToggle" checked>
+          <label class="toggle-lbl" for="musicToggle">Add background music</label>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── 4. Publish ─────────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-hdr"><div class="card-num">4</div><span class="card-title">Publish To <span style="font-weight:400;color:var(--muted);font-size:0.78rem;margin-left:0.3rem">(optional)</span></span></div>
+    <div class="card-body">
+
+      <!-- YouTube connection -->
+      <div id="studioYtDisconnect" class="auth-banner disconnected">
+        <div class="auth-name">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="#ff4444" style="vertical-align:middle;margin-right:4px"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          YouTube not connected
+        </div>
+        <a href="/auth/youtube?channel=studio">Connect YouTube</a>
+      </div>
+      <div id="studioYtConnect" class="auth-banner connected">
+        <div class="auth-name" id="studioYtName">▶ YouTube connected</div>
+        <button onclick="studioDisconnect('youtube')">Disconnect</button>
+      </div>
+
+      <!-- Meta connection (Instagram + Facebook) -->
+      <div id="studioMetaDisconnect" class="auth-banner disconnected">
+        <div class="auth-name">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="#e1306c" style="vertical-align:middle;margin-right:4px"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+          Instagram + Facebook not connected
+        </div>
+        <a href="/auth/meta">Connect Meta</a>
+      </div>
+      <div id="studioMetaConnect" class="auth-banner connected">
+        <div class="auth-name" id="studioMetaName">Instagram + Facebook connected</div>
+        <button onclick="studioDisconnect('meta')">Disconnect</button>
+      </div>
+
+      <!-- Platform checkboxes -->
+      <div class="fl" style="margin-top:0.75rem">Select platforms to publish</div>
+      <div class="platform-row">
+        <div class="plat" id="platYT" onclick="togglePlat(this)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="#ff4444"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          <span class="plat-name">YouTube</span>
+          <div class="plat-box"></div>
+        </div>
+        <div class="plat" id="platIG" onclick="togglePlat(this)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="#e1306c"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+          <span class="plat-name">Instagram</span>
+          <div class="plat-box"></div>
+        </div>
+        <div class="plat" id="platFB" onclick="togglePlat(this)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="#1877f2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          <span class="plat-name">Facebook</span>
+          <div class="plat-box"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /body -->
+
+<!-- ── Sticky CTA ──────────────────────────────────────────────────────────── -->
+<div class="sticky">
+  <div class="sticky-inner">
+    <button class="gen-btn" id="genBtn" onclick="generate()">
+      <span>🎬</span><span>Generate Video</span>
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ── Scripts ─────────────────────────────────────────────────────────────── -->
+<script>
+  /* ── State ──────────────────────────────────────────────────────────────── */
+  let _lang    = 'english';
+  let _mode    = 'guided';
+  let _scenes  = 2;
+  let _style   = 'cinematic';
+  let _dur     = 30;
+  let _uploads = {}; // { idx: { file: File, preview: dataURL } }
+  let _result  = null;
+
+  /* ── Language ─────────────────────────────────────────────────────────── */
+  function setLang(lang, btn) {
+    _lang = lang;
+    document.querySelectorAll('#langPills .pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  /* ── Mode ─────────────────────────────────────────────────────────────── */
+  function setMode(mode) {
+    _mode = mode;
+    document.getElementById('modeGuided').classList.toggle('active', mode === 'guided');
+    document.getElementById('modePrompt').classList.toggle('active', mode === 'prompt');
+    document.getElementById('guidedFields').style.display  = mode === 'guided' ? 'block' : 'none';
+    document.getElementById('promptField').style.display   = mode === 'prompt' ? 'block' : 'none';
+  }
+
+  /* ── Scenes ───────────────────────────────────────────────────────────── */
+  function setScenes(n, btn) {
+    _scenes = n;
+    document.querySelectorAll('#sceneChips .chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderImgGrid();
+  }
+
+  /* ── Style ─���──────────────────────────────────────────────────────────── */
+  function setStyle(s, btn) {
+    _style = s;
+    document.querySelectorAll('#styleChips .chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  /* ── Duration ─────────────────────────────────────────────────────────── */
+  function setDur(d, btn) {
+    _dur = d;
+    document.querySelectorAll('#durChips .chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  /* ── Platform ─────────────────────────────────────────────────────────── */
+  function togglePlat(el) { el.classList.toggle('on'); }
+
+  /* ── Image grid ───────────────────────────────────────────────────────── */
+  function renderImgGrid() {
+    const grid = document.getElementById('imgGrid');
+    grid.innerHTML = '';
+    for (let i = 0; i < _scenes; i++) {
+      const up   = _uploads[i];
+      const slot = document.createElement('div');
+      slot.className = `img-slot${up ? ' filled' : ''}`;
+      slot.id        = `slot-${i}`;
+      slot.innerHTML = `
+        <span class="slot-num">Scene ${i + 1}</span>
+        <input type="file" accept="image/jpeg,image/jpg,image/png,image/webp"
+               onchange="handleUpload(${i}, event)">
+        ${up
+          ? `<img class="slot-img" src="${up.preview}" alt="">`
+          : `<span class="slot-icon">🖼️</span>
+             <span class="slot-lbl">Click to<br>upload</span>`
+        }
+        <button class="slot-rm" onclick="removeUpload(${i}, event)" title="Remove">✕</button>
+      `;
+      grid.appendChild(slot);
+    }
+  }
+
+  function handleUpload(idx, e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      _uploads[idx] = { file, preview: ev.target.result };
+      renderImgGrid();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removeUpload(idx, e) {
+    e.stopPropagation();
+    e.preventDefault();
+    delete _uploads[idx];
+    renderImgGrid();
+  }
+
+  /* ── Progress bar (driven by real SSE events) ────────────────────────── */
+  // Maps pct ranges → which step row lights up
+  const STEP_RANGES = [
+    { id: 'pStep1', from:  2, to: 12,  label: 'Interpreting content' },
+    { id: 'pStep2', from: 12, to: 70,  label: 'Generating images'    },
+    { id: 'pStep3', from: 65, to: 75,  label: 'Compositing text'     },
+    { id: 'pStep4', from: 72, to: 88,  label: 'Rendering clips'      },
+    { id: 'pStep5', from: 72, to: 90,  label: 'Stitching video'      },
+    { id: 'pStep6', from: 88, to: 100, label: 'Uploading'            },
+  ];
+
+  let _elapsedTimer = null;
+  let _elapsedSecs  = 0;
+
+  function startElapsed() {
+    _elapsedSecs = 0;
+    _elapsedTimer = setInterval(() => {
+      _elapsedSecs++;
+      const el = document.getElementById('progElapsed');
+      if (el) el.textContent = _elapsedSecs < 60
+        ? `${_elapsedSecs}s`
+        : `${Math.floor(_elapsedSecs / 60)}m ${_elapsedSecs % 60}s`;
+    }, 1000);
+  }
+
+  function stopElapsed() {
+    clearInterval(_elapsedTimer);
+    _elapsedTimer = null;
+  }
+
+  function updateProgress(pct, label) {
+    const fill  = document.getElementById('progBarFill');
+    const pctEl = document.getElementById('progPct');
+    const lblEl = document.getElementById('progLabel');
+    if (fill)  fill.style.width  = `${pct}%`;
+    if (pctEl) pctEl.textContent = `${pct}%`;
+    if (lblEl) lblEl.textContent = label || '';
+
+    // Update step rows
+    STEP_RANGES.forEach(({ id, from, to, label: stepLbl }) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (pct >= to) {
+        el.className = 'prog-item done';
+        el.innerHTML = `<span class="prog-step">✅</span> ${stepLbl}`;
+      } else if (pct >= from) {
+        el.className = 'prog-item active';
+        el.innerHTML = `<div class="spinner"></div> ${stepLbl}`;
+      } else {
+        el.className = 'prog-item';
+        el.innerHTML = `<span class="prog-step">⏳</span> ${stepLbl}`;
+      }
+    });
+  }
+
+  function showProgCard(show) {
+    document.getElementById('progCard').style.display = show ? 'block' : 'none';
+    if (!show) stopElapsed();
+  }
+
+  /* ── Generate (SSE stream) ─────────────────────────────────────────────── */
+  async function generate() {
+    const btn = document.getElementById('genBtn');
+
+    const hook   = document.getElementById('hook')?.value?.trim()        || '';
+    const quote  = document.getElementById('quote')?.value?.trim()       || '';
+    const sub    = document.getElementById('subtext')?.value?.trim()     || '';
+    const prompt = document.getElementById('promptInput')?.value?.trim() || '';
+
+    if (_mode === 'guided' && !quote) { toast('Please enter a Quote / Main Text'); return; }
+    if (_mode === 'prompt' && !prompt) { toast('Please enter a Prompt'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Generating...';
+
+    // Reset + show progress
+    updateProgress(0, 'Starting...');
+    showProgCard(true);
+    startElapsed();
+    document.getElementById('resultCard').style.display = 'none';
+
+    const fd = new FormData();
+    fd.append('mode',     _mode);
+    fd.append('language', _lang);
+    fd.append('scenes',   _scenes);
+    fd.append('style',    _style);
+    fd.append('duration', _dur);
+    fd.append('music',    document.getElementById('musicToggle').checked ? 'true' : 'false');
+
+    if (_mode === 'guided') {
+      fd.append('hook', hook); fd.append('quote', quote); fd.append('subtext', sub);
+    } else {
+      fd.append('prompt', prompt);
+    }
+    fd.append('pushToYouTube',   document.getElementById('platYT')?.classList.contains('on') ? 'true' : 'false');
+    fd.append('pushToInstagram', document.getElementById('platIG')?.classList.contains('on') ? 'true' : 'false');
+    fd.append('pushToFacebook',  document.getElementById('platFB')?.classList.contains('on') ? 'true' : 'false');
+    for (let i = 0; i < _scenes; i++) {
+      if (_uploads[i]?.file) fd.append(`image_${i}`, _uploads[i].file);
+    }
+
+    try {
+      const resp = await fetch('/api/generate-studio', { method: 'POST', body: fd });
+      if (!resp.ok && !resp.headers.get('content-type')?.includes('text/event-stream')) {
+        const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+        throw new Error(err.error || 'Server error');
+      }
+
+      // Read SSE stream
+      const reader  = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let   buf     = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+
+        // Parse complete SSE messages from buffer
+        const parts = buf.split('\n\n');
+        buf = parts.pop(); // keep incomplete last chunk
+
+        for (const block of parts) {
+          let eventName = 'message', dataLine = '';
+          for (const line of block.split('\n')) {
+            if (line.startsWith('event: ')) eventName = line.slice(7).trim();
+            else if (line.startsWith('data: '))  dataLine  = line.slice(6).trim();
+          }
+          if (!dataLine) continue;
+          const data = JSON.parse(dataLine);
+
+          if (eventName === 'progress') {
+            updateProgress(data.pct, data.label);
+          } else if (eventName === 'done') {
+            updateProgress(100, 'Complete!');
+            _result = data;
+            showResult(data);
+          } else if (eventName === 'error') {
+            throw new Error(data.error || 'Generation failed');
+          }
+        }
+      }
+    } catch (err) {
+      toast('Error: ' + err.message);
+    } finally {
+      showProgCard(false);
+      btn.disabled = false;
+      btn.innerHTML = '<span>🎬</span><span>Generate Video</span>';
+    }
+  }
+
+  /* ── Show result ──────────────────────────────────────────────────────── */
+  function dlBtn(url, filename, icon, label) {
+    if (!url) return '';
+    const enc = encodeURIComponent(url);
+    return `<a href="/api/download?url=${enc}&filename=${filename}" class="act act-dl">${icon} ${label}</a>`;
+  }
+
+  function showResult(data) {
+    const card = document.getElementById('resultCard');
+    const body = document.getElementById('resultBody');
+    card.style.display = 'block';
+
+    const videoHtml = data.videoUrl
+      ? `<video src="${data.videoUrl}" controls playsinline muted></video>`
+      : '';
+
+    const socialLinks = [
+      data.youtubeUrl   ? `<a href="${data.youtubeUrl}"   target="_blank" class="soc-link soc-yt">▶ YouTube</a>` : '',
+      data.instagramUrl ? `<a href="${data.instagramUrl}" target="_blank" class="soc-link soc-ig">📸 Instagram</a>` : '',
+      data.facebookUrl  ? `<a href="${data.facebookUrl}"  target="_blank" class="soc-link soc-fb">📘 Facebook</a>` : '',
+    ].filter(Boolean).join('');
+
+    const caption = [data.hook, data.quote, data.subtext, '', `#shorts #motivation #${_lang} #viral`]
+      .filter(Boolean).join('\n');
+    const tags = `#shorts #motivation #${_lang} #viral #foryou #inspiration`;
+
+    body.innerHTML = `
+      <div class="result-grid">
+        <div class="result-video">${videoHtml}</div>
+        <div class="script-block">
+          ${data.hook    ? `<div class="script-row"><div class="script-lbl">Hook</div><div class="script-val">${data.hook}</div></div>` : ''}
+          ${data.quote   ? `<div class="script-row"><div class="script-lbl">Quote</div><div class="script-val">${data.quote}</div></div>` : ''}
+          ${data.subtext ? `<div class="script-row"><div class="script-lbl">Subtext</div><div class="script-val">${data.subtext}</div></div>` : ''}
+          ${data.language ? `<div class="script-row"><div class="script-lbl">Language</div><div class="script-val">${data.language}</div></div>` : ''}
+        </div>
+      </div>
+
+      <div class="action-grid">
+        ${dlBtn(data.videoUrl,         'studio_video.mp4', '⬇️', 'Download Video')}
+        ${dlBtn(data.compositeImageUrl || data.imageUrl, 'studio_image.jpg', '🖼️', 'Download Image')}
+        <button class="act act-cp" onclick="copyText(${JSON.stringify(caption)}, 'Caption copied!')">📋 Copy Caption</button>
+        <button class="act act-cp" onclick="copyText(${JSON.stringify(tags)}, 'Tags copied!')">🔖 Copy Tags</button>
+      </div>
+
+      ${socialLinks ? `<div class="social-links">${socialLinks}</div>` : ''}
+
+      <div class="wa-pack">
+        <div class="wa-title">📱 WhatsApp Content Pack</div>
+        <div class="wa-grid">
+          <button class="wa-btn" onclick="copyText(${JSON.stringify(caption)}, 'Caption copied!')">📋 Copy Caption</button>
+          <button class="wa-btn" onclick="copyText(${JSON.stringify(tags)}, 'Tags copied!')">🔖 Copy Tags</button>
+          ${data.compositeImageUrl
+            ? `<a href="/api/download?url=${encodeURIComponent(data.compositeImageUrl)}&filename=studio_quote.jpg" class="wa-btn">🖼️ Save Quote Image</a>`
+            : ''}
+          ${data.videoUrl
+            ? `<a href="/api/download?url=${encodeURIComponent(data.videoUrl)}&filename=studio_video.mp4" class="wa-btn">🎬 Save Video</a>`
+            : ''}
+          ${data.imageUrl
+            ? `<a href="/api/download?url=${encodeURIComponent(data.imageUrl)}&filename=studio_bg.jpg" class="wa-btn">📷 Save Background</a>`
+            : ''}
+        </div>
+      </div>
+    `;
+
+    card.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  /* ── Helpers ──────────────────────────────────────────────────────────── */
+  function copyText(text, msg = 'Copied!') {
+    navigator.clipboard.writeText(text).then(() => toast(msg));
+  }
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  /* ── Auth helpers ──────────────────────────────────────────────────────── */
+  async function checkAuthStatus() {
+    // YouTube
+    try {
+      const r = await fetch('/auth/youtube/status?channel=studio');
+      const d = await r.json();
+      document.getElementById('studioYtDisconnect').style.display = d.connected ? 'none' : 'flex';
+      document.getElementById('studioYtConnect').style.display    = d.connected ? 'flex' : 'none';
+      if (d.connected && d.channelTitle) {
+        document.getElementById('studioYtName').textContent = '▶ ' + d.channelTitle;
+      }
+    } catch (_) {}
+
+    // Meta
+    try {
+      const r = await fetch('/auth/meta/status');
+      const d = await r.json();
+      document.getElementById('studioMetaDisconnect').style.display = d.connected ? 'none' : 'flex';
+      document.getElementById('studioMetaConnect').style.display    = d.connected ? 'flex' : 'none';
+      if (d.connected && d.pagesCount) {
+        document.getElementById('studioMetaName').textContent = `Instagram + Facebook connected (${d.pagesCount} page${d.pagesCount > 1 ? 's' : ''})`;
+      }
+    } catch (_) {}
+  }
+
+  async function studioDisconnect(type) {
+    if (type === 'youtube') {
+      await fetch('/auth/youtube/disconnect?channel=studio', { method: 'POST' });
+      document.getElementById('studioYtDisconnect').style.display = 'flex';
+      document.getElementById('studioYtConnect').style.display    = 'none';
+      toast('YouTube disconnected');
+    } else if (type === 'meta') {
+      await fetch('/auth/meta/disconnect', { method: 'POST' });
+      document.getElementById('studioMetaDisconnect').style.display = 'flex';
+      document.getElementById('studioMetaConnect').style.display    = 'none';
+      toast('Meta disconnected');
+    }
+  }
+
+  /* ── Init ──────────────────────────────────────────────────────────────── */
+  renderImgGrid();
+  checkAuthStatus();
+
+  // Handle OAuth redirect back (e.g. ?youtube=connected)
+  (() => {
+    const p = new URLSearchParams(location.search);
+    if (p.has('youtube') && p.get('youtube') === 'connected') {
+      toast('YouTube connected!');
+      history.replaceState({}, '', '/studio');
+    }
+  })();
+</script>
+</body>
+</html>

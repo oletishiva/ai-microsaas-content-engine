@@ -9,11 +9,11 @@ const ffmpeg = require("fluent-ffmpeg");
 const fs = require("fs");
 const path = require("path");
 const { OUTPUT_DIR } = require("../../config/paths");
-const { buildConcatFile } = require("../../utils/ffmpegHelper");
-const { getSubtitleSegments, VIDEO_DURATION } = require("../../utils/subtitleHelper");
+const { buildConcatFile, getAudioDuration } = require("../../utils/ffmpegHelper");
+const { VIDEO_DURATION } = require("../../utils/subtitleHelper");
 const { renderTextToImage } = require("../../utils/textToImage");
+const { renderSubscribeButton } = require("../../utils/subscribeButton");
 const logger = require("../../utils/logger");
-const HOOK_DURATION = 2;
 
 /**
  * Write text to file for drawtext textfile option
@@ -33,45 +33,92 @@ function buildDrawTextFilter(textFilePath, fontSize, yExpr, enableExpr) {
 }
 
 /**
- * Run FFmpeg with image overlays using raw exec (bypasses fluent-ffmpeg for reliability)
+ * Run FFmpeg with image overlays.
+ * Uses concat FILTER (not demuxer) – reliable multi-image on all platforms.
  */
-function runFfmpegWithOverlays(concatPath, audioPath, overlayPaths, baseFilters, outputPath, outputOpts, cleanup) {
+/**
+ * runFfmpegWithOverlays
+ * ---------------------
+ * @param {string[]} imagePaths
+ * @param {number}   durationPerImage
+ * @param {string}   audioPath
+ * @param {Array}    overlayPaths     - [{path, start, end}, ...]
+ * @param {*}        _baseFilters     - unused (kept for signature compat)
+ * @param {string}   outputPath
+ * @param {string[]} outputOpts
+ * @param {Function} cleanup
+ * @param {number}   videoDuration
+ * @param {number}   [W=1080]         - video width
+ * @param {number}   [H=1920]         - video height
+ * @param {string|null} [subscribePath=null] - Subscribe button PNG path (full duration)
+ */
+function runFfmpegWithOverlays(imagePaths, durationPerImage, audioPath, overlayPaths, _baseFilters, outputPath, outputOpts, cleanup, videoDuration, W = 1080, H = 1920, subscribePath = null) {
     const { spawnSync } = require("child_process");
 
-    const baseFilterStr = baseFilters.join(",");
-    let prevLabel = "main";
-    const filterParts = [`[0:v]${baseFilterStr}[main]`];
+    // 3.5s hook: YouTube Shorts auto-generate thumbnails from video frames (no custom thumb API).
+    // Longer hook = more frames with hook = higher chance YouTube picks hook for thumbnail.
+    const HOOK_DURATION = 3.5;
+    const hook = overlayPaths.find((o) => o.start === 0 && o.end === HOOK_DURATION);
+    const quote = overlayPaths.find((o) => o.start === HOOK_DURATION);
+    const n = imagePaths.length;
 
-    for (let idx = 0; idx < overlayPaths.length; idx++) {
-        const o = overlayPaths[idx];
-        const inIdx = idx + 2;
-        const outLabel = idx === overlayPaths.length - 1 ? "out" : `v${idx}`;
-        // Bottom-anchor so text stays in frame: y = H - h - margin
-        const yExpr = `H-h-40`;
-        const enableExpr = `between(t\\,${o.start}\\,${o.end})`;
-        filterParts.push(
-            `[${inIdx}:v]format=rgba[ov${idx}];[${prevLabel}][ov${idx}]overlay=x=(W-w)/2:y=${yExpr}:enable='${enableExpr}'[${outLabel}]`
-        );
-        prevLabel = outLabel;
+    // Scale each image to WxH before concat (concat requires identical input dimensions)
+    const scaleCrop = (i) => `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}:(iw-ow)/2:(ih-oh)/2,setsar=1[${i}s]`;
+    const scaledInputs = imagePaths.map((_, i) => `[${i}s]`).join("");
+    const hookIdx = n;
+    const quoteIdx = n + 1;
+
+    // How many overlay images come before the audio?
+    const contentOverlayCount = (hook ? 1 : 0) + (quote ? 1 : 0);
+    const subscribeIdx = n + contentOverlayCount;   // index of subscribe input (if used)
+    const audioIdx    = subscribeIdx + (subscribePath ? 1 : 0);
+
+    const baseChain = imagePaths.map((_, i) => scaleCrop(i)).join(";") + `;${scaledInputs}concat=n=${n}:v=1:a=0,fps=25[base]`;
+    const overlayPrep = (idx) => `[${idx}:v]scale=${W}:-1,format=rgba`;
+
+    let filter;
+    const imageInputs = imagePaths.flatMap((p) => ["-loop", "1", "-t", String(durationPerImage.toFixed(2)), "-i", path.resolve(p)]);
+    const overlayInputs = [];
+
+    // ── Build hook / quote chained overlays ──────────────────────────────────
+    if (hook && quote) {
+        filter = `${baseChain};${overlayPrep(hookIdx)}[hook];${overlayPrep(quoteIdx)}[quote];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='between(t,0,${HOOK_DURATION})'[tmp];[tmp][quote]overlay=x=(W-w)/2:y=H*0.15:enable='gte(t,${HOOK_DURATION})'[preout]`;
+        overlayInputs.push("-loop", "1", "-i", hook.path, "-loop", "1", "-i", quote.path);
+    } else if (hook) {
+        filter = `${baseChain};${overlayPrep(hookIdx)}[hook];[base][hook]overlay=x=(W-w)/2:y=H*0.15:enable='between(t,0,${HOOK_DURATION})'[preout]`;
+        overlayInputs.push("-loop", "1", "-i", hook.path);
+    } else if (quote) {
+        filter = `${baseChain};${overlayPrep(hookIdx)}[quote];[base][quote]overlay=x=(W-w)/2:y=H*0.15:enable='1'[preout]`;
+        overlayInputs.push("-loop", "1", "-i", quote.path);
+    } else {
+        throw new Error("No overlay paths");
     }
 
-    const filterComplex = filterParts.join(";");
-    const loopInputs = overlayPaths.flatMap((o) => ["-loop", "1", "-i", o.path]);
+    // ── Chain Subscribe button overlay (full-duration, 15% from bottom) ──────
+    if (subscribePath) {
+        // Scale the subscribe button to 60% of video width max; keep aspect ratio
+        const subMaxW = Math.round(W * 0.60);
+        filter += `;[${subscribeIdx}:v]scale=${subMaxW}:-1,format=rgba[sub];[preout][sub]overlay=x=(W-w)/2:y=H-h-H*0.07:enable='1'[out]`;
+        overlayInputs.push("-loop", "1", "-i", subscribePath);
+    } else {
+        // Rename preout → out if no subscribe button
+        filter = filter.replace("[preout]", "[out]");
+    }
 
     const args = [
         "-y",
-        "-f", "concat", "-safe", "0", "-i", concatPath,
+        ...imageInputs,
+        ...overlayInputs,
         "-i", audioPath,
-        ...loopInputs,
-        "-filter_complex", filterComplex,
-        "-map", "[out]", "-map", "1:a",
+        "-filter_complex", filter,
+        "-map", "[out]", "-map", `${audioIdx}:a`,
         ...outputOpts,
         outputPath,
     ];
 
     return new Promise((resolve, reject) => {
         try {
-            logger.info("VideoGenerator", "FFmpeg encoding started (image overlays)");
+            logger.info("VideoGenerator", "FFmpeg encoding started (image overlays, alt pipeline)");
             const result = spawnSync("ffmpeg", args, {
                 stdio: "pipe",
                 maxBuffer: 50 * 1024 * 1024,
@@ -107,7 +154,8 @@ function hasDrawTextFilter() {
 /**
  * generateVideo
  */
-async function generateVideo(imagePaths, audioPath, script, hookText, outputFilename) {
+async function generateVideo(imagePaths, audioPath, script, hookText, outputFilename, overlayOptions = {}) {
+    // overlayOptions.addSubscribeButton  – boolean, default true
     if (!imagePaths || imagePaths.length === 0) {
         throw new Error("No image paths provided");
     }
@@ -115,7 +163,10 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         throw new Error(`Audio file not found: ${audioPath}`);
     }
 
-    logger.info("VideoGenerator", `Rendering 15s video with ${imagePaths.length} images (${(VIDEO_DURATION / imagePaths.length).toFixed(1)}s per slide)...`);
+    const videoDuration = await getAudioDuration(audioPath).catch(() => VIDEO_DURATION);
+    const durationPerImage = videoDuration / imagePaths.length;
+
+    logger.info("VideoGenerator", `Rendering ${videoDuration.toFixed(1)}s video with ${imagePaths.length} images (${durationPerImage.toFixed(1)}s per slide)...`);
 
     if (!fs.existsSync(OUTPUT_DIR)) {
         fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -129,23 +180,24 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
             } catch (_) {}
         });
     };
-
-    const durationPerImage = VIDEO_DURATION / imagePaths.length;
+    cleanup.tempFiles = tempFiles;
     const concatFilePath = buildConcatFile(imagePaths, durationPerImage, OUTPUT_DIR);
     const outputPath = path.join(OUTPUT_DIR, outputFilename);
     tempFiles.push(concatFilePath);
 
-    const useDrawText = hasDrawTextFilter();
+    // Always use image overlay when we have hook/script: drawtext+zoompan path breaks
+    // multi-image (only first image shows) and hook timing. Image overlay works everywhere.
+    const useDrawText = hasDrawTextFilter() && !(hookText || script);
     const useImageOverlay = !useDrawText;
-    if (useImageOverlay) {
-        logger.info("VideoGenerator", "Using image overlay (FFmpeg lacks drawtext).");
+    if (useImageOverlay && (hookText || script)) {
+        logger.info("VideoGenerator", "Using image overlay (hook+quote, multi-image safe).");
     }
 
     // Shorts: 1080×1920 portrait (9:16). Use 720×1280 on Railway to reduce OOM (SIGKILL)
     const isRailway = !!process.env.RAILWAY_PROJECT_ID;
     const W = isRailway ? 720 : 1080;
     const H = isRailway ? 1280 : 1920;
-    // Crop to fill. Ken Burns zoom skipped on Railway (causes OOM/SIGKILL)
+    // fps=25 needed for n-based overlay. Avoid setpts – it can break concat (only first image).
     let baseFilters = [
         `scale=${W}:${H}:force_original_aspect_ratio=increase`,
         `crop=${W}:${H}:(iw-ow)/2:(ih-oh)/2`,
@@ -154,26 +206,31 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
         "fps=25",
     ];
 
+    // 3.5s hook: YouTube Shorts auto-generate thumbnails from video frames (no custom thumb API).
+    const HOOK_DURATION = 3.5;
+    const HOOK_FRAMES_DT = Math.floor(HOOK_DURATION * 25);
     if (useDrawText) {
-        const hookFile = writeTextFile(OUTPUT_DIR, "hook", hookText || "STOP MAKING THIS MISTAKE");
-        tempFiles.push(hookFile);
-        baseFilters.push(buildDrawTextFilter(hookFile, 64, "h*0.75", `between(t,0,${HOOK_DURATION})`));
-        const subtitleSegments = getSubtitleSegments(script);
-        subtitleSegments.forEach((s, i) => {
-            const f = writeTextFile(OUTPUT_DIR, `sub${i}`, s.text);
-            tempFiles.push(f);
-            baseFilters.push(buildDrawTextFilter(f, 48, "h*0.85", `between(t,${s.start},${s.end})`));
-        });
+        if (hookText) {
+            const hookFile = writeTextFile(OUTPUT_DIR, "hook", hookText);
+            tempFiles.push(hookFile);
+            baseFilters.push(buildDrawTextFilter(hookFile, 70, "h*0.15", `lt(n,${HOOK_FRAMES_DT})`));
+        }
+        if (script) {
+            const scriptFile = writeTextFile(OUTPUT_DIR, "quote", script);
+            tempFiles.push(scriptFile);
+            baseFilters.push(buildDrawTextFilter(scriptFile, 44, "h*0.35", `gte(n,${HOOK_FRAMES_DT})`));
+        }
     }
 
     const outputOpts = [
-        "-t", "15",
+        "-t", String(videoDuration),
+        "-r", "25",
         "-s", `${W}x${H}`,
         "-aspect", "9:16",
         "-metadata:s:v:0", "rotate=0",
         "-c:v", "libx264",
         "-preset", isRailway ? "ultrafast" : "fast",
-        "-threads", "1",
+        "-threads", isRailway ? "2" : "1",
         "-max_muxing_queue_size", "1024",
         "-crf", isRailway ? "28" : "23",
         "-c:a", "aac",
@@ -193,32 +250,55 @@ async function generateVideo(imagePaths, audioPath, script, hookText, outputFile
     } else if (useImageOverlay && (hookText || script)) {
         const ts = Date.now();
         const overlayPaths = [];
-        const subtitleSegments = getSubtitleSegments(script);
-
-        const overlayOpts = { videoWidth: W };
+        // First 3s: hook. Then: quote. Readable font size.
+        // Hook: 62px — impactful but not cramped; 13 chars/line gives 2-line punchy hooks.
+        // Quote: 36px — comfortable read, more text fits, less "wall of text" feel.
+        const hookFont = 62;
+        const quoteFont = 42;
         if (hookText) {
             const hookPath = path.join(OUTPUT_DIR, `overlay_hook_${ts}.png`);
-            await renderTextToImage(hookText, hookPath, { fontSize: 56, ...overlayOpts });
+            await renderTextToImage(hookText, hookPath, { fontSize: hookFont, videoWidth: W, maxCharsPerLine: 13, textColor: overlayOptions.textColor });
             overlayPaths.push({ path: hookPath, start: 0, end: HOOK_DURATION });
             tempFiles.push(hookPath);
         }
-        for (let i = 0; i < subtitleSegments.length; i++) {
-            const s = subtitleSegments[i];
-            const subPath = path.join(OUTPUT_DIR, `overlay_sub${i}_${ts}.png`);
-            await renderTextToImage(s.text, subPath, { fontSize: 48, ...overlayOpts });
-            overlayPaths.push({ path: subPath, start: s.start, end: s.end });
-            tempFiles.push(subPath);
+        if (script) {
+            const quotePath = path.join(OUTPUT_DIR, `overlay_quote_${ts}.png`);
+            const highlight = overlayOptions.highlight || [];
+            await renderTextToImage(script, quotePath, { fontSize: quoteFont, videoWidth: W, maxCharsPerLine: 26, highlight, textColor: overlayOptions.textColor });
+            overlayPaths.push({ path: quotePath, start: HOOK_DURATION, end: videoDuration });
+            tempFiles.push(quotePath);
+        }
+
+        // ── Subscribe button overlay ────────────────────────────────────────
+        // Default ON; caller can disable via overlayOptions.addSubscribeButton = false
+        const addSubscribeBtn = overlayOptions.addSubscribeButton !== false;
+        let subscribePath = null;
+        if (addSubscribeBtn) {
+            subscribePath = path.join(OUTPUT_DIR, `overlay_subscribe_${ts}.png`);
+            try {
+                await renderSubscribeButton(subscribePath, { videoWidth: W });
+                tempFiles.push(subscribePath);
+                logger.info("VideoGenerator", "Subscribe button overlay rendered.");
+            } catch (subErr) {
+                logger.warn("VideoGenerator", "Subscribe button render failed (skipping):", subErr.message);
+                subscribePath = null;
+            }
         }
 
         if (overlayPaths.length > 0) {
             return runFfmpegWithOverlays(
-                concatFilePath,
+                imagePaths,
+                durationPerImage,
                 audioPath,
                 overlayPaths,
                 baseFilters,
                 outputPath,
                 outputOpts,
                 cleanup,
+                videoDuration,
+                W,
+                H,
+                subscribePath,
             );
         } else {
             cmd.videoFilters(baseFilters);

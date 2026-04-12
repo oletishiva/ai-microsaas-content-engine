@@ -79,13 +79,10 @@ async function fetchImages(topic, count = 8) {
             return res.data.photos || [];
         };
 
-        // 1. Try portrait first (native 9:16 – Shorts-ready)
-        let portrait = await trySearch(topic, "portrait");
-        logger.info("ImageFetcher", `Portrait "${topic}" returned ${portrait.length} photos`);
-
-        // 2. Always fetch landscape too – portrait can have many items but same URL (duplicates)
+        // 1. Fetch both orientations – landscape often has more variety; portrait is native 9:16
         let landscape = await trySearch(topic, null);
-        logger.info("ImageFetcher", `Landscape returned ${landscape.length} photos (for variety)`);
+        let portrait = await trySearch(topic, "portrait");
+        logger.info("ImageFetcher", `"${topic}" returned ${landscape.length} landscape, ${portrait.length} portrait`);
 
         // 3. Short query fallback: "ocean waves" from "beautiful ocean waves sunset"
         const uniqueBeforeShort = new Set([...portrait, ...landscape].map((p) => p.id)).size;
@@ -120,26 +117,30 @@ async function fetchImages(topic, count = 8) {
             throw new Error(`No images found for topic: "${topic}"`);
         }
 
+        // On Railway: use large2x (1880px) instead of original to reduce OOM. Local: original for HD.
+        const isRailway = !!process.env.RAILWAY_PROJECT_ID;
+        const pickUrl = (src) => (isRailway ? (src?.large2x || src?.large || src?.original) : (src?.original || src?.large2x || src?.large));
+
         // Only use photos with UNIQUE URLs – Pexels can return same image multiple times
         let urlSeen = new Set();
         let photos = [];
         for (const p of combined) {
             if (photos.length >= count) break;
-            const url = p.src?.original || p.src?.large2x || p.src?.large;
+            const url = pickUrl(p.src) || p.src?.original || p.src?.large2x || p.src?.large;
             if (url && !urlSeen.has(url)) {
                 urlSeen.add(url);
                 photos.push(p);
             }
         }
 
-        // If still few unique URLs, try page 2 for more variety
+        // If still few unique URLs, try page 2
         if (photos.length < count) {
             const beforePage2 = photos.length;
             const page2Portrait = await trySearch(topic, "portrait", 2);
             const page2Landscape = await trySearch(topic, null, 2);
             for (const p of [...page2Portrait, ...page2Landscape]) {
                 if (photos.length >= count) break;
-                const url = p.src?.original || p.src?.large2x || p.src?.large;
+                const url = pickUrl(p.src);
                 if (url && !urlSeen.has(url)) {
                     urlSeen.add(url);
                     photos.push(p);
@@ -150,26 +151,43 @@ async function fetchImages(topic, count = 8) {
             }
         }
 
+        // Last resort: search by individual keywords for maximum variety
+        if (photos.length < count) {
+            const keywords = topic.split(/\s+/).filter((w) => w.length > 2).slice(0, 5);
+            for (const kw of keywords) {
+                if (photos.length >= count) break;
+                const extra = await trySearch(kw, null);
+                for (const p of extra) {
+                    if (photos.length >= count) break;
+                    const url = pickUrl(p.src);
+                    if (url && !urlSeen.has(url)) {
+                        urlSeen.add(url);
+                        photos.push(p);
+                    }
+                }
+            }
+            logger.info("ImageFetcher", `Keyword search yielded ${photos.length} unique images`);
+        }
+
         const portraitCount = photos.filter((p) => portrait.some((x) => x.id === p.id)).length;
         const landscapeCount = photos.length - portraitCount;
         logger.info("ImageFetcher", `→ Video will use ${photos.length} images: ${portraitCount} portrait (native 9:16) + ${landscapeCount} landscape (crop to 9:16)`);
         if (photos.length < count) {
-            logger.warn("ImageFetcher", `Only ${photos.length}/${count} images available – video will have fewer slides`);
+            logger.warn("ImageFetcher", `Only ${photos.length}/${count} unique images – video will repeat or have fewer slides`);
         }
 
         // Verify we have unique URLs (Pexels can return duplicates)
-        const urls = photos.map((p) => p.src.original || p.src.large2x || p.src.large);
+        const urls = photos.map((p) => pickUrl(p.src));
         const uniqueUrls = new Set(urls).size;
         logger.info("ImageFetcher", `URLs: ${uniqueUrls} unique out of ${photos.length}`);
         if (uniqueUrls < photos.length) {
             logger.warn("ImageFetcher", `Pexels returned ${photos.length - uniqueUrls} duplicate image(s) – using ${uniqueUrls} unique`);
         }
 
-        // Download each photo – use original for HD, fallback to large2x then large
+        // Download each photo
         const localPaths = [];
         for (let i = 0; i < photos.length; i++) {
-            const src = photos[i].src;
-            const url = src.original || src.large2x || src.large;
+            const url = pickUrl(photos[i].src);
             const filePath = await downloadImage(url, `image_${i}.jpg`, runDir);
             localPaths.push(filePath);
         }

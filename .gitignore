@@ -3,4 +3,6 @@ node_modules/
 output/
 *.mp3
 *.mp4
+# Allow MP3s in music folder for background music
+!music/*.mp3
 .DS_Store

@@ -20,6 +20,7 @@ require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
+const session = require("express-session");
 const { validateRequiredKeys } = require("../config/apiKeys");
 const { OUTPUT_DIR, MEDIA_DIR } = require("../config/paths");
 const logger = require("../utils/logger");
@@ -41,7 +42,17 @@ try {
 });
 
 // ── 2. Import route modules ───────────────────────────────────────────────
-const generateVideoRouter = require("./routes/generateVideo");
+const generateVideoRouter  = require("./routes/generateVideo");
+const authRouter           = require("./routes/auth");
+const sametaRouter         = require("./routes/sameta");
+const affirmationRouter    = require("./routes/affirmation");
+const socialRouter         = require("./routes/social");
+const mahabharatRouter     = require("./routes/mahabharat");
+const studioRouter         = require("./routes/studio");
+const renderVideoRouter    = require("./routes/renderVideo");
+const { startScheduler }            = require("./services/scheduler");
+const { startMahabharatScheduler }  = require("./services/mahabharatScheduler");
+const { startSametaScheduler }      = require("./services/sametaScheduler");
 
 // ── 3. Create Express app ─────────────────────────────────────────────────
 const app = express();
@@ -54,6 +65,17 @@ app.use(express.json());
 // Parse URL-encoded form bodies (useful for HTML form submissions)
 app.use(express.urlencoded({ extended: true }));
 
+// Session (for per-user YouTube Connect)
+const sessionSecret = process.env.SESSION_SECRET || "ai-content-engine-default-secret-change-in-production";
+app.use(
+    session({
+        secret: sessionSecret,
+        resave: false,
+        saveUninitialized: false,
+        cookie: { secure: process.env.NODE_ENV === "production" && !!process.env.RAILWAY_PUBLIC_DOMAIN },
+    })
+);
+
 // Request logging (for Railway logs)
 app.use((req, res, next) => {
     if (req.path !== "/health") {
@@ -64,35 +86,79 @@ app.use((req, res, next) => {
 
 // ── 5. Mount routes ───────────────────────────────────────────────────────
 
-// Root – API info (includes Railway domain when deployed)
+// Static files (UI)
+const publicDir = path.join(__dirname, "..", "public");
+if (fs.existsSync(publicDir)) {
+    app.use(express.static(publicDir));
+}
+
+// Root – serve UI for non-technical users
 app.get("/", (req, res) => {
+    const indexPath = path.join(publicDir, "index.html");
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        res.json({
+            name: "AI Content Engine",
+            status: "running",
+            endpoints: { health: "GET /health", generateVideo: "POST /api/generate-video" },
+        });
+    }
+});
+
+// Setup page – channel manager (password-protected via ADMIN_SECRET)
+app.get("/setup", (_, res) => {
+    res.sendFile(path.join(publicDir, "setup.html"));
+});
+
+// Mahabharat generator page
+app.get("/mahabharat", (_, res) => {
+    res.sendFile(path.join(publicDir, "mahabharat.html"));
+});
+
+// AI Video Studio page
+app.get("/studio", (_, res) => {
+    res.sendFile(path.join(publicDir, "studio.html"));
+});
+
+// API info (for devs / debugging)
+app.get("/api", (req, res) => {
     const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
     const baseUrl = domain ? `https://${domain}` : null;
-    const eleven = process.env.ELEVENLABS_API_KEY;
     res.json({
         name: "AI Content Engine",
         version: "1.0.0",
         status: "running",
-        ...(baseUrl && {
-            url: baseUrl,
-            youtubeRedirectUri: `${baseUrl}/oauth2callback`,
-        }),
-        endpoints: {
-            health: "GET /health",
-            generateVideo: "POST /api/generate-video",
-        },
-        // Debug: env vars (safe – no secrets). Remove after fixing ElevenLabs.
-        debug: {
-            ELEVENLABS_API_KEY: { set: !!eleven, length: eleven ? String(eleven).trim().length : 0 },
-            OPENAI_API_KEY: { set: !!process.env.OPENAI_API_KEY },
-            PEXELS_API_KEY: { set: !!process.env.PEXELS_API_KEY },
-        },
+        ...(baseUrl && { url: baseUrl, youtubeRedirectUri: `${baseUrl}/oauth2callback` }),
+        endpoints: { health: "GET /health", generateVideo: "POST /api/generate-video" },
     });
 });
 
 // Health check – for Railway, load balancers, n8n
 app.get("/health", (req, res) => {
     res.json({ status: "ok" });
+});
+
+// Download proxy — fetches video from Cloudinary server-side and serves it with
+// Content-Disposition: attachment so iOS/Android browsers save instead of play.
+// Usage: GET /api/download?url=<encoded-cloudinary-url>&filename=video.mp4
+app.get("/api/download", async (req, res) => {
+    const axios = require("axios");
+    const { url, filename = "sameta_video.mp4" } = req.query;
+    if (!url || !url.startsWith("https://res.cloudinary.com/")) {
+        return res.status(400).json({ error: "Invalid url" });
+    }
+    try {
+        const upstream = await axios.get(url, { responseType: "stream" });
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.setHeader("Content-Type", upstream.headers["content-type"] || "video/mp4");
+        if (upstream.headers["content-length"]) {
+            res.setHeader("Content-Length", upstream.headers["content-length"]);
+        }
+        upstream.data.pipe(res);
+    } catch (err) {
+        res.status(500).json({ error: "Download failed: " + err.message });
+    }
 });
 
 // Debug: check for hidden chars in ELEVENLABS_API_KEY (10=newline, 13=cr, 32=space). Remove after fixing.
@@ -151,8 +217,58 @@ app.get("/test-eleven-tts", async (req, res) => {
     }
 });
 
+// Debug: test OpenAI API connectivity + key validity from Railway.
+// Hit GET /test-openai to instantly diagnose key/network issues.
+app.get("/test-openai", async (req, res) => {
+    const OpenAI = require("openai");
+    const key = (process.env.OPENAI_API_KEY || "").trim();
+    if (!key) return res.json({ success: false, error: "OPENAI_API_KEY not set in Railway Variables" });
+    try {
+        const openai = new OpenAI({ apiKey: key, timeout: 15_000 });
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: "Say OK" }],
+            max_tokens: 5,
+        });
+        res.json({
+            success: true,
+            keyPrefix: key.slice(0, 8) + "...",
+            reply: completion.choices[0].message.content,
+        });
+    } catch (e) {
+        res.json({
+            success: false,
+            keyPrefix: key.slice(0, 8) + "...",
+            error: e.message,
+            type: e.constructor.name,
+        });
+    }
+});
+
+// Auth routes (Connect YouTube + Meta/Instagram/Facebook)
+app.use("/auth", authRouter);
+
+// Social OAuth + unified /api/publish endpoint
+app.use("/auth", socialRouter);
+app.use("/api",  socialRouter);
+
+// Mahabharat Shorts script generator
+app.use("/api", mahabharatRouter);
+
+// Affirmations / Positive Vibes (English + Telugu)
+app.use("/api", affirmationRouter);
+
+// AI Video Studio — flexible guided + prompt video generator
+app.use("/api", studioRouter);
+
 // Main pipeline route
 app.use("/api", generateVideoRouter);
+
+// Telugu Sameta video route
+app.use("/api", sametaRouter);
+
+// n8n render-video endpoint (replaces Shotstack)
+app.use("/api", renderVideoRouter);
 
 // ── 6. Global error handler ───────────────────────────────────────────────
 // Catches any unhandled errors thrown in route handlers
@@ -166,6 +282,9 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
     logger.info("App", `Server started on port ${PORT}`);
+    startScheduler();
+    startMahabharatScheduler();
+    startSametaScheduler();
     logger.info("App", `POST /api/generate-video | GET /health`);
     console.log(`
 ╔══════════════════════════════════════════╗

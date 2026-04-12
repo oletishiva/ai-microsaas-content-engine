@@ -7,6 +7,8 @@ output
 media
 *.mp3
 *.mp4
+# Include music folder MP3s for background music
+!music/*.mp3
 .DS_Store
 README.md
 docs

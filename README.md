@@ -27,6 +27,24 @@ Topic (text input)
 
 ---
 
+## 📋 Demo Prompts (E2E Build)
+
+For presenting or rebuilding from scratch: **[docs/demo-prompts/](docs/demo-prompts/)** – section-by-section prompts for vibe coders. Paste into Cursor in a new project, step by step:
+
+| Section | What |
+|---------|------|
+| 0 | Setup (Node, Express, .env) |
+| 1 | Quote generation (OpenAI) |
+| 2 | ElevenLabs voice |
+| 3 | Pexels images |
+| 4 | Audio mixing |
+| 5 | Video assembly (FFmpeg) |
+| 6 | Cloudinary |
+| 7 | YouTube viral Shorts |
+| 8 | Orchestration |
+
+---
+
 ## 📁 Project Structure
 
 ```
@@ -45,6 +63,8 @@ ai-microsaas-content-engine/
 │   ├── routes/
 │   │   └── generateVideo.js    # POST /api/generate-video
 │   └── app.js                  # Express entry point
+├── public/
+│   └── index.html              # Web UI for non-technical users
 ├── utils/
 │   └── ffmpegHelper.js         # FFmpeg concat + probe utilities
 ├── output/                     # Runtime-generated files (gitignored)
@@ -103,7 +123,10 @@ cp .env .env.local  # optional – or just edit .env directly
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a project → Enable **YouTube Data API v3**
 3. Create **OAuth 2.0 credentials** (Web Application type)
-4. Add `http://localhost:3000/oauth2callback` as an authorised redirect URI
+4. Add these as authorised redirect URIs in Google Cloud Console:
+   - `http://localhost:3456/oauth2callback` (for `npm run youtube:auth` script)
+   - `http://localhost:3000/auth/youtube/callback` (for Connect YouTube in UI)
+   - `https://your-app.railway.app/auth/youtube/callback` (when deployed)
 5. Add `YOUTUBE_CLIENT_ID` and `YOUTUBE_CLIENT_SECRET` to `.env`
 6. Run the auth script and follow the prompts:
    ```bash
@@ -143,6 +166,25 @@ npm run dev
 ```
 
 Server starts at: **http://localhost:3000**
+
+### Web UI (for non-technical users)
+
+Open **http://localhost:3000** in your browser. A simple form lets you:
+- Enter a topic or paste your own script
+- Set hook text, image keywords, image count, music options
+- **Connect YouTube** – upload videos to your own channel (not the owner's)
+- Click **Generate Video** and get links to the video and YouTube when done
+
+No curl or Postman needed. API info for developers: **GET /api**
+
+### Multi-user YouTube (Connect YouTube)
+
+Friends can use the app and upload to **their** channel:
+1. Open the UI → click **Connect YouTube**
+2. Sign in with Google, pick the channel
+3. Generate videos → they upload to that channel
+
+Session-based: no database. Each browser session = one user. Optional: set `SESSION_SECRET` in env for production.
 
 ---
 
@@ -209,7 +251,7 @@ Use `imageQuery` for visual keywords (e.g. `tropical ocean waves sunset cinemati
 ## 💡 Workshop Tips
 
 1. **Test each service independently** before running the full pipeline — add a small `test.js` next to each service file.
-2. **Start with YouTube privacy set to `"private"`** (already the default) until you're happy with the output.
+2. **YouTube uploads are public by default** with viral Shorts tags. Use `privacyStatus: "private"` in the upload options if you prefer to review first.
 3. **Change the voice** by swapping `ELEVENLABS_VOICE_ID` in `.env` — browse voices at [ElevenLabs Voice Library](https://elevenlabs.io/voice-library).
 4. **Tweak image count** by changing the `count` argument in the `fetchImages` call inside `generateVideo.js`.
 5. **Add captions** by piping the script to FFmpeg's `drawtext` filter in `videoGenerator.js`.
@@ -238,6 +280,7 @@ Use `imageQuery` for visual keywords (e.g. `tropical ocean waves sunset cinemati
    | `E2E_TEST_MODE` | ❌ | Set to `1` for testing (fewer credits) |
    | `E2E_SKIP_VOICE` | ❌ | Set to `1` to bypass ElevenLabs (use silent audio) when free tier blocks cloud IPs |
    | `IMAGE_COUNT` | ❌ | Override images per video (default: 8). Use if you need more/fewer slides. |
+   | `ENABLE_QUOTE_OVERLAY` | ❌ | Set to `0` to disable quote text overlay (images + voice only, no on-screen quote). |
    | `YOUTUBE_CLIENT_ID` | ❌ | For YouTube uploads |
    | `YOUTUBE_CLIENT_SECRET` | ❌ | For YouTube uploads |
    | `YOUTUBE_REFRESH_TOKEN` | ❌ | For YouTube uploads |
@@ -245,6 +288,8 @@ Use `imageQuery` for visual keywords (e.g. `tropical ocean waves sunset cinemati
    | `CLOUDINARY_CLOUD_NAME` | ❌ | For public video URLs (recommended on Railway) |
    | `CLOUDINARY_API_KEY` | ❌ | For Cloudinary uploads |
    | `CLOUDINARY_API_SECRET` | ❌ | For Cloudinary uploads |
+   | `ADD_MUSIC` | ❌ | Set to `0` to disable. Music from ./music/ folder by default |
+   | `ADD_MUSIC` | ❌ | Set to `0` to disable music (e.g. if Railway OOM) |
    | `RAILPACK_DEPLOY_APT_PACKAGES` | ✅ | **Required for video generation.** Set to `ffmpeg libatomic1` so FFmpeg is available at runtime. |
 
 3. **FFmpeg** is installed automatically via `nixpacks.toml`.
@@ -261,10 +306,25 @@ Use `imageQuery` for visual keywords (e.g. `tropical ocean waves sunset cinemati
 
 7. **Generate video**:
    ```bash
-   curl -X POST https://your-app.railway.app/api/generate-video \
+   curl -X POST https://ai-microsaas-content-engine-production.up.railway.app/api/generate-video \
      -H "Content-Type: application/json" \
-     -d '{"topic": "AI productivity tips"}'
+     -d '{
+       "topic": "world famous quotation",
+       "script": "The only way to do great work is to love what you do. Steve Jobs said it best. Find your passion and success will follow.",
+       "hook": "STOP SCROLLING",
+       "imageQuery": "inspiration motivation",
+       "imageCount": 4,
+       "maxWords": 35,
+       "addMusic": true
+     }'
    ```
+   Replace the Railway URL with yours from Railway → Settings → Networking if different.
+   - **imageCount** (3–10): Override number of images per video. Default: 4.
+   - **showQuote** (boolean): Set to `false` to skip quote overlay (images + voice only). Or use env `ENABLE_QUOTE_OVERLAY=0`.
+   - **Thumbnail**: YouTube Shorts auto-generate thumbnails from video frames (no custom thumb API). The Hook is shown for 3.5s at the start so YouTube is more likely to pick a hook frame for the thumbnail.
+
+### Post to Your Own Channel
+Anyone can deploy this app and post to their own YouTube channel. Add your YouTube OAuth credentials (`YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`) in Railway Variables. Run `node scripts/get-youtube-refresh-token.js` locally to get a refresh token for your channel, then add it to Railway. Videos will upload to the channel you authorized.
 
 ### Fix: "secret App: not found" build error
 
