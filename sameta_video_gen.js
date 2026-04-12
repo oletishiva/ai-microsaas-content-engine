@@ -43,8 +43,6 @@ function saveUsedSameta(sameta) {
     try { fs.writeFileSync(USED_FILE, JSON.stringify(list.slice(-500)), "utf8"); } catch (_) {}
 }
 
-// Colors matching reference images
-const MAROON = "#5C1A1A"; // "సామెత" label + Sameta text
 
 // ── Built-in Telugu Sameta list for --random mode ─────────────────────────────
 const SAMETA_LIST = [
@@ -145,13 +143,13 @@ async function pickRandomSameta() {
     const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
     const response = await client.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 300,
+        max_tokens: 500,
         system: `You are an expert in Telugu literature and proverbs (సామెతలు) with knowledge of thousands of ancient and regional Telugu sayings. This is a MOTIVATIONAL Telugu channel — prioritize proverbs that inspire action, courage, perseverance, and self-improvement.
 Return ONLY valid JSON — no markdown, no explanation.
 Format: {"sameta": "Telugu proverb here", "meaning": "Telugu meaning here"}
 Rules:
 - Both sameta and meaning MUST be in Telugu script
-- Meaning: MAX 15 words — one punchy, inspiring sentence. Make it feel like motivation, not just a definition
+- Meaning: 40-60 words in Telugu — explain the proverb's story/origin, what situation it applies to, and the life lesson. 2-3 sentences. Rich and engaging, not just a dictionary definition. This full explanation is what drives views and subscribers.
 - Today's category: ${category} — pick a sameta fitting this theme
 - Strongly prefer proverbs about hard work, courage, never giving up, patience, wisdom, and success over passive/negative ones
 - Prefer lesser-known regional gems and vivid imagery over famous/overused ones${avoidSection}`,
@@ -230,7 +228,7 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
 
     // Push text down so YouTube/Instagram top UI chrome doesn't cover the title
     const TOP_OFFSET = Math.floor(H * 0.04); // 4% = 77px @ 1920
-    const CREAM_H    = Math.floor(H * 0.37); // 37% = 710px — cream ends above character area (DALL-E places figures in bottom 60%)
+    const CREAM_H    = Math.floor(H * 0.43); // 43% = 826px — extra room now that "సామెత" label removed
     const TEXT_W     = Math.round(W * 0.80); // 864px — 80% width, 10% padding each side
 
     // ── Resize + flatten base image ───────────────────────────────────────────
@@ -290,41 +288,37 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
     const creamBuf = await sharp(Buffer.from(gradientSvg)).png().toBuffer();
     composites.push({ input: creamBuf, top: 0, left: 0 });
 
-    // ── H1: "సామెత" — large, bold, centered maroon title ────────────────────
-    const label = await pangoText("సామెత", 58, MAROON, "bold", 45 + TOP_OFFSET);
-    composites.push(label);
-    let y = label.top + label._h + 18;
-
-    // Thin divider line
-    const LINE_W = 220;
-    const lineBuf = await sharp({
-        create: { width: LINE_W, height: 4, channels: 4, background: { r: 92, g: 26, b: 26, alpha: 0.65 } },
-    }).png().toBuffer();
-    composites.push({ input: lineBuf, top: y, left: Math.floor((W - LINE_W) / 2) });
-    y += 22;
-
-    // ── H2: Proverb — very large, bold, near-black, centered ─────────────────
+    // ── Proverb — very large, bold, near-black, centered (no "సామెత" label — more room for text) ──
+    let y = 40 + TOP_OFFSET;
     for (const line of wrapText(sameta, 22)) {
         const el = await pangoText(line, 62, "#1C0A0A", "900", y);
         composites.push(el);
         y += el._h + 6;
     }
-    y += 22;
+    y += 16;
 
-    // ── H3: Meaning — fill cream area with full text, hard Y clamp ──────────
+    // Thin divider line under proverb
+    const LINE_W = 220;
+    const lineBuf = await sharp({
+        create: { width: LINE_W, height: 4, channels: 4, background: { r: 92, g: 26, b: 26, alpha: 0.65 } },
+    }).png().toBuffer();
+    composites.push({ input: lineBuf, top: y, left: Math.floor((W - LINE_W) / 2) });
+    y += 24;
+
+    // ── Meaning — fill remaining cream area with full text, hard Y clamp ──────
     // Flatten newlines but keep ALL content — full meaning text drives engagement.
     const meaningClean = meaning
         .replace(/[\r\n]+/g, " ")
         .replace(/\s{2,}/g, " ")
         .trim();
-    const meaningLines = wrapText(`భావం: ${meaningClean}`, 26);
+    const meaningLines = wrapText(`భావం: ${meaningClean}`, 28);
     const maxY = CREAM_H - 20; // hard clamp — nothing bleeds into watercolor
     for (const line of meaningLines) {
         if (y >= maxY) break;
-        const el = await pangoText(line, 32, "#2C1810", "normal", y);
+        const el = await pangoText(line, 28, "#2C1810", "normal", y);
         if (y + el._h > maxY) break;
         composites.push(el);
-        y += el._h + 4;
+        y += el._h + 5;
     }
 
     // ── Composite all layers onto base image ──────────────────────────────────
