@@ -58,11 +58,11 @@ async function runSametaJob() {
             "",
             `భావం: ${meaning}`,
             "",
-            "#TeluguSameta #సామెత #TeluguProverbs #Telugu #TeluguMotivation #shorts #motivation #wisdom",
+            "#sametalu #samethalu #telugusamethalu #samethaluwithmeaning #సామెత #తెలుగుసామెత",
+            "#TeluguSameta #TeluguProverbs #TeluguMotivation #TeluguWisdom #TeluguShorts",
+            "#shorts #viral #trending #foryou #ytshorts #motivation #lifelessons",
             "",
-            "📌 రోజూ స్ఫూర్తిదాయకమైన తెలుగు సామెతల కోసం subscribe చేయండి! 🔔",
-            "",
-            "#తెలుగుసామెత #TeluguWisdom #lifelessons #inspiration #viral #foryou",
+            "📌 రోజూ స్ఫూర్తిదాయకమైన తెలుగు సామెతల కోసం Subscribe చేయండి! 🔔 Bell icon నొక్కండి!",
         ].join("\n");
 
         // Download from Cloudinary to temp file for YouTube upload
@@ -93,7 +93,12 @@ async function runSametaJob() {
         });
 
         const youtubeUrl = await uploadToYouTube(tmpPath, ytTitle, ytDesc, {
-            tags: ["TeluguSameta", "సామెత", "Telugu", "TeluguMotivation", "shorts", "motivation", "wisdom", "proverbs"],
+            tags: [
+                "sametalu", "samethalu", "telugusamethalu", "samethaluwithmeaning",
+                "సామెత", "తెలుగుసామెత", "TeluguSameta", "TeluguProverbs",
+                "Telugu", "TeluguMotivation", "TeluguWisdom", "TeluguShorts",
+                "shorts", "viral", "motivation", "ytshorts", "foryou", "trending",
+            ],
             refreshToken,
             categoryId: "27", // Education
             privacyStatus: "public",

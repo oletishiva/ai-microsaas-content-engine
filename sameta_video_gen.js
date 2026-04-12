@@ -169,19 +169,24 @@ Rules:
 // ── Step 1: Claude → DALL-E image prompt ─────────────────────────────────────
 async function generateImagePrompt(sameta, meaning) {
     console.log("🔄 Step 1/3 — Claude generating image prompt...");
-    const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const response = await client.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 500,
-        system: `You are a master DALL-E 3 prompt engineer specializing in Telugu cultural watercolor art.
 
-Create a SINGLE unified portrait image (9:16) — absolutely NOT two panels, NOT split side by side, NOT divided vertically.
+    // 40% chance of B&W pencil sketch style — adds variety, proven to get views
+    const useSketch = Math.random() < 0.4;
+    console.log(`   Style: ${useSketch ? "B&W pencil sketch" : "watercolor"}`);
 
-The image is ONE continuous scene top-to-bottom:
+    const sketchStyle = `
+BOTTOM 60% — An exquisitely detailed traditional Telugu pencil sketch / charcoal drawing illustration. CRITICAL COMPOSITION RULE: All human figures, animals, and main subjects MUST be fully visible and contained within the bottom 60% of the canvas. No figure should be cut off at the top — every character must show their full body, head to feet, within this lower portion. Follow these art style rules exactly:
+- Style: fine-line pencil sketch with charcoal shading, reminiscent of 19th-century Indian narrative illustrations — cross-hatching, soft gradients, rich black and white tonal range
+- Characters: traditional Andhra Pradesh villagers in authentic period clothing
+- Setting: rich Telugu village environment — thatched homes, mango/banyan trees, paddy fields, stone wells, earthen pots
+- Mood: emotionally resonant, story-illustrating, dramatic light and shadow — high contrast
+- Detail level: museum-quality pencil illustration, visible fine strokes, deep blacks and bright whites
+- The scene must directly illustrate the proverb's story or moral — a specific dramatic narrative moment
 
-TOP 40% — Pristine aged parchment / cream paper texture. Completely empty — NO figures, NO objects, NO illustrations here. Just warm creamy paper (#FFF8F0) with very subtle natural grain. This space is reserved for text overlays.
+TRANSITION: The cream paper area flows organically into the sketch scene — the sketch appears to be drawn directly on the same parchment paper with no hard border.`;
 
-BOTTOM 60% — An exquisitely detailed traditional Telugu watercolor illustration. CRITICAL COMPOSITION RULE: All human figures, animals, and main subjects MUST be fully visible and contained within the bottom 60% of the canvas. No figure should be cut off at the top — every character must show their full body, head to feet, within this lower portion. The characters should fill this space richly without being cropped. Follow these art style rules exactly:
+    const watercolorStyle = `
+BOTTOM 60% — An exquisitely detailed traditional Telugu watercolor illustration. CRITICAL COMPOSITION RULE: All human figures, animals, and main subjects MUST be fully visible and contained within the bottom 60% of the canvas. No figure should be cut off at the top — every character must show their full body, head to feet, within this lower portion. Follow these art style rules exactly:
 - Style: authentic hand-painted South Indian watercolor, reminiscent of Raja Ravi Varma meets folk art
 - Characters: traditional Andhra Pradesh villagers in authentic period clothing — men in dhotis/angavastrams, women in Pochampally sarees with jasmine in hair
 - Setting: rich Telugu village environment — red-tiled thatched homes, neem/mango/banyan trees, paddy fields with water buffaloes, stone wells, earthen pots, oil lamps
@@ -190,7 +195,20 @@ BOTTOM 60% — An exquisitely detailed traditional Telugu watercolor illustratio
 - Detail level: highly detailed, museum-quality watercolor technique, visible brushstrokes, color bleeding at edges
 - The scene must directly illustrate the proverb's story or moral — not abstract, but a specific narrative moment
 
-TRANSITION: The cream paper area flows organically into the watercolor scene via a soft watercolor wash — no hard line, no border, no frame. The scene bleeds upward naturally like paint on wet paper.
+TRANSITION: The cream paper area flows organically into the watercolor scene via a soft watercolor wash — no hard line, no border, no frame. The scene bleeds upward naturally like paint on wet paper.`;
+
+    const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const response = await client.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 500,
+        system: `You are a master DALL-E 3 prompt engineer specializing in Telugu cultural art.
+
+Create a SINGLE unified portrait image (9:16) — absolutely NOT two panels, NOT split side by side, NOT divided vertically.
+
+The image is ONE continuous scene top-to-bottom:
+
+TOP 40% — Pristine aged parchment / cream paper texture. Completely empty — NO figures, NO objects, NO illustrations here. Just warm creamy paper (#FFF8F0) with very subtle natural grain. This space is reserved for text overlays.
+${useSketch ? sketchStyle : watercolorStyle}
 
 CRITICAL: One single continuous image. No text. No borders. No panels. No split.
 Return only the DALL-E 3 image prompt, nothing else.`,
@@ -320,6 +338,19 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
         composites.push(el);
         y += el._h + 5;
     }
+
+    // ── Subscribe button — placed just above watercolor transition ───────────
+    // Red YouTube-style button with 🔔 + Subscribe text, centered horizontally
+    const BTN_W = 360, BTN_H = 72, BTN_R = 36;
+    const subscribeSvg = `<svg width="${BTN_W}" height="${BTN_H}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="${BTN_W}" height="${BTN_H}" rx="${BTN_R}" ry="${BTN_R}" fill="#FF0000"/>
+      <text x="${BTN_W / 2}" y="${BTN_H / 2 + 1}" font-family="Arial, sans-serif" font-size="28" font-weight="bold"
+            fill="white" text-anchor="middle" dominant-baseline="middle">🔔 Subscribe</text>
+    </svg>`;
+    const subBuf = await sharp(Buffer.from(subscribeSvg)).png().toBuffer();
+    const subTop = CREAM_H - BTN_H - 16; // stick to bottom of cream area
+    const subLeft = Math.floor((W - BTN_W) / 2);
+    composites.push({ input: subBuf, top: subTop, left: subLeft });
 
     // ── Composite all layers onto base image ──────────────────────────────────
     await sharp(baseBuffer)
