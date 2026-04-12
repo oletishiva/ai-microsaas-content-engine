@@ -211,10 +211,20 @@ TOP 40% — Pristine aged parchment / cream paper texture. Completely empty — 
 ${useSketch ? sketchStyle : watercolorStyle}
 
 CRITICAL: One single continuous image. No text. No borders. No panels. No split.
+
+DALL-E SAFETY RULES — your prompt MUST follow these or it will be rejected:
+- NO fire, flames, burning, smoke, or destruction imagery
+- NO violence, weapons, fighting, or injury
+- NO death, corpses, skulls, or suffering
+- NO darkness, evil, demons, or supernatural threat
+- For karma/consequence proverbs: show the AFTERMATH of good deeds being rewarded — a person receiving gratitude, a harvest being shared, neighbors helping each other
+- For sin/wrongdoing proverbs: show a person looking remorseful/thoughtful, an elder giving wise counsel, or a symbolic object like a wilting plant — never the act itself
+- Always resolve toward POSITIVE, HOPEFUL, WARM imagery
+
 Return only the DALL-E 3 image prompt, nothing else.`,
         messages: [{
             role: "user",
-            content: `Telugu proverb: "${sameta}"\nMeaning: "${meaning}"\n\nCreate a vivid, culturally authentic DALL-E 3 prompt for this proverb's scene.`,
+            content: `Telugu proverb: "${sameta}"\nMeaning: "${meaning}"\n\nCreate a vivid, culturally authentic DALL-E 3 prompt for this proverb's scene. Remember: warm, positive, hopeful imagery only — no fire, violence, or dark themes.`,
         }],
     });
     const prompt = response.content[0].text.trim();
@@ -223,17 +233,36 @@ Return only the DALL-E 3 image prompt, nothing else.`,
 }
 
 // ── Step 2: DALL-E 3 → scene image ───────────────────────────────────────────
+const SAFE_FALLBACK_PROMPT = "A single continuous 9:16 portrait image. TOP 40%: pristine aged cream parchment paper (#FFF8F0), completely empty, reserved for text. BOTTOM 60%: authentic South Indian watercolor illustration — a wise village elder sitting under a banyan tree sharing wisdom with attentive villagers, warm golden hour light, traditional Andhra Pradesh clothing, peaceful and uplifting mood, museum-quality watercolor technique. No text, no borders, no panels.";
+
 async function generateImage(prompt, imagePath) {
     console.log("🔄 Step 2/3 — DALL-E 3 generating image...");
     const openai = new OpenAI.default({ apiKey: process.env.OPENAI_API_KEY });
-    const response = await openai.images.generate({
-        model:   "dall-e-3",
-        prompt,
-        n:       1,
-        size:    "1024x1792",  // native 9:16 portrait — no crop needed
-        quality: "hd",        // higher detail, richer watercolor; ~40s but worth it for cultural art
-    });
-    await downloadFile(response.data[0].url, imagePath);
+
+    const tryGenerate = async (p) => {
+        const response = await openai.images.generate({
+            model:   "dall-e-3",
+            prompt:  p,
+            n:       1,
+            size:    "1024x1792",
+            quality: "hd",
+        });
+        return response.data[0].url;
+    };
+
+    let url;
+    try {
+        url = await tryGenerate(prompt);
+    } catch (err) {
+        if (err.status === 400 || (err.message && err.message.includes("safety"))) {
+            console.warn("⚠️  DALL-E rejected prompt — retrying with safe fallback...");
+            url = await tryGenerate(SAFE_FALLBACK_PROMPT);
+        } else {
+            throw err;
+        }
+    }
+
+    await downloadFile(url, imagePath);
     console.log(`✅ Image downloaded: ${path.basename(imagePath)}`);
 }
 
