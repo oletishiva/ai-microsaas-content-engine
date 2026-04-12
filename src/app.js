@@ -1,5 +1,5 @@
 /**
- * src/app.js
+ * src/app.js — updated 2026-04-12
  * -----------
  * Express application entry point for AI Content Engine.
  *
