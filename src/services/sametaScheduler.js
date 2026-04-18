@@ -122,12 +122,12 @@ function startSametaScheduler() {
 
     const TZ = "Asia/Kolkata";
 
-    // 7:00 AM IST — morning motivation
-    cron.schedule("0 7 * * *", runSametaJob, { timezone: TZ });
-    // 6:00 PM IST — evening commute / after-work
-    cron.schedule("0 18 * * *", runSametaJob, { timezone: TZ });
+    cron.schedule("0 9  * * *", runSametaJob, { timezone: TZ }); // 9:00 AM — morning browse
+    cron.schedule("0 13 * * *", runSametaJob, { timezone: TZ }); // 1:00 PM — lunch scroll
+    cron.schedule("0 17 * * *", runSametaJob, { timezone: TZ }); // 5:00 PM — end of work
+    cron.schedule("0 20 * * *", runSametaJob, { timezone: TZ }); // 8:00 PM — prime time
 
-    logger.info("SametaCron", `Scheduled: 7:00 AM IST + 6:00 PM IST (${TZ})`);
+    logger.info("SametaCron", `Scheduled: 9 AM / 1 PM / 5 PM / 8 PM IST (${TZ})`);
 }
 
 module.exports = { startSametaScheduler, runSametaJob };

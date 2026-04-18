@@ -52,7 +52,8 @@ const studioRouter         = require("./routes/studio");
 const renderVideoRouter    = require("./routes/renderVideo");
 const { startScheduler }            = require("./services/scheduler");
 const { startMahabharatScheduler }  = require("./services/mahabharatScheduler");
-const { startSametaScheduler }      = require("./services/sametaScheduler");
+const { startSametaScheduler }        = require("./services/sametaScheduler");
+const { startAffirmationScheduler }   = require("./services/affirmationScheduler");
 
 // ── 3. Create Express app ─────────────────────────────────────────────────
 const app = express();
@@ -285,6 +286,7 @@ app.listen(PORT, () => {
     startScheduler();
     startMahabharatScheduler();
     startSametaScheduler();
+    startAffirmationScheduler();
     logger.info("App", `POST /api/generate-video | GET /health`);
     console.log(`
 ╔══════════════════════════════════════════╗
