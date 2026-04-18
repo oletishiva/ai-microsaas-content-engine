@@ -52,7 +52,7 @@ async function runSametaJob() {
         }
 
         const sametaShort = sameta.length > 60 ? sameta.slice(0, 57).trimEnd() + "..." : sameta;
-        const ytTitle = `${sametaShort} #shorts #telugu`;
+        const ytTitle = `${sametaShort} #telugusamethalu #shorts`;
         const ytDesc  = [
             `${sameta}`,
             "",

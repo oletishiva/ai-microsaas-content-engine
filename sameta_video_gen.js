@@ -377,8 +377,8 @@ async function createVideo(imagePath, sameta, meaning, videoPath) {
             fill="white" text-anchor="middle" dominant-baseline="middle">🔔 Subscribe</text>
     </svg>`;
     const subBuf = await sharp(Buffer.from(subscribeSvg)).png().toBuffer();
-    const subTop = CREAM_H - BTN_H - 16; // stick to bottom of cream area
-    const subLeft = Math.floor((W - BTN_W) / 2);
+    const subTop = CREAM_H + Math.floor(H * 0.10) - BTN_H; // 10% into watercolor area
+    const subLeft = Math.floor(W * 0.06); // left-aligned, 6% from edge
     composites.push({ input: subBuf, top: subTop, left: subLeft });
 
     // ── Composite all layers onto base image ──────────────────────────────────
