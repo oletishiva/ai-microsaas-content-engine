@@ -36,7 +36,7 @@
 
   <h2>1 · Create videos <span class="tag" id="aiTag">needs 1 key</span></h2>
   <div id="ai"></div>
-  <p class="help">Fastest start: just an <b>OpenAI</b> key (script + images). Or a <b>Pexels</b> key (free) for stock photos, or upload your own images in the Studio.</p>
+  <p class="help">Fastest start: just an <b>OpenAI</b> key (script + AI images). Or a <b>Pexels</b> key (free) for stock photos, or upload your own images in the Studio. An Anthropic key only improves the written text – it cannot make images.</p>
 
   <h2>2 · One-click publish <span class="tag">optional</span></h2>
   <p class="help">Skip this now – you can always download the MP4 and upload it yourself. Add it later whenever you like.</p>
@@ -72,8 +72,8 @@ async function load() {
   $('#redir').textContent = d.youtubeRedirectUri;
   $('#ai').innerHTML = ''; $('#publish').innerHTML = '';
   fields.forEach(f => (f.group === 'ai' ? $('#ai') : $('#publish')).appendChild(el(f)));
-  const ready = d.configured || fields.some(f => f.key === 'PEXELS_API_KEY' && f.set);
-  $('#aiTag').textContent = ready ? 'ready ✓' : 'needs 1 key'; $('#aiTag').className = 'tag' + (ready ? ' set' : '');
+  const ready = d.configured;
+  $('#aiTag').textContent = ready ? 'ready ✓' : 'needs an image key'; $('#aiTag').className = 'tag' + (ready ? ' set' : '');
 }
 
 async function save() {

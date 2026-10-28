@@ -15,8 +15,9 @@ You need [Node.js](https://nodejs.org) (LTS). Everything else — including **FF
 Your browser opens on a **Setup page**. Paste **one** key and click *Save* — you're done:
 
 * **OpenAI key** → script + AI images (easiest), **or**
-* **Anthropic key** → smarter scripts (images from OpenAI/Gemini), **or**
+* **Gemini key** → AI images (Imagen), **or**
 * **Pexels key** (free) → real stock photos, or upload your own pictures in the Studio.
+* *Optional:* an **Anthropic** key for better-written scripts. Claude writes text only — it does not create images.
 
 Next time just double-click **`start.bat`** (Windows) / **`start.command`** (Mac) or run `./start.sh`.
 Something odd? Run `npm run doctor` — it checks Node, FFmpeg, fonts and renders a real test video.

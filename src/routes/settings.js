@@ -19,7 +19,7 @@ const ENV_FILE = path.join(ROOT, ".env");
 
 // key → label/help shown on the Settings page
 const FIELDS = [
-    { key: "ANTHROPIC_API_KEY", group: "ai", label: "Anthropic (Claude) key", help: "Writes scripts and scene ideas. https://console.anthropic.com/settings/keys" },
+    { key: "ANTHROPIC_API_KEY", group: "ai", label: "Anthropic (Claude) key", help: "Writes scripts and scene ideas (text only – it cannot create images). https://console.anthropic.com/settings/keys" },
     { key: "OPENAI_API_KEY", group: "ai", label: "OpenAI key", help: "Images (DALL·E) and script fallback. https://platform.openai.com/api-keys" },
     { key: "GEMINI_API_KEY", group: "ai", label: "Google Gemini key (optional)", help: "Cheaper Imagen images. https://aistudio.google.com/apikey" },
     { key: "PEXELS_API_KEY", group: "ai", label: "Pexels key (optional, free)", help: "Free stock photos when no AI image key is set. https://www.pexels.com/api/" },
@@ -34,7 +34,8 @@ const FIELDS = [
 const KEYS = new Set(FIELDS.map((f) => f.key));
 
 function isConfigured() {
-    return !!(process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY || process.env.PEXELS_API_KEY);
+    // Claude only writes text; an image source (OpenAI, Gemini or Pexels) is required for pictures.
+    return !!(process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.PEXELS_API_KEY);
 }
 router.isConfigured = isConfigured;
 
