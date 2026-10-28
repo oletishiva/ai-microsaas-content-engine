@@ -44,6 +44,7 @@ No publish keys? Download the MP4 and upload it yourself.
 ## 🧰 Advanced
 
 * `PORT`, `HOST` – change where it listens. Docker / Railway: see the Dockerfile (`HOST=0.0.0.0`).
+* Sample videos (English, Telugu, Hindi, Tamil) are in `demo/`; regenerate with `node scripts/make-demos.js`.
 * The older multi-channel dashboard (Affirmations / Mahabharat / Sameta + schedulers) is at `/classic`.
 * The original developer docs follow below.
 

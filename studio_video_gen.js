@@ -26,10 +26,10 @@ const W = 1080, H = 1920;
 // ── Language config ────────────────────────────────────────────────────────
 const LANGUAGES = {
     english:  { name: "English",  isLatin: true  },
-    telugu:   { name: "Telugu",   isLatin: false },
-    hindi:    { name: "Hindi",    isLatin: false },
-    tamil:    { name: "Tamil",    isLatin: false },
-    kannada:  { name: "Kannada",  isLatin: false },
+    telugu:   { name: "Telugu",   isLatin: false, font: "NotoSansTelugu.ttf",          family: "Noto Sans Telugu" },
+    hindi:    { name: "Hindi",    isLatin: false, font: "NotoSansDevanagari-Bold.ttf", family: "Noto Sans Devanagari" },
+    tamil:    { name: "Tamil",    isLatin: false, font: "NotoSansTamil-Bold.ttf",      family: "Noto Sans Tamil" },
+    kannada:  { name: "Kannada",  isLatin: false, font: "NotoSansKannada-Bold.ttf",    family: "Noto Sans Kannada" },
 };
 
 const FONT_LATIN  = path.resolve(__dirname, "fonts", "Caveat-Bold.ttf");
@@ -247,7 +247,7 @@ async function fetchPexelsImage(query, destPath, sceneIdx = 0) {
 async function compositeScene(imagePath, sceneIdx, totalScenes, content, language, outputPath) {
     const { hook, quote, subtext } = content;
     const lang      = LANGUAGES[language] || LANGUAGES.english;
-    const FONT_PATH = lang.isLatin ? FONT_LATIN : FONT_INDIC;
+    const FONT_PATH = lang.isLatin ? FONT_LATIN : (lang.font ? path.resolve(__dirname, "fonts", lang.font) : FONT_INDIC);
     const TEXT_W    = Math.round(W * 0.80); // 864px — 80% width, 10% padding each side
     const maxChars  = lang.isLatin ? 28 : 22;
 
@@ -259,7 +259,7 @@ async function compositeScene(imagePath, sceneIdx, totalScenes, content, languag
     const composites = [];
 
     async function rt(text, sizePt, color, weight) {
-        const family = lang.isLatin ? "Caveat" : "Noto Sans Telugu";
+        const family = lang.isLatin ? "Caveat" : (lang.family || "Noto Sans Telugu");
         const markup = `<span font_family="${family}" font_size="${sizePt}pt" font_weight="${weight}" foreground="${color}">${escapeXml(text)}</span>`;
         const buf    = await sharp({ text: { text: markup, fontfile: FONT_PATH, width: TEXT_W, rgba: true, dpi: 96, align: "centre" } }).png().toBuffer();
         const { width: w, height: h } = await sharp(buf).metadata();
