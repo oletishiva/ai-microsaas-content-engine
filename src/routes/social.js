@@ -40,7 +40,7 @@ const { uploadToYouTube } = require("../services/youtubeUploader");
 
 // ── Token persistence (survives Railway redeploys) ────────────────────────────
 
-const META_TOKEN_FILE = path.join(__dirname, "../../../output/.meta_tokens.json");
+const META_TOKEN_FILE = path.join(require("../../config/paths").OUTPUT_DIR, ".meta_tokens.json");
 
 function saveMetaTokens(tokens) {
     try { fs.writeFileSync(META_TOKEN_FILE, JSON.stringify(tokens), "utf8"); } catch (_) {}
@@ -270,7 +270,7 @@ router.post("/publish", async (req, res) => {
     // ── YouTube ────────────────────────────────────────────────────────────
     if (platforms.includes("youtube")) {
         const apiKeys = require("../../config/apiKeys");
-        const TOKEN_FILE = path.join(__dirname, "../../../output/.youtube_user_token");
+        const TOKEN_FILE = path.join(require("../../config/paths").OUTPUT_DIR, ".youtube_user_token");
         const fileToken = (() => { try { return fs.readFileSync(TOKEN_FILE, "utf8").trim() || null; } catch (_) { return null; } })();
         const ytToken = req.session?.youtubeRefreshToken || fileToken;
         const canYouTube = apiKeys.hasYouTubeConfig || (apiKeys.hasYouTubeOAuthConfig && ytToken);

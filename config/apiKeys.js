@@ -17,11 +17,10 @@ require("dotenv").config();
  * @throws {Error} If any required key is missing (only when not on Railway)
  */
 function validateRequiredKeys() {
-    const required = [
-        { key: "OPENAI_API_KEY", name: "OpenAI" },
-        { key: "ELEVENLABS_API_KEY", name: "ElevenLabs" },
-        { key: "PEXELS_API_KEY", name: "Pexels" },
-    ];
+    // Only one AI key is truly needed: Anthropic OR OpenAI (script + images). Others are optional.
+    const required = (process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY)
+        ? []
+        : [{ key: "OPENAI_API_KEY", name: "OpenAI (or ANTHROPIC_API_KEY)" }];
     const optional = [
         { key: "YOUTUBE_CLIENT_ID", name: "YouTube Client ID" },
         { key: "YOUTUBE_CLIENT_SECRET", name: "YouTube Client Secret" },
@@ -31,19 +30,11 @@ function validateRequiredKeys() {
         { key: "CLOUDINARY_API_SECRET", name: "Cloudinary API Secret" },
     ];
     const missing = required.filter(({ key }) => !process.env[key] || String(process.env[key]).trim() === "");
-    const isRailway = !!process.env.RAILWAY_PROJECT_ID || !!process.env.RAILWAY_PUBLIC_DOMAIN;
     if (missing.length > 0) {
-        if (isRailway) {
-            console.warn(
-                `[apiKeys] Missing: ${missing.map((m) => m.key).join(", ")}. ` +
-                    "Add them in Railway → web service → Variables tab. App will start but /api/generate-video will fail."
-            );
-        } else {
-            const list = missing.map((m) => `${m.name} (${m.key})`).join(", ");
-            throw new Error(
-                `Missing required API keys: ${list}. Add them to .env and restart.`
-            );
-        }
+        console.warn(
+            `[apiKeys] Not configured yet: ${missing.map((m) => m.key).join(", ")}. ` +
+                "Open http://localhost:" + (process.env.PORT || 3000) + "/settings to add your keys."
+        );
     }
     const missingYouTube = optional
         .filter((o) => o.key.startsWith("YOUTUBE_"))

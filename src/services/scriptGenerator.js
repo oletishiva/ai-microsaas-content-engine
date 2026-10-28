@@ -7,10 +7,14 @@
  */
 
 const OpenAI = require("openai");
-const { OPENAI_API_KEY } = require("../../config/apiKeys");
 const logger = require("../../utils/logger");
 
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY, timeout: 30_000 }); // 30s hard timeout
+// Created lazily so the app can start before a key has been entered on the Settings page
+let _openai;
+function getOpenAI() {
+    if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 30_000 }); // 30s hard timeout
+    return _openai;
+}
 
 const MAX_WORDS = 35;
 const MAX_CHARS = 200;
@@ -68,7 +72,7 @@ RULES:
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
                 logger.info("ScriptGenerator", `OpenAI call attempt ${attempt}/${MAX_RETRIES}...`);
-                completion = await openai.chat.completions.create({
+                completion = await getOpenAI().chat.completions.create({
                     model: "gpt-4o-mini",
                     messages: [
                         { role: "system", content: systemPrompt },

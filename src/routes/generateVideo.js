@@ -18,7 +18,7 @@ const { OUTPUT_DIR }              = require("../../config/paths");
 const { generateNotebookVideo }   = require("../../notebook_video_gen");
 
 const multer = require("multer");
-const upload = multer({ dest: path.join(__dirname, "../../../output/uploads") });
+const upload = multer({ dest: path.join(require("../../config/paths").OUTPUT_DIR, "uploads") });
 
 function deriveHookFromScript(script) {
     const s = String(script || "").trim();
@@ -105,7 +105,7 @@ router.post("/generate-video", upload.array("images", 10), async (req, res) => {
         logger.info("Pipeline", "Video generated", { videoPath });
 
         // STEP 3: Upload to YouTube (optional)
-        const TOKEN_FILE = path.join(__dirname, "../../../output/.youtube_user_token");
+        const TOKEN_FILE = path.join(require("../../config/paths").OUTPUT_DIR, ".youtube_user_token");
         const fileToken = (() => { try { return fs.readFileSync(TOKEN_FILE, "utf8").trim() || null; } catch (_) { return null; } })();
         const sessionToken = req.session?.youtubeRefreshToken || fileToken;
         const canUploadToYouTube = pushToYouTube && (apiKeys.hasYouTubeConfig || (apiKeys.hasYouTubeOAuthConfig && sessionToken));

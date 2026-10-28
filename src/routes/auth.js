@@ -16,10 +16,10 @@ const {
 } = require("../../config/apiKeys");
 
 // File-based token fallback — survives process restarts within same Railway deployment
-const TOKEN_FILE         = path.join(__dirname, "../../../output/.youtube_user_token");
-const TOKEN_FILE_SAMETA  = path.join(__dirname, "../../../output/.youtube_sameta_token");
-const TOKEN_FILE_MB      = path.join(__dirname, "../../../output/.youtube_mahabharat_token");
-const TOKEN_FILE_AFF     = path.join(__dirname, "../../../output/.youtube_affirmation_token");
+const TOKEN_FILE         = path.join(require("../../config/paths").OUTPUT_DIR, ".youtube_user_token");
+const TOKEN_FILE_SAMETA  = path.join(require("../../config/paths").OUTPUT_DIR, ".youtube_sameta_token");
+const TOKEN_FILE_MB      = path.join(require("../../config/paths").OUTPUT_DIR, ".youtube_mahabharat_token");
+const TOKEN_FILE_AFF     = path.join(require("../../config/paths").OUTPUT_DIR, ".youtube_affirmation_token");
 
 function tokenFileFor(channel) {
     if (channel === "sameta")       return TOKEN_FILE_SAMETA;

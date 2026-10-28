@@ -11,7 +11,7 @@
  *   5. FFmpeg → concat all clips + optional music
  */
 
-require("dotenv").config();
+require("./utils/bootstrap");
 const Anthropic    = require("@anthropic-ai/sdk");
 const OpenAI       = require("openai");
 const sharp        = require("sharp");
@@ -81,22 +81,54 @@ function downloadFile(url, dest) {
 
 function pickMusic() {
     const dir   = path.resolve(__dirname, "music");
-    const files = fs.readdirSync(dir).filter(f => /\.(mp3|m4a|wav)$/i.test(f));
-    if (!files.length) throw new Error("No music files found in music/");
+    const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => /\.(mp3|m4a|wav)$/i.test(f)) : [];
+    if (!files.length) return null; // no music available – video is rendered without it
     return path.join(dir, files[Math.floor(Math.random() * files.length)]);
 }
 
-// ── Step 1: Claude — interpret content + generate scene prompts ────────────
+// ── LLM helper: Claude if ANTHROPIC_API_KEY is set, otherwise OpenAI ───────
+async function callLLM(system, user, maxTokens) {
+    if (process.env.ANTHROPIC_API_KEY) {
+        const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+        const resp = await client.messages.create({
+            model: "claude-sonnet-4-6", max_tokens: maxTokens, system,
+            messages: [{ role: "user", content: user }],
+        });
+        return resp.content[0].text;
+    }
+    if (process.env.OPENAI_API_KEY) {
+        const openai = new OpenAI.default({ apiKey: process.env.OPENAI_API_KEY });
+        const resp = await openai.chat.completions.create({
+            model: "gpt-4o-mini", max_tokens: maxTokens,
+            messages: [{ role: "system", content: system }, { role: "user", content: user }],
+        });
+        return resp.choices[0].message.content;
+    }
+    throw new Error("No AI key configured. Open http://localhost:" + (process.env.PORT || 3000) + "/settings and add an Anthropic or OpenAI key.");
+}
+
+function parseJson(raw) {
+    const cleaned = String(raw).trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    try { return JSON.parse(cleaned); }
+    catch (_) {
+        const m = cleaned.match(/[\[{][\s\S]*[\]}]/);
+        if (m) return JSON.parse(m[0]);
+        throw new Error("The AI returned an unexpected answer – please try again.");
+    }
+}
+
+// ── Step 1: interpret content + generate scene prompts ─────────────────────
 async function interpretContent({ mode, language, hook, quote, subtext, userPrompt, scenes, style }) {
-    const client    = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
     const langName  = LANGUAGES[language]?.name || "English";
     const styleMood = STYLE_DESCRIPTORS[style] || STYLE_DESCRIPTORS.cinematic;
 
     if (mode === "guided") {
+        // Text is supplied, so scene prompts are a nice-to-have: render with the quote as the prompt if no AI key / call fails
+        if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) return { hook, quote, subtext, scenePrompts: [] };
         // User has the text — Claude only generates the scene visual prompts
-        const resp = await client.messages.create({
-            model: "claude-sonnet-4-6", max_tokens: 700,
-            system: `You generate DALL-E 3 image prompts for a ${scenes}-scene vertical (9:16) short-form video.
+        let raw;
+        try { raw = await callLLM(
+            `You generate DALL-E 3 image prompts for a ${scenes}-scene vertical (9:16) short-form video.
 Visual style: ${styleMood}
 Rules:
 - Each prompt describes a single atmospheric, symbolic scene — NO text, NO readable words, NO borders, NO frames
@@ -104,21 +136,20 @@ Rules:
 - Vary compositions across scenes (wide, medium, close-up, aerial, etc.)
 - DALL-E SAFETY (critical): never mention weapons, battles, fighting, war, violence, blood, death, injuries, killing, or armies. Convey war/conflict themes through symbolism — cracked earth, storm clouds, lone figures at dusk, scattered petals, a single flame, divine light breaking through darkness.
 - Return ONLY a JSON array of exactly ${scenes} prompt strings: ["...", ...]`,
-            messages: [{ role: "user", content: `Create ${scenes} scene prompts for a video about:
+            `Create ${scenes} scene prompts for a video about:
 Hook: "${hook || ""}"
 Quote: "${quote || ""}"
 Subtext: "${subtext || ""}"
 Language context: ${langName}
-Make the scenes emotionally support the message.` }],
-        });
-        const raw = resp.content[0].text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-        return { hook, quote, subtext, scenePrompts: JSON.parse(raw) };
+Make the scenes emotionally support the message.`,
+            700
+        ); } catch (err) { console.log(`   ⚠️ Scene planning failed (${err.message}) – using the quote as image prompt`); return { hook, quote, subtext, scenePrompts: [] }; }
+        return { hook, quote, subtext, scenePrompts: parseJson(raw) };
 
     } else {
         // Prompt mode — Claude generates everything: hook, quote, subtext, scene prompts
-        const resp = await client.messages.create({
-            model: "claude-sonnet-4-6", max_tokens: 900,
-            system: `You are a creative director specializing in short-form social video content.
+        const raw = await callLLM(
+            `You are a creative director specializing in short-form social video content.
 Given a free-form description, produce a complete video concept.
 
 Target language: ${langName}
@@ -138,10 +169,10 @@ scenePrompts rules:
 - NO text, NO readable words, NO people faces, NO borders — pure atmosphere and symbolism
 - Exactly ${scenes} prompts, varied compositions
 - DALL-E SAFETY (critical): never mention weapons, battles, fighting, war, violence, blood, death, injuries, killing, or armies. Convey conflict/epic themes through symbolism — lone silhouette at sunset, storm clouds parting, divine golden light, cracked ancient earth, scattered lotus petals, a single flame in darkness, grand temple at twilight.`,
-            messages: [{ role: "user", content: userPrompt }],
-        });
-        const raw = resp.content[0].text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-        return JSON.parse(raw);
+            userPrompt,
+            900
+        );
+        return parseJson(raw);
     }
 }
 
@@ -196,6 +227,20 @@ async function generateDalleImage(prompt, destPath) {
             throw err;
         }
     }
+}
+
+// ── Step 2c: Pexels free stock photo (no AI image key needed) ──────────────
+async function fetchPexelsImage(query, destPath, sceneIdx = 0) {
+    const axios = require("axios");
+    const q = String(query || "nature").replace(/[^\w\s]/g, " ").split(/\s+/).slice(0, 6).join(" ");
+    const r = await axios.get("https://api.pexels.com/v1/search", {
+        params: { query: q, orientation: "portrait", per_page: 10 },
+        headers: { Authorization: process.env.PEXELS_API_KEY }, timeout: 20000,
+    });
+    const photos = r.data?.photos || [];
+    if (!photos.length) throw new Error(`No Pexels photo found for "${q}"`);
+    const photo = photos[sceneIdx % photos.length];
+    await downloadFile(photo.src.large2x || photo.src.original, destPath);
 }
 
 // ── Step 3: Sharp — composite text overlay ────────────────────────────────
@@ -318,6 +363,8 @@ function makeClip(imagePath, clipPath, duration, direction) {
 
 // ── Step 5: Concat clips + add music ──────────────────────────────────────
 function stitchVideo(clipPaths, musicEnabled, outputPath) {
+    const musicPath = musicEnabled ? pickMusic() : null;
+    musicEnabled = !!musicPath;
     if (clipPaths.length === 1 && !musicEnabled) {
         fs.copyFileSync(clipPaths[0], outputPath);
         return;
@@ -328,7 +375,6 @@ function stitchVideo(clipPaths, musicEnabled, outputPath) {
 
     let cmd;
     if (musicEnabled) {
-        const musicPath = pickMusic();
         cmd = [
             "ffmpeg -y",
             `-f concat -safe 0 -i "${listFile}"`,
@@ -374,7 +420,7 @@ async function generateStudioVideo({
     console.log(`\n🎬 Studio — ${mode} | ${language} | ${scenes} scenes | ${duration}s`);
 
     // 1. Interpret content
-    onProgress({ pct: 5, label: "Interpreting content with Claude..." });
+    onProgress({ pct: 5, label: "Planning your scenes..." });
     console.log("🔄 Step 1 — Interpreting content via Claude...");
     const content = await interpretContent({ mode, language, hook, quote, subtext, userPrompt, scenes, style });
     console.log(`   ✅ hook: "${(content.hook || "").slice(0, 50)}"`);
@@ -402,22 +448,21 @@ async function generateStudioVideo({
             fs.copyFileSync(localImages[i], imgPath);
         } else {
             const scenePrompt = content.scenePrompts?.[i] || content.quote || "cinematic landscape";
-            if (process.env.GEMINI_API_KEY) {
-                try {
-                    await generateGeminiImage(scenePrompt, imgPath);
-                    console.log(`   ✅ Gemini image generated`);
-                } catch (geminiErr) {
-                    console.log(`   ⚠️ Gemini failed (${geminiErr.message}) — trying DALL-E...`);
-                    onProgress({ pct: Math.round(imgPctStart + imgPctStep * i + imgPctStep * 0.5), label: `Scene ${i + 1}: Gemini failed, retrying with DALL-E...` });
-                    await generateDalleImage(scenePrompt, imgPath);
-                    console.log(`   ✅ DALL-E image generated`);
+            let made = false, lastErr = null;
+            const attempts = [];
+            if (process.env.GEMINI_API_KEY) attempts.push(["Gemini", () => generateGeminiImage(scenePrompt, imgPath)]);
+            if (process.env.OPENAI_API_KEY) attempts.push(["DALL-E", () => generateDalleImage(scenePrompt, imgPath)]);
+            if (process.env.PEXELS_API_KEY) attempts.push(["Pexels", () => fetchPexelsImage(scenePrompt.split(/[.,]/)[0], imgPath, i)]);
+            if (!attempts.length) throw new Error("No image source configured. Open /settings and add an OpenAI, Gemini or (free) Pexels key — or upload your own images.");
+            for (const [name, fn] of attempts) {
+                try { await fn(); made = true; console.log(`   ✅ ${name} image ready`); break; }
+                catch (err) {
+                    lastErr = err;
+                    console.log(`   ⚠️ ${name} failed (${err.message}) — trying next image source...`);
+                    onProgress({ pct: Math.round(imgPctStart + imgPctStep * i + imgPctStep * 0.5), label: `Scene ${i + 1}: ${name} failed, trying another source...` });
                 }
-            } else if (process.env.OPENAI_API_KEY) {
-                await generateDalleImage(scenePrompt, imgPath);
-                console.log(`   ✅ DALL-E image generated`);
-            } else {
-                throw new Error("No image API configured — set GEMINI_API_KEY or OPENAI_API_KEY");
             }
+            if (!made) throw new Error(`Could not create image for scene ${i + 1}: ${lastErr?.message}`);
         }
 
         if (i === 0) firstImgPath = imgPath;
@@ -448,7 +493,7 @@ async function generateStudioVideo({
     console.log("\n🔄 Stitching clips...");
     stitchVideo(clipPaths, music, videoPath);
     for (const cp of clipPaths) { try { fs.unlinkSync(cp); } catch (_) {} }
-    onProgress({ pct: 88, label: "Uploading to Cloudinary..." });
+    onProgress({ pct: 88, label: "Finishing..." });
 
     console.log("✅ Studio video complete!");
     return {

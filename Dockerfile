@@ -21,4 +21,5 @@ RUN mkdir -p output output/media
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+ENV HOST=0.0.0.0 NO_BROWSER=1
+CMD ["node", "src/app.js"]
