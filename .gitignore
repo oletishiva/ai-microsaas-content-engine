@@ -6,3 +6,6 @@ output/
 # Allow MP3s in music folder for background music
 !music/*.mp3
 .DS_Store
+
+# Sample videos shipped in the repo
+!demo/*.mp4
