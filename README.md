@@ -1,29 +1,52 @@
-# 🎬 AI Content Engine
+# 🎬 AI Content Studio
 
-A **Micro SaaS** that automatically generates short-form vertical videos (YouTube Shorts) from any topic — powered by OpenAI, ElevenLabs, Pexels, FFmpeg, and the YouTube Data API.
+**One click → a finished vertical video (Shorts / Reels / TikTok) with beautiful AI images, your text and music — and one click more to publish it.**
+Runs on **your own computer**. No monthly fee, no cloud account: your keys, your videos.
 
----
+## ⚡ Setup in 2 minutes
 
-## 🚀 How It Works
+You need [Node.js](https://nodejs.org) (LTS). Everything else — including **FFmpeg** — is installed for you.
 
-```
-Topic (text input)
-    │
-    ▼
-[1] OpenAI GPT-4o       → Generates a 60–90 sec video narration script
-    │
-    ▼
-[2] ElevenLabs TTS      → Converts script to MP3 voice narration
-    │
-    ▼
-[3] Pexels API          → Fetches portrait (9:16) first, landscape fallback
-    │
-    ▼
-[4] FFmpeg              → Crops to 9:16, assembles images + audio into vertical MP4
-    │
-    ▼
-[5] YouTube Data API    → Uploads the finished video to YouTube
-```
+| | |
+|---|---|
+| **Windows** | double-click **`setup.bat`** |
+| **Mac / Linux** | run `./setup.sh` in this folder |
+
+Your browser opens on a **Setup page**. Paste **one** key and click *Save* — you're done:
+
+* **OpenAI key** → script + AI images (easiest), **or**
+* **Anthropic key** → smarter scripts (images from OpenAI/Gemini), **or**
+* **Pexels key** (free) → real stock photos, or upload your own pictures in the Studio.
+
+Next time just double-click **`start.bat`** (Windows) / **`start.command`** (Mac) or run `./start.sh`.
+Something odd? Run `npm run doctor` — it checks Node, FFmpeg, fonts and renders a real test video.
+
+## 🎥 Make a video (one click)
+
+1. Open the **Studio** (`/studio`). Pick language (English, Telugu, Hindi, Tamil, Kannada), style, scenes, length.
+2. Type a **quote / hook**, or describe the video in **Prompt mode** and the AI writes everything.
+3. Click **Generate**. Then **Play** or **Download** the MP4 (also saved in `./output`).
+
+## 🚀 One-click publish (optional)
+
+Tick **YouTube / Instagram / Facebook** before generating and the video is posted automatically.
+
+* **YouTube** – add a Google OAuth client ID/secret on the Setup page (it shows the exact redirect URL for Google Cloud Console), then click **Connect YouTube** in the Studio once.
+* **Instagram / Facebook** – add Meta app ID/secret and a free Cloudinary account (Meta needs a public video link), then **Connect Meta**.
+
+No publish keys? Download the MP4 and upload it yourself.
+
+## 🔒 Privacy
+
+* The server listens on `localhost` only, and the Setup page only works from the computer running the app.
+* Keys live in a local `.env` file (never uploaded, git-ignored).
+
+## 🧰 Advanced
+
+* `PORT`, `HOST` – change where it listens. Docker / Railway: see the Dockerfile (`HOST=0.0.0.0`).
+* Sample videos (English, Telugu, Hindi, Tamil) are in `demo/`; regenerate with `node scripts/make-demos.js`.
+* The older multi-channel dashboard (Affirmations / Mahabharat / Sameta + schedulers) is at `/classic`.
+* The original developer docs follow below.
 
 ---
 

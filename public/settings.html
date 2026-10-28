@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Setup – AI Content Studio</title>
+<style>
+  :root{--bg:#0b0b10;--card:#1a1a22;--border:rgba(255,255,255,.08);--text:#e8e8f2;--muted:#8a8ab0;--accent:#7c3aed;--ok:#34d399;--bad:#f87171}
+  @media (prefers-color-scheme: light){:root{--bg:#f6f6fb;--card:#fff;--border:rgba(0,0,0,.1);--text:#16162a;--muted:#5d5d80}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+  main{max-width:720px;margin:0 auto;padding:32px 16px 80px}
+  h1{font-size:1.6rem;margin:0 0 4px} h2{font-size:1.05rem;margin:28px 0 10px}
+  p.sub{color:var(--muted);margin:0 0 20px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px}
+  label{display:block;font-weight:600;font-size:.88rem;margin-bottom:4px}
+  .help{color:var(--muted);font-size:.78rem;margin:4px 0 0}
+  .row{display:flex;gap:8px;align-items:center}
+  input{flex:1;min-width:0;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font:inherit}
+  button{padding:10px 16px;border-radius:8px;border:0;background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+  button.ghost{background:transparent;border:1px solid var(--border);color:var(--text);font-weight:500;padding:8px 12px}
+  button:disabled{opacity:.5;cursor:wait}
+  .tag{font-size:.72rem;padding:2px 8px;border-radius:99px;border:1px solid var(--border);color:var(--muted);white-space:nowrap}
+  .tag.set{color:var(--ok);border-color:var(--ok)}
+  .res{font-size:.8rem;margin-top:6px;min-height:1em}.res.ok{color:var(--ok)}.res.bad{color:var(--bad)}
+  details{margin-top:8px} summary{cursor:pointer;color:var(--muted)}
+  code{background:rgba(124,58,237,.15);padding:1px 6px;border-radius:4px;font-size:.82rem;user-select:all}
+  .actions{position:sticky;bottom:0;background:var(--bg);padding:14px 0;display:flex;gap:10px;align-items:center}
+  a{color:#a78bfa}
+</style>
+</head>
+<body>
+<main>
+  <h1>🎬 Set up AI Content Studio</h1>
+  <p class="sub">You need <b>one</b> key to make your first video. Everything stays on this computer – keys are saved in the <code>.env</code> file next to the app.</p>
+
+  <h2>1 · Create videos <span class="tag" id="aiTag">needs 1 key</span></h2>
+  <div id="ai"></div>
+  <p class="help">Fastest start: just an <b>OpenAI</b> key (script + images). Or a <b>Pexels</b> key (free) for stock photos, or upload your own images in the Studio.</p>
+
+  <h2>2 · One-click publish <span class="tag">optional</span></h2>
+  <p class="help">Skip this now – you can always download the MP4 and upload it yourself. Add it later whenever you like.</p>
+  <details class="card"><summary>YouTube &amp; Instagram/Facebook keys</summary>
+    <p class="help">YouTube redirect URI to add in Google Cloud: <code id="redir"></code></p>
+    <div id="publish" style="margin-top:12px"></div>
+  </details>
+
+  <div class="actions">
+    <button id="save">Save &amp; open Studio</button>
+    <span id="msg" class="help"></span>
+  </div>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const TEST = { ANTHROPIC_API_KEY: 'anthropic', OPENAI_API_KEY: 'openai', GEMINI_API_KEY: 'gemini', PEXELS_API_KEY: 'pexels' };
+let fields = [];
+
+function el(f) {
+  const d = document.createElement('div'); d.className = 'card';
+  d.innerHTML = `<label for="${f.key}">${f.label} <span class="tag ${f.set ? 'set' : ''}">${f.set ? 'saved ' + (f.preview || '') : 'not set'}</span></label>
+    <div class="row"><input id="${f.key}" type="password" autocomplete="off" spellcheck="false" placeholder="${f.set ? 'Leave blank to keep current key' : 'Paste key here'}">
+    ${TEST[f.key] ? '<button class="ghost" data-test="' + f.key + '">Test</button>' : ''}</div>
+    ${f.help ? '<p class="help">' + f.help.replace(/(https?:\/\/\S+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>') + '</p>' : ''}
+    <div class="res" id="r_${f.key}"></div>`;
+  return d;
+}
+
+async function load() {
+  const r = await fetch('/api/settings');
+  if (!r.ok) { $('#msg').textContent = (await r.json()).error; return; }
+  const d = await r.json(); fields = d.fields;
+  $('#redir').textContent = d.youtubeRedirectUri;
+  $('#ai').innerHTML = ''; $('#publish').innerHTML = '';
+  fields.forEach(f => (f.group === 'ai' ? $('#ai') : $('#publish')).appendChild(el(f)));
+  const ready = d.configured || fields.some(f => f.key === 'PEXELS_API_KEY' && f.set);
+  $('#aiTag').textContent = ready ? 'ready ✓' : 'needs 1 key'; $('#aiTag').className = 'tag' + (ready ? ' set' : '');
+}
+
+async function save() {
+  const values = {}; fields.forEach(f => { const v = document.getElementById(f.key).value; if (v.trim()) values[f.key] = v; });
+  const btn = $('#save'); btn.disabled = true; $('#msg').textContent = 'Saving…';
+  const r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ values }) });
+  const d = await r.json();
+  if (!r.ok) { btn.disabled = false; $('#msg').textContent = d.error || 'Failed'; return; }
+  if (d.restarting) { $('#msg').textContent = 'Restarting…'; await new Promise(res => setTimeout(res, 1200));
+    for (let i = 0; i < 30; i++) { try { if ((await fetch('/health')).ok) break; } catch (_) {} await new Promise(res => setTimeout(res, 500)); } }
+  location.href = '/studio';
+}
+
+document.addEventListener('click', async (e) => {
+  const k = e.target.dataset && e.target.dataset.test; if (!k) return;
+  const out = document.getElementById('r_' + k), v = document.getElementById(k).value.trim();
+  e.target.disabled = true; out.className = 'res'; out.textContent = 'Testing…';
+  // test the typed key: save it first (blank = use already saved key)
+  if (v) await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ values: { [k]: v }, noRestart: true }) });
+  const r = await (await fetch('/api/settings/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ service: TEST[k] }) })).json();
+  out.className = 'res ' + (r.ok ? 'ok' : 'bad'); out.textContent = r.ok ? '✓ Key works' : '✗ ' + r.error; e.target.disabled = false;
+});
+$('#save').onclick = save; load();
+</script>
+</body>
+</html>

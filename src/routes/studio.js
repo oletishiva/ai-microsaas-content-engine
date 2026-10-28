@@ -34,8 +34,8 @@ const { uploadToYouTube }         = require("../services/youtubeUploader");
 const { publishInstagramReel, publishFacebookVideo } = require("../services/metaPublisher");
 const apiKeys = require("../../config/apiKeys");
 
-const META_TOKEN_FILE   = path.join(__dirname, "../../../output/.meta_tokens.json");
-const STUDIO_TOKEN_FILE = path.join(__dirname, "../../../output/.youtube_user_token");
+const META_TOKEN_FILE   = path.join(require("../../config/paths").OUTPUT_DIR, ".meta_tokens.json");
+const STUDIO_TOKEN_FILE = path.join(require("../../config/paths").OUTPUT_DIR, ".youtube_user_token");
 
 // Load YouTube refresh token: session → file → env var (in that priority order)
 function loadYouTubeToken(session) {
@@ -171,8 +171,14 @@ router.post(
                 }
             }
 
-            for (const f of [imagePath, compositeImagePath]) {
-                try { if (f) fs.unlinkSync(f); } catch (_) {}
+            // Without Cloudinary the files stay in ./output and are served from /output
+            const localUrl = (f) => (f && fs.existsSync(f) ? `/output/${path.basename(f)}` : null);
+            if (!imageUrl) imageUrl = localUrl(imagePath);
+            if (!compositeImageUrl) compositeImageUrl = localUrl(compositeImagePath);
+            if (apiKeys.hasCloudinaryConfig) {
+                for (const f of [imagePath, compositeImagePath]) {
+                    try { if (f) fs.unlinkSync(f); } catch (_) {}
+                }
             }
             for (const f of tempFiles) {
                 try { if (fs.existsSync(f)) fs.unlinkSync(f); } catch (_) {}
@@ -234,7 +240,8 @@ router.post(
                 }
             }
 
-            if (videoUrl || youtubeUrl) {
+            // Local-first: the MP4 stays in ./output (served at /output) unless it was moved to Cloudinary.
+            if (videoUrl) {
                 try { fs.unlinkSync(videoPath); } catch (_) {}
             }
 
@@ -245,7 +252,7 @@ router.post(
                 quote:            result.quote,
                 subtext:          result.subtext,
                 language:         result.language,
-                videoUrl:         videoUrl || videoPath,
+                videoUrl:         videoUrl || localUrl(videoPath),
                 imageUrl,
                 compositeImageUrl,
                 youtubeUrl,

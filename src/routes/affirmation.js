@@ -26,8 +26,8 @@ const { uploadToYouTube }                               = require("../services/y
 const { publishInstagramReel, publishFacebookVideo }    = require("../services/metaPublisher");
 const apiKeys = require("../../config/apiKeys");
 
-const TOKEN_FILE_AFF  = path.join(__dirname, "../../../output/.youtube_affirmation_token");
-const META_TOKEN_FILE = path.join(__dirname, "../../../output/.meta_tokens.json");
+const TOKEN_FILE_AFF  = path.join(require("../../config/paths").OUTPUT_DIR, ".youtube_affirmation_token");
+const META_TOKEN_FILE = path.join(require("../../config/paths").OUTPUT_DIR, ".meta_tokens.json");
 
 function loadAffYtToken() {
     try { return fs.readFileSync(TOKEN_FILE_AFF, "utf8").trim() || null; } catch (_) { return null; }

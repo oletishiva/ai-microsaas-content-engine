@@ -1,15 +1,18 @@
 {
-  "name": "ai-microsaas-content-engine",
+  "name": "ai-content-studio",
   "version": "1.0.0",
-  "description": "AI Micro SaaS – Auto-generates short-form vertical videos using OpenAI, ElevenLabs, Pexels, FFmpeg and uploads to YouTube.",
+  "description": "One-click AI short-video studio: script, images, captions, voice-free Ken Burns video and one-click publish to YouTube/Instagram/Facebook. Runs locally.",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app.js",
+    "start": "node scripts/start.js",
     "dev": "nodemon src/app.js",
     "youtube:auth": "node scripts/get-youtube-refresh-token.js",
     "youtube:test": "node scripts/test-youtube-upload.js",
     "youtube:verify": "node scripts/verify-youtube-token.js",
-    "test:ffmpeg": "node scripts/test-ffmpeg-pipeline.js"
+    "test:ffmpeg": "node scripts/test-ffmpeg-pipeline.js",
+    "setup": "npm install && node scripts/doctor.js",
+    "doctor": "node scripts/doctor.js",
+    "server": "node src/app.js"
   },
   "keywords": [
     "ai",
@@ -24,11 +27,14 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
+    "@google/genai": "^2.31.0",
     "axios": "^1.6.8",
     "cloudinary": "^2.9.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-session": "^1.19.0",
+    "ffmpeg-static": "^5.3.0",
+    "ffprobe-static": "^3.1.0",
     "fluent-ffmpeg": "^2.1.2",
     "form-data": "^4.0.0",
     "googleapis": "^140.0.1",
@@ -39,5 +45,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
